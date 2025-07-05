@@ -1,122 +1,425 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const TreinoApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class TreinoApp extends StatelessWidget {
+  const TreinoApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Treino App - Teste de Conectividade',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        primarySwatch: Colors.blue,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+        ),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const ConnectivityTestScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class ConnectivityTestScreen extends StatefulWidget {
+  const ConnectivityTestScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<ConnectivityTestScreen> createState() => _ConnectivityTestScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _ConnectivityTestScreenState extends State<ConnectivityTestScreen> {
+  // 🔧 CONFIGURE SUA URL AQUI
+  static const String baseUrl = 'http://192.168.18.48:8000/api';
+  // Para Android Emulator: 'http://10.0.2.2:8000/api'
+  // Para dispositivo físico: 'http://SEU_IP:8000/api'
+  
+  static const Map<String, String> headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
-  void _incrementCounter() {
+  String _log = '📱 App iniciado!\n\n';
+  bool _isTesting = false;
+
+  void _addLog(String message) {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _log += '$message\n';
     });
+    print(message);
+  }
+
+  void _clearLog() {
+    setState(() {
+      _log = '📱 Log limpo!\n\n';
+    });
+  }
+
+  Future<void> _testFullConnection() async {
+    if (_isTesting) return;
+    
+    setState(() {
+      _isTesting = true;
+    });
+
+    _addLog('🚀 INICIANDO TESTE COMPLETO...\n');
+
+    // 1. Testar status
+    await _testEndpoint('GET', '$baseUrl/status', 'Status da API');
+    
+    // 2. Testar health
+    await _testEndpoint('GET', '$baseUrl/health', 'Health Check');
+    
+    // 3. Testar registro
+    await _testUserRegistration();
+    
+    // 4. Testar login básico
+    await _testUserLogin();
+
+    _addLog('\n✅ TESTE COMPLETO FINALIZADO!');
+    
+    setState(() {
+      _isTesting = false;
+    });
+  }
+
+  Future<void> _testEndpoint(String method, String url, String description) async {
+    _addLog('\n🔍 Testando $description...');
+    
+    try {
+      http.Response response;
+      
+      if (method == 'GET') {
+        response = await http.get(
+          Uri.parse(url),
+          headers: headers,
+        ).timeout(const Duration(seconds: 10));
+      } else {
+        response = await http.post(
+          Uri.parse(url),
+          headers: headers,
+        ).timeout(const Duration(seconds: 10));
+      }
+
+      _addLog('📊 Status: ${response.statusCode}');
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        _addLog('✅ $description OK!');
+        
+        try {
+          final data = jsonDecode(response.body);
+          if (data['message'] != null) {
+            _addLog('   💬 ${data['message']}');
+          }
+          if (data['status'] != null) {
+            _addLog('   📊 Status: ${data['status']}');
+          }
+        } catch (e) {
+          _addLog('   📄 Response: ${response.body.substring(0, response.body.length > 50 ? 50 : response.body.length)}...');
+        }
+        
+      } else if (response.statusCode == 401) {
+        _addLog('🔒 Endpoint protegido (401) - OK!');
+        
+      } else if (response.statusCode == 404) {
+        _addLog('❌ Endpoint não encontrado (404)');
+        _addLog('   💡 Verifique se a rota existe no Laravel');
+        
+      } else {
+        _addLog('⚠️ Status inesperado: ${response.statusCode}');
+        _addLog('   📄 Response: ${response.body}');
+      }
+      
+    } catch (e) {
+      _addLog('❌ Erro: $e');
+      
+      if (e.toString().contains('timeout')) {
+        _addLog('   ⏱️ Timeout - API pode estar offline');
+      } else if (e.toString().contains('Connection refused')) {
+        _addLog('   🚫 Conexão recusada - Laravel não está rodando?');
+      } else if (e.toString().contains('SocketException')) {
+        _addLog('   🌐 Erro de rede - verifique URL');
+      }
+    }
+  }
+
+  Future<void> _testUserRegistration() async {
+    _addLog('\n👤 Testando registro de usuário...');
+    
+    final testUser = {
+      'name': 'Teste User ${DateTime.now().millisecondsSinceEpoch}',
+      'email': 'teste${DateTime.now().millisecondsSinceEpoch}@test.com',
+      'password': 'teste123456',
+      'password_confirmation': 'teste123456',
+    };
+    
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/register'),
+        headers: headers,
+        body: jsonEncode(testUser),
+      ).timeout(const Duration(seconds: 15));
+
+      _addLog('📊 Status: ${response.statusCode}');
+      
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        _addLog('✅ Registro bem-sucedido!');
+        _addLog('   👤 Nome: ${data['data']?['user']?['name']}');
+        _addLog('   📧 Email: ${data['data']?['user']?['email']}');
+        _addLog('   🔑 Token: ${data['data']?['token'] != null ? 'Presente' : 'Ausente'}');
+        
+      } else if (response.statusCode == 422) {
+        final data = jsonDecode(response.body);
+        _addLog('⚠️ Erro de validação:');
+        _addLog('   💬 ${data['message'] ?? 'Dados inválidos'}');
+        if (data['errors'] != null) {
+          data['errors'].forEach((key, value) {
+            _addLog('   🔸 $key: ${value.join(', ')}');
+          });
+        }
+      } else {
+        _addLog('❌ Erro ${response.statusCode}');
+        _addLog('   📄 ${response.body}');
+      }
+      
+    } catch (e) {
+      _addLog('❌ Erro na conexão: $e');
+    }
+  }
+
+  Future<void> _testUserLogin() async {
+    _addLog('\n🔐 Testando login...');
+    
+    final loginData = {
+      'email': 'admin@test.com', // Mude para um usuário que existe
+      'password': 'password',
+    };
+    
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/login'),
+        headers: headers,
+        body: jsonEncode(loginData),
+      ).timeout(const Duration(seconds: 15));
+
+      _addLog('📊 Status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _addLog('✅ Login bem-sucedido!');
+        _addLog('   👤 Usuário: ${data['data']?['user']?['name']}');
+        _addLog('   💎 Premium: ${data['data']?['user']?['is_premium']}');
+        
+      } else if (response.statusCode == 422) {
+        _addLog('⚠️ Credenciais inválidas (esperado se usuário não existe)');
+        
+      } else {
+        _addLog('❌ Erro ${response.statusCode}');
+        _addLog('   📄 ${response.body}');
+      }
+      
+    } catch (e) {
+      _addLog('❌ Erro na conexão: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('🔧 Teste Flutter ↔ Laravel'),
+        actions: [
+          IconButton(
+            onPressed: _clearLog,
+            icon: const Icon(Icons.clear),
+            tooltip: 'Limpar log',
+          ),
+        ],
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      body: Column(
+        children: [
+          // ========================================
+          // INSTRUÇÕES
+          // ========================================
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              border: Border(
+                bottom: BorderSide(color: Colors.blue[200]!),
+              ),
             ),
-          ],
-        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '📋 INSTRUÇÕES:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[700],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '1. Configure a URL no código (linha 15)',
+                  style: TextStyle(color: Colors.blue[600]),
+                ),
+                Text(
+                  '2. Inicie o Laravel: php artisan serve',
+                  style: TextStyle(color: Colors.blue[600]),
+                ),
+                Text(
+                  '3. Pressione "Teste Completo"',
+                  style: TextStyle(color: Colors.blue[600]),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'URL atual: $baseUrl',
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // ========================================
+          // BOTÕES DE TESTE
+          // ========================================
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _isTesting ? null : _testFullConnection,
+                        icon: _isTesting 
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.play_arrow),
+                        label: Text(_isTesting ? 'Testando...' : 'Teste Completo'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 12),
+                    
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _isTesting ? null : () async {
+                          _addLog('\n🔍 Testando apenas status...');
+                          await _testEndpoint('GET', '$baseUrl/status', 'Status');
+                        },
+                        icon: const Icon(Icons.api),
+                        label: const Text('Só Status'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 8),
+                
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _isTesting ? null : () async {
+                          _addLog('\n👤 Testando só registro...');
+                          await _testUserRegistration();
+                        },
+                        icon: const Icon(Icons.person_add),
+                        label: const Text('Só Registro'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purple,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 12),
+                    
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _isTesting ? null : () async {
+                          _addLog('\n🔐 Testando só login...');
+                          await _testUserLogin();
+                        },
+                        icon: const Icon(Icons.login),
+                        label: const Text('Só Login'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // ========================================
+          // LOG DE RESULTADOS
+          // ========================================
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[700]!),
+              ),
+              child: SingleChildScrollView(
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Text(
+                    _log,
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }

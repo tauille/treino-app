@@ -1,0 +1,94 @@
+class GoogleConfig {
+  // 🔑 Web Client ID do Google Cloud Console
+  // IMPORTANTE: Substitua pelo seu Web Client ID real
+  static const String webClientId = 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com';
+  
+  // 📱 Android Client ID (opcional, para verificações extras)
+  static const String androidClientId = 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com';
+  
+  // 🍎 iOS Client ID (opcional, para verificações extras)
+  static const String iosClientId = 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com';
+  
+  // 🔒 Scopes necessários
+  static const List<String> scopes = [
+    'email',
+    'profile',
+  ];
+  
+  // 🌐 URL de redirecionamento (para web)
+  static const String redirectUrl = 'http://localhost:8000/auth/google/callback';
+  
+  // 🛠️ Configurações de desenvolvimento
+  static const bool enableDebugLogs = true;
+  
+  // 📋 Instruções de configuração
+  static const String setupInstructions = '''
+📋 COMO CONFIGURAR GOOGLE SIGN IN:
+
+1️⃣ Vá para Google Cloud Console:
+   https://console.cloud.google.com/
+
+2️⃣ Crie ou selecione um projeto
+
+3️⃣ Ative a API Google+ API ou Google Sign-In API
+
+4️⃣ Vá em "Credenciais" > "Criar credenciais" > "ID do cliente OAuth 2.0"
+
+5️⃣ Configure os tipos de aplicativo:
+   - Web application
+   - Android
+   - iOS (se necessário)
+
+6️⃣ Para WEB CLIENT ID:
+   - Origens JavaScript autorizadas: http://localhost:8000
+   - URIs de redirecionamento: http://localhost:8000/auth/google/callback
+
+7️⃣ Para ANDROID:
+   - Nome do pacote: com.example.treino_app (ou seu package name)
+   - Impressão digital do certificado SHA-1:
+     Execute: keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+
+8️⃣ Copie o Web Client ID e cole em webClientId acima
+
+9️⃣ Configure seu Laravel:
+   - Adicione rota /api/auth/google
+   - Valide token Google
+   - Retorne token Sanctum
+
+🔟 Teste a integração!
+  ''';
+  
+  // ✅ Verificar se está configurado
+  static bool get isConfigured {
+    return webClientId.isNotEmpty && 
+           webClientId != 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com';
+  }
+  
+  // 🔍 Obter informações de configuração
+  static Map<String, dynamic> get configInfo {
+    return {
+      'web_client_id': webClientId,
+      'android_client_id': androidClientId,
+      'ios_client_id': iosClientId,
+      'is_configured': isConfigured,
+      'scopes': scopes,
+      'redirect_url': redirectUrl,
+      'debug_enabled': enableDebugLogs,
+    };
+  }
+  
+  // 📝 Log de configuração
+  static void printConfigInfo() {
+    if (enableDebugLogs) {
+      print('🔧 Google Config Info:');
+      print('   Web Client ID: ${isConfigured ? 'Configurado ✅' : 'NÃO CONFIGURADO ❌'}');
+      print('   Scopes: ${scopes.join(', ')}');
+      print('   Debug: $enableDebugLogs');
+      
+      if (!isConfigured) {
+        print('⚠️  ATENÇÃO: Configure o Web Client ID!');
+        print(setupInstructions);
+      }
+    }
+  }
+}
