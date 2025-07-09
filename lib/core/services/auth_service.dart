@@ -9,7 +9,7 @@ import 'storage_service.dart';
 
 class AuthService {
   // 🔧 Configure sua URL base aqui
-  static const String baseUrl = 'http://localhost:8000/api';
+  static const String baseUrl = 'http://10.125.135.38:8000/api';
   // Para Android Emulator: 'http://10.0.2.2:8000/api'
   // Para dispositivo físico: 'http://SEU_IP:8000/api'
   

@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
-import 'login_screen.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import '../../providers/auth_provider_google.dart';
+import '../../core/services/google_auth_service.dart';
+import 'google_login_screen.dart';
 import '../home/home_screen.dart';
 import '../onboarding/welcome_screen.dart';
 
+/// Wrapper que gerencia o estado de autenticação
+/// Decide qual tela mostrar baseado no status do usuário
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
@@ -12,155 +18,363 @@ class AuthWrapper extends StatefulWidget {
   State<AuthWrapper> createState() => _AuthWrapperState();
 }
 
-class _AuthWrapperState extends State<AuthWrapper> {
+class _AuthWrapperState extends State<AuthWrapper> 
+    with TickerProviderStateMixin {
+  
+  // ===== CONTROLLERS =====
+  late AnimationController _logoController;
+  late AnimationController _fadeController;
+  late Animation<double> _logoAnimation;
+  late Animation<double> _fadeAnimation;
+  
+  // ===== ESTADO =====
+  bool _isInitializing = true;
+  bool _hasError = false;
+  String _statusMessage = 'Iniciando...';
+
   @override
   void initState() {
     super.initState();
     
-    // Inicializar o AuthProvider
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<AuthProvider>(context, listen: false).initialize();
-    });
+    // Configurar status bar
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
+    
+    _setupAnimations();
+    _initializeApp();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        print('🔍 AuthWrapper State: ${authProvider.state}');
-        print('🔍 Authenticated: ${authProvider.isAuthenticated}');
-        
-        switch (authProvider.state) {
-          case AuthState.initial:
-          case AuthState.loading:
-            return _buildLoadingScreen();
-            
-          case AuthState.authenticated:
-            return const HomeScreen();
-            
-          case AuthState.unauthenticated:
-          case AuthState.error:
-            // Verificar se é primeira vez abrindo o app
-            return _buildUnauthenticatedFlow();
-        }
-      },
-    );
+  void dispose() {
+    _logoController.dispose();
+    _fadeController.dispose();
+    super.dispose();
   }
 
-  Widget _buildLoadingScreen() {
+  /// Configurar animações
+  void _setupAnimations() {
+    _logoController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _logoAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _logoController,
+      curve: Curves.elasticOut,
+    ));
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    ));
+    
+    // Iniciar animações
+    _logoController.forward();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) _fadeController.forward();
+    });
+  }
+
+  /// Inicializar aplicação
+  Future<void> _initializeApp() async {
+    final authProvider = Provider.of<AuthProviderGoogle>(context, listen: false);
+    
+    try {
+      // 1. VERIFICAR CONECTIVIDADE
+      await _checkConnectivity();
+      
+      // 2. INICIALIZAR GOOGLE AUTH SERVICE
+      _updateStatus('Configurando autenticação...');
+      await GoogleAuthService().initialize();
+      
+      // 3. VERIFICAR SE JÁ ESTÁ LOGADO
+      _updateStatus('Verificando login...');
+      await authProvider.checkAuthStatus();
+      
+      // 4. AGUARDAR ANIMAÇÕES
+      await Future.delayed(const Duration(milliseconds: 1500));
+      
+      // 5. FINALIZAR INICIALIZAÇÃO
+      setState(() {
+        _isInitializing = false;
+      });
+      
+    } catch (e) {
+      _handleError('Erro na inicialização: $e');
+    }
+  }
+
+  /// Verificar conectividade
+  Future<void> _checkConnectivity() async {
+    _updateStatus('Verificando conexão...');
+    
+    final connectivityResult = await Connectivity().checkConnectivity();
+    
+    if (connectivityResult == ConnectivityResult.none) {
+      throw Exception('Sem conexão com a internet');
+    }
+  }
+
+  /// Atualizar status
+  void _updateStatus(String message) {
+    if (mounted) {
+      setState(() {
+        _statusMessage = message;
+        _hasError = false;
+      });
+    }
+  }
+
+  /// Tratar erro
+  void _handleError(String error) {
+    if (mounted) {
+      setState(() {
+        _statusMessage = error;
+        _hasError = true;
+      });
+      
+      // Mostrar botão retry após 3 segundos
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  /// Tentar novamente
+  void _retry() {
+    setState(() {
+      _statusMessage = 'Tentando novamente...';
+      _hasError = false;
+      _isInitializing = true;
+    });
+    _initializeApp();
+  }
+
+  /// Widget de splash/loading
+  Widget _buildSplashScreen() {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.blue[600],
-                borderRadius: BorderRadius.circular(25),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF667eea),
+              Color(0xFF764ba2),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // ===== LOGO ÁREA =====
+              Expanded(
+                flex: 3,
+                child: Center(
+                  child: AnimatedBuilder(
+                    animation: _logoAnimation,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _logoAnimation.value,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // LOGO/ÍCONE
+                            Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(30),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.fitness_center,
+                                size: 60,
+                                color: Color(0xFF667eea),
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // NOME DO APP
+                            const Text(
+                              'Treino App',
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 8),
+                            
+                            // SUBTÍTULO
+                            Text(
+                              'Treinos Personalizados',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white.withOpacity(0.8),
+                                fontWeight: FontWeight.w300,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
-              child: const Icon(
-                Icons.fitness_center,
-                size: 50,
-                color: Colors.white,
+              
+              // ===== STATUS ÁREA =====
+              Expanded(
+                flex: 1,
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (!_hasError) ...[
+                        // LOADING
+                        const SpinKitFadingCube(
+                          color: Colors.white,
+                          size: 40.0,
+                        ),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // MENSAGEM STATUS
+                        Text(
+                          _statusMessage,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white.withOpacity(0.9),
+                            fontWeight: FontWeight.w400,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ] else ...[
+                        // ERRO
+                        Icon(
+                          Icons.error_outline,
+                          color: Colors.white.withOpacity(0.8),
+                          size: 48,
+                        ),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // MENSAGEM ERRO
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            _statusMessage,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                              fontWeight: FontWeight.w400,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // BOTÃO RETRY
+                        ElevatedButton(
+                          onPressed: _retry,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF667eea),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                          child: const Text(
+                            'Tentar Novamente',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Nome do app
-            Text(
-              'Treino App',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
+              
+              // ===== VERSÃO =====
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  'v1.0.0',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.6),
+                  ),
+                ),
               ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Loading indicator
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            Text(
-              'Carregando...',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildUnauthenticatedFlow() {
-    return FutureBuilder<bool>(
-      future: _isFirstTime(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return _buildLoadingScreen();
+  @override
+  Widget build(BuildContext context) {
+    if (_isInitializing) {
+      return _buildSplashScreen();
+    }
+
+    return Consumer<AuthProviderGoogle>(
+      builder: (context, authProvider, child) {
+        // ===== LOADING STATE =====
+        if (authProvider.isLoading) {
+          return _buildSplashScreen();
         }
-        
-        final isFirstTime = snapshot.data ?? true;
-        
-        if (isFirstTime) {
-          // Primeira vez - mostrar welcome/onboarding
+
+        // ===== AUTHENTICATED =====
+        if (authProvider.isAuthenticated && authProvider.user != null) {
+          final user = authProvider.user!;
+          
+          // Se usuário tem acesso (premium ou trial válido)
+          if (user.hasAccess) {
+            return const HomeScreen();
+          }
+          
+          // Se trial expirou - mostrar welcome com upgrade
           return const WelcomeScreen();
-        } else {
-          // Não é primeira vez - ir direto para login
-          return const LoginScreen();
         }
+
+        // ===== NOT AUTHENTICATED =====
+        return const GoogleLoginScreen();
       },
     );
-  }
-
-  Future<bool> _isFirstTime() async {
-    // Verificar se é primeira vez usando o mesmo sistema do trial
-    final trialService = Provider.of<AuthProvider>(context, listen: false);
-    
-    // Se tem dados salvos de usuário, não é primeira vez
-    final user = await Provider.of<AuthProvider>(context, listen: false);
-    
-    // Por simplicidade, vamos usar uma lógica básica:
-    // Se nunca fez login antes, é primeira vez
-    return true; // Por enquanto sempre mostra welcome
-  }
-}
-
-// Widget para facilitar navegação programática
-class AuthNavigator {
-  static void navigateToLogin(BuildContext context) {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) => false,
-    );
-  }
-
-  static void navigateToHome(BuildContext context) {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-      (route) => false,
-    );
-  }
-
-  static void navigateToWelcome(BuildContext context) {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-      (route) => false,
-    );
-  }
-
-  static Future<void> logout(BuildContext context) async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.logout();
-    
-    if (context.mounted) {
-      navigateToLogin(context);
-    }
   }
 }

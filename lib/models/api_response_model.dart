@@ -1,189 +1,174 @@
-// lib/models/api_response_model.dart
-
-/// Modelo padrão para respostas da API Laravel
-class ApiResponse<T> {
+/// Modelo para padronizar respostas da API Laravel
+class ApiResponseModel<T> {
   final bool success;
   final String message;
   final T? data;
   final Map<String, dynamic>? errors;
-  final int? statusCode;
+  final Map<String, dynamic>? meta;
 
-  ApiResponse({
+  ApiResponseModel({
     required this.success,
     required this.message,
     this.data,
     this.errors,
-    this.statusCode,
+    this.meta,
   });
 
-  // ✅ ADICIONANDO OS CONSTRUCTORS QUE ESTAVAM FALTANDO
-
-  /// Constructor para resposta de sucesso
-  factory ApiResponse.success({
-    T? data,
-    required String message,
-    int? statusCode,
+  /// Criar ApiResponseModel a partir do JSON da API
+  factory ApiResponseModel.fromJson(
+    Map<String, dynamic> json, {
+    T Function(dynamic)? dataParser,
   }) {
-    return ApiResponse<T>(
-      success: true,
-      message: message,
-      data: data,
-      statusCode: statusCode,
-    );
-  }
-
-  /// Constructor para resposta de erro
-  factory ApiResponse.error({
-    required String message,
-    Map<String, dynamic>? errors,
-    int? statusCode,
-  }) {
-    return ApiResponse<T>(
-      success: false,
-      message: message,
-      errors: errors,
-      statusCode: statusCode,
-    );
-  }
-
-  // ✅ MANTENDO TODA A FUNCIONALIDADE EXISTENTE
-
-  /// Cria ApiResponse a partir do JSON da API Laravel
-  factory ApiResponse.fromJson(
-    Map<String, dynamic> json, 
-    T Function(dynamic)? fromJsonT
-  ) {
-    return ApiResponse<T>(
+    return ApiResponseModel<T>(
       success: json['success'] ?? false,
       message: json['message'] ?? '',
-      data: json['data'] != null && fromJsonT != null 
-          ? fromJsonT(json['data']) 
+      data: json['data'] != null && dataParser != null 
+          ? dataParser(json['data']) 
           : json['data'],
-      errors: json['errors']?.cast<String, dynamic>(),
-      statusCode: json['status_code'],
+      errors: json['errors'],
+      meta: json['meta'],
     );
   }
 
-  /// Converte para JSON
+  /// Converter para JSON
   Map<String, dynamic> toJson() {
     return {
       'success': success,
       'message': message,
       'data': data,
       'errors': errors,
-      'status_code': statusCode,
+      'meta': meta,
     };
   }
 
-  /// Verifica se é uma resposta de sucesso
-  bool get isSuccess => success == true;
+  /// Se a resposta é um sucesso
+  bool get isSuccess => success;
 
-  /// Verifica se é uma resposta de erro
-  bool get isError => success == false;
+  /// Se a resposta é um erro
+  bool get isError => !success;
 
-  /// Retorna a primeira mensagem de erro, se houver
-  String? get firstError {
-    if (errors == null || errors!.isEmpty) return null;
+  /// Se tem dados
+  bool get hasData => data != null;
+
+  /// Se tem erros de validação
+  bool get hasValidationErrors => errors != null && errors!.isNotEmpty;
+
+  /// Obter primeira mensagem de erro de validação
+  String? get firstValidationError {
+    if (!hasValidationErrors) return null;
     
-    final firstKey = errors!.keys.first;
-    final firstValue = errors![firstKey];
-    
-    if (firstValue is List && firstValue.isNotEmpty) {
-      return firstValue.first.toString();
+    for (final fieldErrors in errors!.values) {
+      if (fieldErrors is List && fieldErrors.isNotEmpty) {
+        return fieldErrors.first.toString();
+      }
     }
-    
-    return firstValue.toString();
+    return null;
   }
 
-  /// Retorna todas as mensagens de erro em uma string
-  String get allErrors {
-    if (errors == null || errors!.isEmpty) return message;
+  /// Obter todos os erros de validação como lista
+  List<String> get allValidationErrors {
+    if (!hasValidationErrors) return [];
     
-    final errorMessages = <String>[];
+    final allErrors = <String>[];
+    for (final fieldErrors in errors!.values) {
+      if (fieldErrors is List) {
+        allErrors.addAll(fieldErrors.map((e) => e.toString()));
+      }
+    }
+    return allErrors;
+  }
+
+  /// Obter erros por campo
+  Map<String, List<String>> get validationErrorsByField {
+    if (!hasValidationErrors) return {};
     
-    errors!.forEach((key, value) {
-      if (value is List) {
-        errorMessages.addAll(value.map((e) => e.toString()));
-      } else {
-        errorMessages.add(value.toString());
+    final errorsByField = <String, List<String>>{};
+    errors!.forEach((field, fieldErrors) {
+      if (fieldErrors is List) {
+        errorsByField[field] = fieldErrors.map((e) => e.toString()).toList();
       }
     });
-    
-    return errorMessages.join('\n');
+    return errorsByField;
   }
 
   @override
   String toString() {
-    return 'ApiResponse(success: $success, message: $message, hasData: ${data != null}, hasErrors: ${errors != null})';
+    return 'ApiResponseModel{success: $success, message: $message, hasData: $hasData}';
   }
 }
 
-/// Modelo para resposta paginada da API Laravel
-class PaginatedApiResponse<T> {
-  final bool success;
-  final String message;
-  final List<T> data;
-  final PaginationMeta? meta;
-  final Map<String, dynamic>? errors;
+/// Modelo para respostas paginadas
+class PaginatedApiResponseModel<T> extends ApiResponseModel<List<T>> {
+  final PaginationMeta? pagination;
 
-  PaginatedApiResponse({
-    required this.success,
-    required this.message,
-    required this.data,
-    this.meta,
-    this.errors,
-  });
+  PaginatedApiResponseModel({
+    required bool success,
+    required String message,
+    List<T>? data,
+    Map<String, dynamic>? errors,
+    this.pagination,
+  }) : super(
+          success: success,
+          message: message,
+          data: data,
+          errors: errors,
+          meta: pagination?.toJson(),
+        );
 
-  factory PaginatedApiResponse.fromJson(
-    Map<String, dynamic> json,
-    T Function(Map<String, dynamic>) fromJsonT,
-  ) {
-    final responseData = json['data'];
-    
-    // Se data for um objeto com 'data' interno (paginação Laravel)
-    if (responseData is Map<String, dynamic> && responseData.containsKey('data')) {
-      final items = (responseData['data'] as List)
-          .map((item) => fromJsonT(item as Map<String, dynamic>))
-          .toList();
-          
-      return PaginatedApiResponse<T>(
-        success: json['success'] ?? true,
-        message: json['message'] ?? '',
-        data: items,
-        meta: PaginationMeta.fromJson(responseData),
-        errors: json['errors']?.cast<String, dynamic>(),
-      );
+  /// Criar PaginatedApiResponseModel a partir do JSON da API
+  factory PaginatedApiResponseModel.fromJson(
+    Map<String, dynamic> json, {
+    required T Function(Map<String, dynamic>) itemParser,
+  }) {
+    List<T>? items;
+    PaginationMeta? pagination;
+
+    if (json['data'] != null) {
+      if (json['data'] is Map && json['data']['data'] is List) {
+        // Formato Laravel com paginação
+        final dataSection = json['data'];
+        items = (dataSection['data'] as List)
+            .map((item) => itemParser(item))
+            .toList();
+        
+        pagination = PaginationMeta.fromJson(dataSection);
+      } else if (json['data'] is List) {
+        // Lista simples
+        items = (json['data'] as List)
+            .map((item) => itemParser(item))
+            .toList();
+      }
     }
-    
-    // Se data for uma lista direta
-    if (responseData is List) {
-      final items = responseData
-          .map((item) => fromJsonT(item as Map<String, dynamic>))
-          .toList();
-          
-      return PaginatedApiResponse<T>(
-        success: json['success'] ?? true,
-        message: json['message'] ?? '',
-        data: items,
-        errors: json['errors']?.cast<String, dynamic>(),
-      );
-    }
-    
-    // Fallback
-    return PaginatedApiResponse<T>(
+
+    return PaginatedApiResponseModel<T>(
       success: json['success'] ?? false,
-      message: json['message'] ?? 'Erro ao processar dados',
-      data: [],
-      errors: json['errors']?.cast<String, dynamic>(),
+      message: json['message'] ?? '',
+      data: items,
+      errors: json['errors'],
+      pagination: pagination,
     );
   }
 
-  bool get isSuccess => success == true;
-  bool get hasMore => meta?.hasNextPage ?? false;
-  int get totalItems => meta?.total ?? data.length;
+  /// Se tem próxima página
+  bool get hasNextPage => pagination?.hasNextPage ?? false;
+
+  /// Se tem página anterior
+  bool get hasPreviousPage => pagination?.hasPreviousPage ?? false;
+
+  /// Página atual
+  int get currentPage => pagination?.currentPage ?? 1;
+
+  /// Total de páginas
+  int get totalPages => pagination?.lastPage ?? 1;
+
+  /// Total de itens
+  int get totalItems => pagination?.total ?? (data?.length ?? 0);
+
+  /// Itens por página
+  int get perPage => pagination?.perPage ?? (data?.length ?? 0);
 }
 
-/// Metadados de paginação
+/// Modelo para metadados de paginação
 class PaginationMeta {
   final int currentPage;
   final int lastPage;
@@ -205,11 +190,12 @@ class PaginationMeta {
     this.prevPageUrl,
   });
 
+  /// Criar PaginationMeta a partir do JSON da API Laravel
   factory PaginationMeta.fromJson(Map<String, dynamic> json) {
     return PaginationMeta(
       currentPage: json['current_page'] ?? 1,
       lastPage: json['last_page'] ?? 1,
-      perPage: json['per_page'] ?? 15,
+      perPage: json['per_page'] ?? 0,
       total: json['total'] ?? 0,
       from: json['from'] ?? 0,
       to: json['to'] ?? 0,
@@ -218,8 +204,128 @@ class PaginationMeta {
     );
   }
 
+  /// Converter para JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'current_page': currentPage,
+      'last_page': lastPage,
+      'per_page': perPage,
+      'total': total,
+      'from': from,
+      'to': to,
+      'next_page_url': nextPageUrl,
+      'prev_page_url': prevPageUrl,
+    };
+  }
+
+  /// Se tem próxima página
   bool get hasNextPage => nextPageUrl != null;
-  bool get hasPrevPage => prevPageUrl != null;
+
+  /// Se tem página anterior
+  bool get hasPreviousPage => prevPageUrl != null;
+
+  /// Se é a primeira página
   bool get isFirstPage => currentPage == 1;
+
+  /// Se é a última página
   bool get isLastPage => currentPage == lastPage;
+
+  /// Porcentagem de progresso nas páginas
+  double get pageProgress {
+    if (lastPage <= 1) return 1.0;
+    return currentPage / lastPage;
+  }
+
+  @override
+  String toString() {
+    return 'PaginationMeta{currentPage: $currentPage, lastPage: $lastPage, total: $total}';
+  }
+}
+
+/// Modelo para respostas de erro específicas
+class ApiErrorResponseModel {
+  final String message;
+  final int? statusCode;
+  final String? errorCode;
+  final Map<String, dynamic>? details;
+  final DateTime timestamp;
+
+  ApiErrorResponseModel({
+    required this.message,
+    this.statusCode,
+    this.errorCode,
+    this.details,
+    DateTime? timestamp,
+  }) : timestamp = timestamp ?? DateTime.now();
+
+  /// Criar ApiErrorResponseModel a partir de exceção
+  factory ApiErrorResponseModel.fromException(
+    dynamic exception, {
+    int? statusCode,
+    String? errorCode,
+  }) {
+    return ApiErrorResponseModel(
+      message: exception.toString(),
+      statusCode: statusCode,
+      errorCode: errorCode,
+      details: {
+        'exception_type': exception.runtimeType.toString(),
+      },
+    );
+  }
+
+  /// Criar ApiErrorResponseModel a partir de resposta HTTP
+  factory ApiErrorResponseModel.fromHttpResponse(
+    int statusCode,
+    String? body,
+  ) {
+    String message;
+    String? errorCode;
+    Map<String, dynamic>? details;
+
+    try {
+      if (body != null && body.isNotEmpty) {
+        final json = Map<String, dynamic>.from(
+          // Assumindo que o body já é um Map ou pode ser parseado
+          body is String ? {} : body,
+        );
+        
+        message = json['message'] ?? 'Erro HTTP $statusCode';
+        errorCode = json['error_code'];
+        details = json['details'];
+      } else {
+        message = 'Erro HTTP $statusCode';
+      }
+    } catch (e) {
+      message = 'Erro HTTP $statusCode';
+      details = {'parse_error': e.toString()};
+    }
+
+    return ApiErrorResponseModel(
+      message: message,
+      statusCode: statusCode,
+      errorCode: errorCode,
+      details: details,
+    );
+  }
+
+  /// Se é erro de autenticação
+  bool get isAuthError => statusCode == 401;
+
+  /// Se é erro de permissão
+  bool get isPermissionError => statusCode == 403;
+
+  /// Se é erro de validação
+  bool get isValidationError => statusCode == 422;
+
+  /// Se é erro de servidor
+  bool get isServerError => statusCode != null && statusCode! >= 500;
+
+  /// Se é erro de rede/cliente
+  bool get isClientError => statusCode != null && statusCode! >= 400 && statusCode! < 500;
+
+  @override
+  String toString() {
+    return 'ApiErrorResponseModel{message: $message, statusCode: $statusCode, errorCode: $errorCode}';
+  }
 }

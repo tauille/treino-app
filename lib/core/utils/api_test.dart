@@ -1,281 +1,507 @@
-// lib/core/utils/api_test.dart
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../constants/api_constants.dart';
-import '../services/auth_service.dart';
-import '../services/treino_service.dart';
+import '../../config/api_config.dart';
 
-class ApiTest {
-  
-  // 🔍 TESTE BÁSICO DE CONECTIVIDADE
-  static Future<void> testConnection() async {
-    print('\n🔍 ==========================================');
-    print('🔍 TESTE DE CONECTIVIDADE COM API');
-    print('🔍 ==========================================');
+/// Utilitário para testar conectividade e funcionalidade da API
+class ApiTestUtils {
+  /// Testar conectividade básica com a API
+  static Future<Map<String, dynamic>> testBasicConnectivity() async {
+    final results = <String, dynamic>{
+      'timestamp': DateTime.now().toIso8601String(),
+      'tests': <String, dynamic>{},
+      'summary': <String, dynamic>{},
+    };
+
+    print('🧪 === TESTE DE CONECTIVIDADE API ===');
+
+    // Teste 1: Status da API
+    results['tests']['status'] = await _testApiStatus();
     
+    // Teste 2: Health check
+    results['tests']['health'] = await _testApiHealth();
+    
+    // Teste 3: Conectividade de rede
+    results['tests']['network'] = await _testNetworkConnectivity();
+    
+    // Teste 4: Latência
+    results['tests']['latency'] = await _testApiLatency();
+
+    // Resumo
+    final passedTests = results['tests'].values
+        .where((test) => test['success'] == true)
+        .length;
+    
+    final totalTests = results['tests'].length;
+    
+    results['summary'] = {
+      'passed': passedTests,
+      'total': totalTests,
+      'success_rate': (passedTests / totalTests * 100).round(),
+      'overall_status': passedTests == totalTests ? 'SUCCESS' : 'PARTIAL_FAILURE',
+    };
+
+    print('📊 Resumo: $passedTests/$totalTests testes passaram');
+    print('=====================================');
+
+    return results;
+  }
+
+  /// Testar autenticação completa (se tiver token)
+  static Future<Map<String, dynamic>> testAuthentication(String? token) async {
+    if (token == null) {
+      return {
+        'success': false,
+        'message': 'Token não fornecido',
+        'error': 'NO_TOKEN',
+      };
+    }
+
+    print('🔐 === TESTE DE AUTENTICAÇÃO ===');
+
+    final results = <String, dynamic>{
+      'timestamp': DateTime.now().toIso8601String(),
+      'token_length': token.length,
+      'tests': <String, dynamic>{},
+    };
+
+    // Teste 1: Verificar token
+    results['tests']['verify_token'] = await _testVerifyToken(token);
+    
+    // Teste 2: Obter dados do usuário
+    results['tests']['user_data'] = await _testGetUserData(token);
+    
+    // Teste 3: Listar treinos
+    results['tests']['list_workouts'] = await _testListWorkouts(token);
+
+    final passedTests = results['tests'].values
+        .where((test) => test['success'] == true)
+        .length;
+    
+    results['summary'] = {
+      'passed': passedTests,
+      'total': results['tests'].length,
+      'authenticated': passedTests > 0,
+    };
+
+    print('🔒 Auth Tests: $passedTests/${results['tests'].length} passaram');
+    print('==============================');
+
+    return results;
+  }
+
+  /// Teste completo da API
+  static Future<Map<String, dynamic>> runFullApiTest({String? authToken}) async {
+    print('🚀 === TESTE COMPLETO DA API ===');
+    
+    final startTime = DateTime.now();
+    
+    final results = <String, dynamic>{
+      'start_time': startTime.toIso8601String(),
+      'api_config': _getApiConfigInfo(),
+      'connectivity': <String, dynamic>{},
+      'authentication': <String, dynamic>{},
+      'performance': <String, dynamic>{},
+    };
+
+    // Testes de conectividade
+    results['connectivity'] = await testBasicConnectivity();
+    
+    // Testes de autenticação (se token fornecido)
+    if (authToken != null) {
+      results['authentication'] = await testAuthentication(authToken);
+    }
+    
+    // Testes de performance
+    results['performance'] = await _testPerformance();
+    
+    final endTime = DateTime.now();
+    final duration = endTime.difference(startTime);
+    
+    results['end_time'] = endTime.toIso8601String();
+    results['total_duration_ms'] = duration.inMilliseconds;
+
+    // Relatório final
+    _printTestReport(results);
+
+    return results;
+  }
+
+  // ===== TESTES INDIVIDUAIS =====
+
+  /// Testar status da API
+  static Future<Map<String, dynamic>> _testApiStatus() async {
     try {
-      print('📡 Testando: ${ApiConstants.baseUrl}/status');
+      print('🔍 Testando status da API...');
       
-      final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}/status'),
-        headers: ApiConstants.headers,
-      ).timeout(ApiConstants.connectionTimeout);
-      
-      print('📡 Status Code: ${response.statusCode}');
-      print('📄 Response: ${response.body}');
-      
+      final stopwatch = Stopwatch()..start();
+      final response = await http
+          .get(Uri.parse('${ApiConstants.baseUrl}/status'))
+          .timeout(const Duration(seconds: 10));
+      stopwatch.stop();
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print('✅ CONECTIVIDADE: OK');
-        print('✅ API Status: ${data['status']}');
-        print('✅ Mensagem: ${data['message']}');
-        print('✅ Versão: ${data['version']}');
+        final data = json.decode(response.body);
+        print('✅ Status API: OK (${stopwatch.elapsedMilliseconds}ms)');
+        
+        return {
+          'success': true,
+          'status_code': response.statusCode,
+          'response_time_ms': stopwatch.elapsedMilliseconds,
+          'data': data,
+        };
       } else {
-        print('❌ CONECTIVIDADE: FALHOU');
-        print('❌ Status: ${response.statusCode}');
+        print('❌ Status API: Falhou (${response.statusCode})');
+        return {
+          'success': false,
+          'status_code': response.statusCode,
+          'error': 'HTTP_ERROR',
+        };
       }
     } catch (e) {
-      print('❌ ERRO DE CONEXÃO: $e');
-      print('❌ Verifique se:');
-      print('   - O servidor Laravel está rodando');
-      print('   - O IP está correto: 10.125.135.38');
-      print('   - O celular está na mesma rede WiFi');
+      print('❌ Status API: Erro - $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+        'error_type': e.runtimeType.toString(),
+      };
     }
   }
-  
-  // 🔐 TESTE DE REGISTRO
-  static Future<void> testRegister() async {
-    print('\n🔐 ==========================================');
-    print('🔐 TESTE DE REGISTRO');
-    print('🔐 ==========================================');
-    
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final email = 'teste_flutter_$timestamp@teste.com';
-    
+
+  /// Testar health check da API
+  static Future<Map<String, dynamic>> _testApiHealth() async {
     try {
-      print('📝 Registrando usuário: $email');
+      print('🏥 Testando health da API...');
       
-      final response = await AuthService.register(
-        name: 'Teste Flutter',
-        email: email,
-        password: '123456',
-        passwordConfirmation: '123456',
+      final stopwatch = Stopwatch()..start();
+      final response = await http
+          .get(Uri.parse('${ApiConstants.baseUrl}/health'))
+          .timeout(const Duration(seconds: 10));
+      stopwatch.stop();
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Health API: OK (${stopwatch.elapsedMilliseconds}ms)');
+        
+        return {
+          'success': true,
+          'status_code': response.statusCode,
+          'response_time_ms': stopwatch.elapsedMilliseconds,
+          'data': data,
+        };
+      } else {
+        print('❌ Health API: Falhou (${response.statusCode})');
+        return {
+          'success': false,
+          'status_code': response.statusCode,
+        };
+      }
+    } catch (e) {
+      print('❌ Health API: Erro - $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Testar conectividade de rede
+  static Future<Map<String, dynamic>> _testNetworkConnectivity() async {
+    try {
+      print('🌐 Testando conectividade de rede...');
+      
+      final stopwatch = Stopwatch()..start();
+      
+      // Testar resolução DNS
+      final addresses = await InternetAddress.lookup('google.com');
+      
+      // Testar conectividade HTTP
+      final response = await http
+          .get(Uri.parse('https://www.google.com'))
+          .timeout(const Duration(seconds: 5));
+      
+      stopwatch.stop();
+
+      if (addresses.isNotEmpty && response.statusCode == 200) {
+        print('✅ Rede: OK (${stopwatch.elapsedMilliseconds}ms)');
+        return {
+          'success': true,
+          'dns_resolved': addresses.length,
+          'http_status': response.statusCode,
+          'response_time_ms': stopwatch.elapsedMilliseconds,
+        };
+      } else {
+        print('❌ Rede: Problemas de conectividade');
+        return {
+          'success': false,
+          'error': 'CONNECTIVITY_ISSUE',
+        };
+      }
+    } catch (e) {
+      print('❌ Rede: Erro - $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Testar latência da API
+  static Future<Map<String, dynamic>> _testApiLatency() async {
+    try {
+      print('⚡ Testando latência da API...');
+      
+      final times = <int>[];
+      
+      // Fazer 3 requisições para calcular média
+      for (int i = 0; i < 3; i++) {
+        final stopwatch = Stopwatch()..start();
+        
+        await http
+            .get(Uri.parse('${ApiConstants.baseUrl}/status'))
+            .timeout(const Duration(seconds: 5));
+        
+        stopwatch.stop();
+        times.add(stopwatch.elapsedMilliseconds);
+      }
+      
+      final avgLatency = times.reduce((a, b) => a + b) / times.length;
+      final minLatency = times.reduce((a, b) => a < b ? a : b);
+      final maxLatency = times.reduce((a, b) => a > b ? a : b);
+      
+      print('✅ Latência: ${avgLatency.toStringAsFixed(1)}ms (avg)');
+      
+      return {
+        'success': true,
+        'average_ms': avgLatency.round(),
+        'min_ms': minLatency,
+        'max_ms': maxLatency,
+        'samples': times,
+      };
+    } catch (e) {
+      print('❌ Latência: Erro - $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Testar verificação de token
+  static Future<Map<String, dynamic>> _testVerifyToken(String token) async {
+    try {
+      print('🎫 Testando verificação de token...');
+      
+      final response = await http
+          .get(
+            Uri.parse('${ApiConstants.baseUrl}/auth/verify-token'),
+            headers: ApiConstants.getAuthHeaders(token),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Token: Válido');
+        
+        return {
+          'success': true,
+          'valid': data['success'] ?? false,
+          'data': data,
+        };
+      } else {
+        print('❌ Token: Inválido (${response.statusCode})');
+        return {
+          'success': false,
+          'status_code': response.statusCode,
+        };
+      }
+    } catch (e) {
+      print('❌ Token: Erro - $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Testar obtenção de dados do usuário
+  static Future<Map<String, dynamic>> _testGetUserData(String token) async {
+    try {
+      print('👤 Testando dados do usuário...');
+      
+      final response = await http
+          .get(
+            Uri.parse('${ApiConstants.baseUrl}/auth/me'),
+            headers: ApiConstants.getAuthHeaders(token),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ Dados do usuário: OK');
+        
+        return {
+          'success': true,
+          'has_user_data': data['data'] != null,
+          'user_id': data['data']?['user']?['id'],
+          'user_name': data['data']?['user']?['name'],
+        };
+      } else {
+        print('❌ Dados do usuário: Falhou (${response.statusCode})');
+        return {
+          'success': false,
+          'status_code': response.statusCode,
+        };
+      }
+    } catch (e) {
+      print('❌ Dados do usuário: Erro - $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Testar listagem de treinos
+  static Future<Map<String, dynamic>> _testListWorkouts(String token) async {
+    try {
+      print('🏋️ Testando listagem de treinos...');
+      
+      final response = await http
+          .get(
+            Uri.parse('${ApiConstants.baseUrl}/treinos'),
+            headers: ApiConstants.getAuthHeaders(token),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final workoutCount = data['data']?['data']?.length ?? 0;
+        
+        print('✅ Treinos: $workoutCount encontrados');
+        
+        return {
+          'success': true,
+          'workout_count': workoutCount,
+          'has_data': data['data'] != null,
+        };
+      } else {
+        print('❌ Treinos: Falhou (${response.statusCode})');
+        return {
+          'success': false,
+          'status_code': response.statusCode,
+        };
+      }
+    } catch (e) {
+      print('❌ Treinos: Erro - $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// Testar performance geral
+  static Future<Map<String, dynamic>> _testPerformance() async {
+    try {
+      print('📊 Testando performance...');
+      
+      final results = <String, dynamic>{};
+      
+      // Teste de throughput (múltiplas requisições)
+      final stopwatch = Stopwatch()..start();
+      final futures = List.generate(5, (_) => 
+        http.get(Uri.parse('${ApiConstants.baseUrl}/status'))
       );
       
-      if (response.success) {
-        print('✅ REGISTRO: SUCESSO');
-        print('✅ Usuário ID: ${response.data?.id}');
-        print('✅ Nome: ${response.data?.name}');
-        print('✅ Email: ${response.data?.email}');
-        print('✅ Status Trial: ${response.data?.hasActiveTrial}');
-        
-        // Verificar se salvou token
-        final token = await AuthService.getToken();
-        print('✅ Token salvo: ${token != null ? "SIM" : "NÃO"}');
-        
-        return; // Sucesso!
-      } else {
-        print('❌ REGISTRO: FALHOU');
-        print('❌ Erro: ${response.message}');
-        print('❌ Detalhes: ${response.errors}');
-      }
+      await Future.wait(futures);
+      stopwatch.stop();
+      
+      results['concurrent_requests'] = {
+        'count': 5,
+        'total_time_ms': stopwatch.elapsedMilliseconds,
+        'avg_time_ms': stopwatch.elapsedMilliseconds / 5,
+      };
+      
+      print('✅ Performance: ${results['concurrent_requests']['avg_time_ms']}ms/req');
+      
+      return {
+        'success': true,
+        ...results,
+      };
     } catch (e) {
-      print('❌ EXCEÇÃO NO REGISTRO: $e');
+      print('❌ Performance: Erro - $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
     }
   }
-  
-  // 🔑 TESTE DE LOGIN
-  static Future<void> testLogin() async {
-    print('\n🔑 ==========================================');
-    print('🔑 TESTE DE LOGIN');
-    print('🔑 ==========================================');
-    
-    try {
-      print('🔓 Fazendo login com: usuario@teste.com');
-      
-      final response = await AuthService.login(
-        email: 'usuario@teste.com',
-        password: '123456',
-      );
-      
-      if (response.success) {
-        print('✅ LOGIN: SUCESSO');
-        print('✅ Usuário ID: ${response.data?.id}');
-        print('✅ Nome: ${response.data?.name}');
-        print('✅ Status: ${response.data?.accountType}');
-        
-        // Verificar se salvou token
-        final token = await AuthService.getToken();
-        print('✅ Token salvo: ${token != null ? "SIM" : "NÃO"}');
-        
-      } else {
-        print('❌ LOGIN: FALHOU');
-        print('❌ Erro: ${response.message}');
-        print('❌ Detalhes: ${response.errors}');
-      }
-    } catch (e) {
-      print('❌ EXCEÇÃO NO LOGIN: $e');
-    }
+
+  // ===== UTILITÁRIOS =====
+
+  /// Obter informações da configuração da API
+  static Map<String, dynamic> _getApiConfigInfo() {
+    return {
+      'base_url': ApiConstants.baseUrl,
+      'is_production': ApiConfig.isProduction,
+      'app_version': ApiConfig.appVersion,
+      'platform': defaultTargetPlatform.toString(),
+      'timeout_seconds': ApiConfig.defaultTimeout.inSeconds,
+    };
   }
-  
-  // 🏋️ TESTE DE TREINOS
-  static Future<void> testTreinos() async {
-    print('\n🏋️ ==========================================');
-    print('🏋️ TESTE DE TREINOS');
-    print('🏋️ ==========================================');
+
+  /// Imprimir relatório de testes
+  static void _printTestReport(Map<String, dynamic> results) {
+    print('\n📋 === RELATÓRIO DE TESTES ===');
     
-    try {
-      // Verificar se está logado
-      final isLoggedIn = await AuthService.isLoggedIn();
-      if (!isLoggedIn) {
-        print('❌ ERRO: Usuário não está logado');
-        print('💡 Execute testLogin() primeiro');
-        return;
-      }
-      
-      print('🔍 Buscando treinos...');
-      final response = await TreinoService.getTreinos();
-      
-      if (response.success) {
-        final treinos = response.data ?? [];
-        print('✅ TREINOS: SUCESSO');
-        print('✅ Total encontrados: ${treinos.length}');
-        
-        for (int i = 0; i < treinos.length && i < 3; i++) {
-          final treino = treinos[i];
-          print('   📋 Treino ${i + 1}:');
-          print('      - ID: ${treino.id}');
-          print('      - Nome: ${treino.nomeTreino}');
-          print('      - Tipo: ${treino.tipoTreino}');
-          print('      - Dificuldade: ${treino.dificuldadeText}');
-          print('      - Exercícios: ${treino.totalExercicios}');
-          print('      - Duração: ${treino.duracaoFormatada}');
-        }
-        
-        if (treinos.length > 3) {
-          print('   ... e mais ${treinos.length - 3} treinos');
-        }
-        
-      } else {
-        print('❌ TREINOS: FALHOU');
-        print('❌ Erro: ${response.message}');
-      }
-    } catch (e) {
-      print('❌ EXCEÇÃO NOS TREINOS: $e');
+    final connectivity = results['connectivity']['summary'];
+    print('🌐 Conectividade: ${connectivity['passed']}/${connectivity['total']} (${connectivity['success_rate']}%)');
+    
+    if (results['authentication'].isNotEmpty) {
+      final auth = results['authentication']['summary'];
+      print('🔐 Autenticação: ${auth['passed']}/${auth['total']} (${auth['authenticated'] ? 'OK' : 'FALHOU'})');
     }
-  }
-  
-  // 🆕 TESTE DE CRIAÇÃO DE TREINO
-  static Future<void> testCreateTreino() async {
-    print('\n🆕 ==========================================');
-    print('🆕 TESTE DE CRIAÇÃO DE TREINO');
-    print('🆕 ==========================================');
     
-    try {
-      // Verificar se está logado
-      final isLoggedIn = await AuthService.isLoggedIn();
-      if (!isLoggedIn) {
-        print('❌ ERRO: Usuário não está logado');
-        return;
-      }
-      
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final nomeTreino = 'Treino Flutter Test $timestamp';
-      
-      print('➕ Criando treino: $nomeTreino');
-      
-      final response = await TreinoService.createTreino(
-        nomeTreino: nomeTreino,
-        tipoTreino: 'Teste Flutter',
-        descricao: 'Treino criado automaticamente pelo teste do Flutter',
-        dificuldade: 'iniciante',
-      );
-      
-      if (response.success) {
-        final treino = response.data!;
-        print('✅ CRIAÇÃO: SUCESSO');
-        print('✅ Treino criado:');
-        print('   - ID: ${treino.id}');
-        print('   - Nome: ${treino.nomeTreino}');
-        print('   - Tipo: ${treino.tipoTreino}');
-        print('   - Dificuldade: ${treino.dificuldadeText}');
-        print('   - Status: ${treino.status}');
-        
-        // Testar buscar o treino criado
-        print('\n🔍 Buscando treino criado...');
-        final getResponse = await TreinoService.getTreino(treino.id);
-        
-        if (getResponse.success) {
-          print('✅ BUSCA: SUCESSO');
-          print('✅ Treino encontrado com ${getResponse.data?.exercicios?.length ?? 0} exercícios');
-        } else {
-          print('❌ BUSCA: FALHOU - ${getResponse.message}');
-        }
-        
-      } else {
-        print('❌ CRIAÇÃO: FALHOU');
-        print('❌ Erro: ${response.message}');
-        print('❌ Detalhes: ${response.errors}');
-      }
-    } catch (e) {
-      print('❌ EXCEÇÃO NA CRIAÇÃO: $e');
+    print('⏱️  Duração Total: ${results['total_duration_ms']}ms');
+    print('🕐 Timestamp: ${results['start_time']}');
+    
+    print('=============================\n');
+  }
+
+  /// Gerar relatório detalhado em formato texto
+  static String generateTextReport(Map<String, dynamic> results) {
+    final buffer = StringBuffer();
+    
+    buffer.writeln('=== RELATÓRIO DE TESTES DA API ===');
+    buffer.writeln('Timestamp: ${results['start_time']}');
+    buffer.writeln('Duração: ${results['total_duration_ms']}ms');
+    buffer.writeln('Base URL: ${results['api_config']['base_url']}');
+    buffer.writeln('');
+    
+    // Conectividade
+    final conn = results['connectivity'];
+    buffer.writeln('CONECTIVIDADE:');
+    conn['tests'].forEach((key, value) {
+      buffer.writeln('  $key: ${value['success'] ? '✅' : '❌'} ${value['response_time_ms'] ?? ''}ms');
+    });
+    buffer.writeln('  Resumo: ${conn['summary']['passed']}/${conn['summary']['total']}');
+    buffer.writeln('');
+    
+    // Autenticação
+    if (results['authentication'].isNotEmpty) {
+      final auth = results['authentication'];
+      buffer.writeln('AUTENTICAÇÃO:');
+      auth['tests'].forEach((key, value) {
+        buffer.writeln('  $key: ${value['success'] ? '✅' : '❌'}');
+      });
+      buffer.writeln('  Resumo: ${auth['summary']['passed']}/${auth['summary']['total']}');
     }
-  }
-  
-  // 🧪 TESTE COMPLETO
-  static Future<void> runAllTests() async {
-    print('🧪 ==========================================');
-    print('🧪 INICIANDO TESTES COMPLETOS DA API');
-    print('🧪 ==========================================');
     
-    await testConnection();
-    await Future.delayed(Duration(seconds: 1));
+    buffer.writeln('=================================');
     
-    await testRegister();
-    await Future.delayed(Duration(seconds: 1));
-    
-    await testLogin();
-    await Future.delayed(Duration(seconds: 1));
-    
-    await testTreinos();
-    await Future.delayed(Duration(seconds: 1));
-    
-    await testCreateTreino();
-    
-    print('\n🎯 ==========================================');
-    print('🎯 TESTES CONCLUÍDOS');
-    print('🎯 ==========================================');
-  }
-  
-  // 📊 TESTE DE STATUS DO USUÁRIO
-  static Future<void> testUserStatus() async {
-    print('\n📊 ==========================================');
-    print('📊 STATUS DO USUÁRIO');
-    print('📊 ==========================================');
-    
-    try {
-      final isLoggedIn = await AuthService.isLoggedIn();
-      print('🔐 Logado: ${isLoggedIn ? "SIM" : "NÃO"}');
-      
-      if (isLoggedIn) {
-        final user = await AuthService.getUser();
-        final token = await AuthService.getToken();
-        
-        if (user != null) {
-          print('👤 Usuário Atual:');
-          print('   - ID: ${user.id}');
-          print('   - Nome: ${user.name}');
-          print('   - Email: ${user.email}');
-          print('   - Tipo: ${user.accountType}');
-          print('   - Premium: ${user.hasActivePremium ? "SIM" : "NÃO"}');
-          print('   - Trial: ${user.hasActiveTrial ? "SIM" : "NÃO"}');
-          print('   - Dias Trial: ${user.trialDaysRemaining}');
-          print('   - Membro desde: ${user.memberSince}');
-          print('🔑 Token: ${token != null ? "Presente" : "Ausente"}');
-        }
-      }
-    } catch (e) {
-      print('❌ ERRO AO VERIFICAR STATUS: $e');
-    }
+    return buffer.toString();
   }
 }

@@ -1,180 +1,338 @@
-// lib/core/services/trial_service.dart
-// ⚠️ VERSÃO TEMPORÁRIA SIMPLIFICADA - Para fazer o app rodar
-
+import 'package:flutter/foundation.dart';
+import '../constants/api_constants.dart';
 import '../../models/user_model.dart';
+import '../../models/trial_model.dart';
+import 'storage_service.dart';
 
+/// Serviço para gerenciar trial de 7 dias e funcionalidades premium
 class TrialService {
-  static const int trialDurationDays = 30;
+  // ===== SINGLETON =====
+  static final TrialService _instance = TrialService._internal();
+  factory TrialService() => _instance;
+  TrialService._internal();
 
-  // ========================================
-  // VERIFICAÇÕES DE TRIAL
-  // ========================================
+  // ===== CONSTANTES =====
+  static const int trialDurationDays = 7;
+  static const String _trialStartKey = 'trial_start_date';
+  static const String _trialStatusKey = 'trial_status';
+  static const String _premiumStatusKey = 'premium_status';
 
-  /// Verifica se o usuário pode iniciar trial
-  bool canStartTrial(User? user) {
-    if (user == null) return false;
-    return user.hasNeverUsedTrial; // Usando o getter que acabamos de adicionar
+  /// Iniciar trial para novo usuário
+  Future<TrialModel> startTrial(UserModel user) async {
+    try {
+      final now = DateTime.now();
+      final trialEnd = now.add(const Duration(days: trialDurationDays));
+      
+      final trial = TrialModel(
+        userId: user.id,
+        startDate: now,
+        endDate: trialEnd,
+        isActive: true,
+        isPremium: false,
+        daysRemaining: trialDurationDays,
+      );
+      
+      // Salvar dados do trial localmente
+      await _saveTrialData(trial);
+      
+      if (kDebugMode) {
+        print('✅ Trial iniciado para usuário ${user.name}');
+        print('📅 Início: ${now.toIso8601String()}');
+        print('📅 Fim: ${trialEnd.toIso8601String()}');
+      }
+      
+      return trial;
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao iniciar trial: $e');
+      rethrow;
+    }
   }
 
-  /// Verifica se o usuário está em trial ativo
-  bool isInActiveTrial(User? user) {
-    if (user == null) return false;
-    return user.isInTrial; // Usando o getter que acabamos de adicionar
+  /// Verificar status atual do trial
+  Future<TrialModel?> checkTrialStatus(UserModel user) async {
+    try {
+      // Primeiro verificar se usuário é premium
+      if (user.isPremium) {
+        return TrialModel(
+          userId: user.id,
+          startDate: user.trialStartedAt ?? DateTime.now(),
+          endDate: user.premiumExpiresAt,
+          isActive: true,
+          isPremium: true,
+          daysRemaining: -1, // Premium não tem limite
+        );
+      }
+      
+      // Verificar trial
+      if (user.trialStartedAt != null) {
+        final now = DateTime.now();
+        final trialEnd = user.trialStartedAt!.add(const Duration(days: trialDurationDays));
+        final isActive = now.isBefore(trialEnd);
+        final daysRemaining = isActive ? trialEnd.difference(now).inDays + 1 : 0;
+        
+        final trial = TrialModel(
+          userId: user.id,
+          startDate: user.trialStartedAt!,
+          endDate: trialEnd,
+          isActive: isActive,
+          isPremium: false,
+          daysRemaining: daysRemaining,
+        );
+        
+        // Salvar status atualizado
+        await _saveTrialData(trial);
+        
+        return trial;
+      }
+      
+      return null;
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao verificar trial: $e');
+      return null;
+    }
   }
 
-  /// Verifica se o trial expirou
-  bool isTrialExpired(User? user) {
-    if (user == null) return false;
-    return user.isTrialExpired;
+  /// Verificar se usuário tem acesso premium
+  bool hasAccess(UserModel user) {
+    if (user.isPremium) return true;
+    if (user.isInTrial) return true;
+    return false;
   }
 
-  /// Verifica se o usuário tem acesso premium (trial ou pagamento)
-  bool hasAdvancedAccess(User? user) {
-    if (user == null) return false;
-    return user.canUseAdvancedFeatures;
+  /// Verificar se trial está próximo do fim (2 dias ou menos)
+  bool isTrialEndingSoon(UserModel user) {
+    if (user.isPremium || !user.isInTrial) return false;
+    return user.trialDaysLeft <= 2;
   }
 
-  // ========================================
-  // INFORMAÇÕES DE TRIAL
-  // ========================================
-
-  /// Obter dias restantes do trial
-  int getTrialDaysRemaining(User? user) {
-    if (user == null) return 0;
-    return user.trialDaysRemaining;
+  /// Verificar se trial acabou de começar (primeiro dia)
+  bool isTrialJustStarted(UserModel user) {
+    if (!user.isInTrial || user.trialStartedAt == null) return false;
+    
+    final now = DateTime.now();
+    final difference = now.difference(user.trialStartedAt!);
+    return difference.inHours < 24;
   }
 
-  /// Obter data de expiração do trial
-  DateTime? getTrialExpirationDate(User? user) {
-    if (user?.trialStartedAt == null) return null;
-    return user!.trialStartedAt!.add(const Duration(days: trialDurationDays));
+  /// Obter mensagem motivacional baseada no status
+  String getMotivationalMessage(UserModel user) {
+    if (user.isPremium) {
+      return 'Aproveite todos os treinos premium!';
+    } else if (user.isInTrial) {
+      if (isTrialJustStarted(user)) {
+        return 'Bem-vindo! Explore todos os recursos grátis!';
+      } else if (isTrialEndingSoon(user)) {
+        return 'Últimos dias do trial. Que tal assinar?';
+      } else {
+        return 'Aproveite seu trial premium!';
+      }
+    } else {
+      return 'Assine para acessar treinos exclusivos!';
+    }
   }
 
-  /// Obter status do trial em texto
-  String getTrialStatusText(User? user) {
-    if (user == null) return 'Usuário não logado';
-    return user.trialStatusText;
+  /// Obter texto do call-to-action
+  String getCtaText(UserModel user) {
+    if (user.isPremium) {
+      return 'Ver Treinos';
+    } else if (user.isInTrial) {
+      if (isTrialEndingSoon(user)) {
+        return 'Assinar Agora';
+      } else {
+        return 'Explorar Treinos';
+      }
+    } else {
+      return 'Assinar Premium';
+    }
   }
 
-  /// Obter informações completas do trial
-  Map<String, dynamic> getTrialInfo(User? user) {
-    if (user == null) {
+  /// Verificar se funcionalidade está disponível
+  bool isFeatureAvailable(UserModel user, String feature) {
+    // Se é premium, todas as funcionalidades estão disponíveis
+    if (user.isPremium) return true;
+    
+    // Se está em trial, algumas funcionalidades podem estar disponíveis
+    if (user.isInTrial) {
+      return _isFeatureAvailableInTrial(feature);
+    }
+    
+    // Se não tem acesso, apenas funcionalidades básicas
+    return _isBasicFeature(feature);
+  }
+
+  /// Verificar se funcionalidade está disponível no trial
+  bool _isFeatureAvailableInTrial(String feature) {
+    // Durante o trial, usuário tem acesso a quase tudo
+    const trialFeatures = {
+      'create_workout',
+      'view_workouts',
+      'basic_exercises',
+      'progress_tracking',
+      'basic_reports',
+    };
+    
+    const premiumOnlyFeatures = {
+      'advanced_reports',
+      'export_data',
+      'custom_templates',
+      'ai_recommendations',
+    };
+    
+    // No trial, liberar tudo exceto funcionalidades premium exclusivas
+    return !premiumOnlyFeatures.contains(feature);
+  }
+
+  /// Verificar se é funcionalidade básica (sem trial/premium)
+  bool _isBasicFeature(String feature) {
+    const basicFeatures = {
+      'view_demo_workouts',
+      'basic_info',
+      'account_settings',
+    };
+    
+    return basicFeatures.contains(feature);
+  }
+
+  /// Salvar dados do trial localmente
+  Future<void> _saveTrialData(TrialModel trial) async {
+    try {
+      final storage = StorageService();
+      
+      await storage.saveCache(
+        _trialStatusKey,
+        trial.toJson(),
+        expiry: const Duration(hours: 1), // Cache por 1 hora
+      );
+      
+      if (kDebugMode) print('✅ Dados do trial salvos localmente');
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao salvar dados do trial: $e');
+    }
+  }
+
+  /// Carregar dados do trial salvos localmente
+  Future<TrialModel?> _loadTrialData() async {
+    try {
+      final storage = StorageService();
+      final data = await storage.getCache(_trialStatusKey);
+      
+      if (data != null) {
+        return TrialModel.fromJson(data);
+      }
+      
+      return null;
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao carregar dados do trial: $e');
+      return null;
+    }
+  }
+
+  /// Limpar dados do trial
+  Future<void> clearTrialData() async {
+    try {
+      final storage = StorageService();
+      await storage.removeCache(_trialStatusKey);
+      await storage.removeCache(_premiumStatusKey);
+      
+      if (kDebugMode) print('🗑️ Dados do trial limpos');
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao limpar dados do trial: $e');
+    }
+  }
+
+  /// Calcular estatísticas do trial
+  Map<String, dynamic> getTrialStats(UserModel user) {
+    if (user.trialStartedAt == null) {
       return {
-        'canStartTrial': false,
-        'isInTrial': false,
-        'isTrialExpired': false,
-        'daysRemaining': 0,
-        'statusText': 'Usuário não logado',
-        'hasAdvancedAccess': false,
+        'has_trial': false,
+        'is_active': false,
+        'days_used': 0,
+        'days_remaining': 0,
+        'usage_percentage': 0.0,
       };
     }
-
+    
+    final now = DateTime.now();
+    final trialStart = user.trialStartedAt!;
+    final trialEnd = trialStart.add(const Duration(days: trialDurationDays));
+    
+    final totalDays = trialDurationDays;
+    final daysUsed = now.difference(trialStart).inDays;
+    final daysRemaining = user.isInTrial ? user.trialDaysLeft : 0;
+    final usagePercentage = (daysUsed / totalDays).clamp(0.0, 1.0);
+    
     return {
-      'canStartTrial': canStartTrial(user),
-      'isInTrial': isInActiveTrial(user),
-      'isTrialExpired': isTrialExpired(user),
-      'daysRemaining': getTrialDaysRemaining(user),
-      'statusText': getTrialStatusText(user),
-      'hasAdvancedAccess': hasAdvancedAccess(user),
-      'expirationDate': getTrialExpirationDate(user)?.toIso8601String(),
+      'has_trial': true,
+      'is_active': user.isInTrial,
+      'is_premium': user.isPremium,
+      'total_days': totalDays,
+      'days_used': daysUsed,
+      'days_remaining': daysRemaining,
+      'usage_percentage': usagePercentage,
+      'trial_start': trialStart.toIso8601String(),
+      'trial_end': trialEnd.toIso8601String(),
+      'ending_soon': isTrialEndingSoon(user),
+      'just_started': isTrialJustStarted(user),
     };
   }
 
-  // ========================================
-  // AÇÕES DE TRIAL (simplificadas)
-  // ========================================
-
-  /// Iniciar trial (retorna novo usuário)
-  User? startTrial(User? user) {
-    if (user == null || !canStartTrial(user)) return user;
-    return user.startTrial();
-  }
-
-  /// Converter para premium (retorna novo usuário)
-  User? upgradeToPremium(User? user, {DateTime? expiresAt}) {
-    if (user == null) return user;
-    return user.upgradeToPremium(expiresAt: expiresAt);
-  }
-
-  // ========================================
-  // MÉTODOS DE CONVENIÊNCIA
-  // ========================================
-
-  /// Verificar se feature está disponível
-  bool isFeatureAvailable(User? user, String featureName) {
-    // Por enquanto, todas as features dependem de acesso avançado
-    return hasAdvancedAccess(user);
-  }
-
-  /// Obter lista de features disponíveis
-  List<String> getAvailableFeatures(User? user) {
-    if (!hasAdvancedAccess(user)) {
-      return ['basic_workouts', 'basic_exercises'];
+  /// Simular upgrade para premium (para desenvolvimento)
+  Future<UserModel> simulateUpgradeToPremium(UserModel user) async {
+    if (kDebugMode) {
+      print('🎯 Simulando upgrade para premium (desenvolvimento)');
+      
+      // Simular usuário premium
+      final premiumUser = user.copyWith(
+        isPremium: true,
+        premiumExpiresAt: DateTime.now().add(const Duration(days: 365)),
+      );
+      
+      return premiumUser;
     }
     
-    return [
-      'basic_workouts',
-      'basic_exercises',
-      'advanced_workouts',
-      'custom_exercises',
-      'progress_tracking',
-      'export_data',
-      'premium_support',
-    ];
+    return user;
   }
 
-  /// Verificar se deve mostrar upgrade prompt
-  bool shouldShowUpgradePrompt(User? user) {
-    if (user == null) return false;
-    
-    // Mostrar se trial está próximo do fim (últimos 3 dias)
-    if (isInActiveTrial(user)) {
-      return getTrialDaysRemaining(user) <= 3;
-    }
+  /// Verificar se deve mostrar offer de upgrade
+  bool shouldShowUpgradeOffer(UserModel user) {
+    // Não mostrar se já é premium
+    if (user.isPremium) return false;
     
     // Mostrar se trial expirou
-    return isTrialExpired(user);
+    if (!user.isInTrial) return true;
+    
+    // Mostrar se trial está acabando
+    if (isTrialEndingSoon(user)) return true;
+    
+    return false;
   }
 
-  // ========================================
-  // DEBUG E TESTES
-  // ========================================
-
-  /// Imprimir informações de debug
-  void printTrialDebug(User? user) {
-    final info = getTrialInfo(user);
-    
-    print('🎯 Trial Debug Info:');
-    print('   User: ${user?.name ?? 'null'}');
-    print('   Can Start Trial: ${info['canStartTrial']}');
-    print('   Is In Trial: ${info['isInTrial']}');
-    print('   Is Trial Expired: ${info['isTrialExpired']}');
-    print('   Days Remaining: ${info['daysRemaining']}');
-    print('   Status: ${info['statusText']}');
-    print('   Has Advanced Access: ${info['hasAdvancedAccess']}');
-    print('   Should Show Upgrade: ${shouldShowUpgradePrompt(user)}');
-    print('   Available Features: ${getAvailableFeatures(user).join(', ')}');
-  }
-
-  /// Simular trial para testes
-  User? simulateTrial(User? user, {int daysIntoTrial = 0}) {
-    if (user == null) return null;
-    
-    final trialStart = DateTime.now().subtract(Duration(days: daysIntoTrial));
-    
-    return user.copyWith(
-      trialStartedAt: trialStart,
-      isPremium: false,
-    );
-  }
-
-  /// Simular premium para testes  
-  User? simulatePremium(User? user, {DateTime? expiresAt}) {
-    if (user == null) return null;
-    
-    return user.copyWith(
-      isPremium: true,
-      premiumExpiresAt: expiresAt,
-    );
+  /// Obter preço para exibição (placeholder)
+  Map<String, dynamic> getPricingInfo() {
+    return {
+      'monthly': {
+        'price': 'R\$ 9,90',
+        'period': 'mês',
+        'features': [
+          'Treinos ilimitados',
+          'Relatórios detalhados',
+          'Sincronização na nuvem',
+          'Suporte premium',
+        ],
+      },
+      'annual': {
+        'price': 'R\$ 89,90',
+        'period': 'ano',
+        'monthly_equivalent': 'R\$ 7,49/mês',
+        'discount': '25% OFF',
+        'features': [
+          'Treinos ilimitados',
+          'Relatórios detalhados',
+          'Sincronização na nuvem',
+          'Suporte premium',
+          'Funcionalidades exclusivas',
+        ],
+      },
+    };
   }
 }

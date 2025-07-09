@@ -1,337 +1,251 @@
-import 'dart:convert';
-
-class User {
+/// Modelo do usuário com funcionalidades de trial e premium
+class UserModel {
   final int id;
   final String name;
   final String email;
-  final bool isEmailVerified;
-  final DateTime createdAt;
-  final DateTime? emailVerifiedAt;
-  
-  // Campos premium/trial
   final bool isPremium;
   final DateTime? trialStartedAt;
   final DateTime? premiumExpiresAt;
-  
-  User({
+  final DateTime createdAt;
+  final DateTime? emailVerifiedAt;
+  final String? googleId;
+  final String? avatarUrl;
+
+  UserModel({
     required this.id,
     required this.name,
     required this.email,
-    required this.isEmailVerified,
-    required this.createdAt,
-    this.emailVerifiedAt,
-    this.isPremium = false,
+    required this.isPremium,
     this.trialStartedAt,
     this.premiumExpiresAt,
+    required this.createdAt,
+    this.emailVerifiedAt,
+    this.googleId,
+    this.avatarUrl,
   });
 
-  // ========================================
-  // FACTORY CONSTRUCTORS
-  // ========================================
-
-  factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      id: json['id'] is String ? int.parse(json['id']) : json['id'],
-      name: json['name'] ?? '',
-      email: json['email'] ?? '',
-      isEmailVerified: json['email_verified_at'] != null || json['isEmailVerified'] == true,
-      createdAt: _parseDateTime(json['created_at']) ?? DateTime.now(),
-      emailVerifiedAt: _parseDateTime(json['email_verified_at'] ?? json['emailVerifiedAt']),
-      isPremium: json['is_premium'] ?? json['isPremium'] ?? false,
-      trialStartedAt: _parseDateTime(json['trial_started_at'] ?? json['trialStartedAt']),
-      premiumExpiresAt: _parseDateTime(json['premium_expires_at'] ?? json['premiumExpiresAt']),
+  /// Criar UserModel a partir do JSON da API
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel(
+      id: json['id'],
+      name: json['name'],
+      email: json['email'],
+      isPremium: json['is_premium'] ?? false,
+      trialStartedAt: json['trial_started_at'] != null 
+          ? DateTime.parse(json['trial_started_at']) 
+          : null,
+      premiumExpiresAt: json['premium_expires_at'] != null 
+          ? DateTime.parse(json['premium_expires_at']) 
+          : null,
+      createdAt: DateTime.parse(json['created_at']),
+      emailVerifiedAt: json['email_verified_at'] != null 
+          ? DateTime.parse(json['email_verified_at']) 
+          : null,
+      googleId: json['google_id'],
+      avatarUrl: json['avatar_url'],
     );
   }
 
-  /// Factory específico para dados do StorageService (SharedPreferences)
-  factory User.fromStorageData(Map<String, dynamic> data) {
-    return User(
-      id: data['userId'] is String ? int.parse(data['userId']) : data['userId'],
-      name: data['userName'] ?? '',
-      email: data['userEmail'] ?? '',
-      isEmailVerified: data['isEmailVerified'] ?? false,
-      createdAt: _parseDateTime(data['createdAt']) ?? DateTime.now(),
-      emailVerifiedAt: _parseDateTime(data['emailVerifiedAt']),
-      isPremium: data['isPremium'] ?? false,
-      trialStartedAt: _parseDateTime(data['trialStartedAt']),
-      premiumExpiresAt: _parseDateTime(data['premiumExpiresAt']),
-    );
-  }
-
-  /// Helper para parsing seguro de DateTime
-  static DateTime? _parseDateTime(dynamic value) {
-    if (value == null) return null;
-    if (value is DateTime) return value;
-    if (value is String) {
-      try {
-        return DateTime.parse(value);
-      } catch (e) {
-        print('❌ Erro ao parsear data: $value');
-        return null;
-      }
-    }
-    return null;
-  }
-
-  // ========================================
-  // SERIALIZAÇÃO
-  // ========================================
-
+  /// Converter UserModel para JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'name': name,
       'email': email,
-      'email_verified_at': emailVerifiedAt?.toIso8601String(),
-      'created_at': createdAt.toIso8601String(),
       'is_premium': isPremium,
       'trial_started_at': trialStartedAt?.toIso8601String(),
       'premium_expires_at': premiumExpiresAt?.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
+      'email_verified_at': emailVerifiedAt?.toIso8601String(),
+      'google_id': googleId,
+      'avatar_url': avatarUrl,
     };
   }
 
-  /// Converte para formato do StorageService (SharedPreferences)
-  Map<String, dynamic> toStorageData() {
-    return {
-      'userId': id,
-      'userName': name,
-      'userEmail': email,
-      'isEmailVerified': isEmailVerified,
-      'emailVerifiedAt': emailVerifiedAt?.toIso8601String(),
-      'createdAt': createdAt.toIso8601String(),
-      'isPremium': isPremium,
-      'trialStartedAt': trialStartedAt?.toIso8601String(),
-      'premiumExpiresAt': premiumExpiresAt?.toIso8601String(),
-    };
-  }
-
-  /// Converte para JSON string
-  String toJsonString() => jsonEncode(toJson());
-
-  /// Cria User a partir de JSON string
-  static User fromJsonString(String jsonString) {
-    final json = jsonDecode(jsonString) as Map<String, dynamic>;
-    return User.fromJson(json);
-  }
-
-  // ========================================
-  // GETTERS COMPUTADOS PARA PREMIUM/TRIAL
-  // ========================================
-
-  bool get hasActiveTrial {
-    if (isPremium || trialStartedAt == null) return false;
+  /// Verifica se o usuário está no período de trial
+  bool get isInTrial {
+    if (isPremium) return false;
+    if (trialStartedAt == null) return false;
     
-    final trialEndDate = trialStartedAt!.add(const Duration(days: 30));
-    return DateTime.now().isBefore(trialEndDate);
-  }
-
-  // ✅ ADICIONADO: Getter que estava faltando
-  bool get isInTrial => hasActiveTrial;
-
-  // ✅ ADICIONADO: Getter que estava faltando  
-  bool get hasNeverUsedTrial => trialStartedAt == null && !isPremium;
-
-  int get trialDaysRemaining {
-    if (isPremium || trialStartedAt == null) return 0;
-    
-    final trialEndDate = trialStartedAt!.add(const Duration(days: 30));
-    final daysRemaining = trialEndDate.difference(DateTime.now()).inDays;
-    return daysRemaining > 0 ? daysRemaining : 0;
-  }
-
-  bool get hasActivePremium {
-    if (!isPremium) return false;
-    
-    // Se não tem data de expiração, é premium vitalício
-    if (premiumExpiresAt == null) return true;
-    
-    return DateTime.now().isBefore(premiumExpiresAt!);
-  }
-
-  bool get canUseAdvancedFeatures => hasActiveTrial || hasActivePremium;
-
-  String get accountType {
-    if (hasActivePremium) return 'Premium';
-    if (hasActiveTrial) return 'Trial';
-    return 'Gratuita';
-  }
-
-  String get accountStatus {
-    if (hasActivePremium) {
-      if (premiumExpiresAt == null) return 'Premium Vitalício';
-      final daysUntilExpiry = premiumExpiresAt!.difference(DateTime.now()).inDays;
-      return 'Premium ($daysUntilExpiry dias restantes)';
-    }
-    if (hasActiveTrial) return 'Trial ($trialDaysRemaining dias restantes)';
-    if (trialStartedAt != null) return 'Trial Expirado';
-    return 'Conta Gratuita';
-  }
-
-  String get memberSince {
     final now = DateTime.now();
-    final difference = now.difference(createdAt);
+    final trialEnd = trialStartedAt!.add(const Duration(days: 7));
+    return now.isBefore(trialEnd);
+  }
+
+  /// Dias restantes do trial
+  int get trialDaysLeft {
+    if (!isInTrial) return 0;
     
-    if (difference.inDays < 1) {
-      return 'Hoje';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} dias';
-    } else if (difference.inDays < 30) {
-      final weeks = (difference.inDays / 7).floor();
-      return '$weeks semana${weeks > 1 ? 's' : ''}';
-    } else if (difference.inDays < 365) {
-      final months = (difference.inDays / 30).floor();
-      return '$months mês${months > 1 ? 'es' : ''}';
+    final now = DateTime.now();
+    final trialEnd = trialStartedAt!.add(const Duration(days: 7));
+    final difference = trialEnd.difference(now);
+    
+    // Retorna pelo menos 1 dia se ainda está no trial
+    return difference.inDays >= 0 ? difference.inDays + 1 : 0;
+  }
+
+  /// Horas restantes do trial (mais preciso)
+  int get trialHoursLeft {
+    if (!isInTrial) return 0;
+    
+    final now = DateTime.now();
+    final trialEnd = trialStartedAt!.add(const Duration(days: 7));
+    final difference = trialEnd.difference(now);
+    
+    return difference.inHours >= 0 ? difference.inHours : 0;
+  }
+
+  /// Se tem acesso premium (trial ou pago)
+  bool get hasAccess => isPremium || isInTrial;
+
+  /// Status do usuário (para UI)
+  String get statusText {
+    if (isPremium) {
+      return 'Premium Ativo';
+    } else if (isInTrial) {
+      return 'Trial $trialDaysLeft dias';
     } else {
-      final years = (difference.inDays / 365).floor();
-      return '$years ano${years > 1 ? 's' : ''}';
+      return 'Trial Expirado';
     }
   }
 
-  // ========================================
-  // MÉTODOS UTILITÁRIOS
-  // ========================================
+  /// Cor do status (para UI)
+  String get statusColor {
+    if (isPremium) {
+      return 'green';
+    } else if (isInTrial) {
+      return 'blue';
+    } else {
+      return 'red';
+    }
+  }
 
+  /// Ícone do status (para UI)
+  String get statusIcon {
+    if (isPremium) {
+      return 'star';
+    } else if (isInTrial) {
+      return 'access_time';
+    } else {
+      return 'lock';
+    }
+  }
+
+  /// Primeiro nome do usuário
+  String get firstName {
+    return name.split(' ').first;
+  }
+
+  /// Iniciais do usuário (para avatar)
   String get initials {
-    final names = name.trim().split(' ');
-    if (names.isEmpty) return 'US';
-    if (names.length == 1) {
-      return names[0].length >= 2 
-        ? names[0].substring(0, 2).toUpperCase()
-        : names[0].toUpperCase();
-    }
-    return '${names.first[0]}${names.last[0]}'.toUpperCase();
-  }
-
-  String get firstName => name.split(' ').first;
-
-  String get lastName {
     final names = name.split(' ');
-    return names.length > 1 ? names.last : '';
-  }
-
-  String get fullName => name;
-
-  String get displayName => firstName.isNotEmpty ? firstName : email;
-
-  // ========================================
-  // TRIAL INFO PARA UI
-  // ========================================
-
-  String get trialStatusText {
-    if (hasActivePremium) return 'Premium Ativo';
-    if (hasActiveTrial) return 'Trial Ativo ($trialDaysRemaining dias restantes)';
-    if (trialStartedAt != null) return 'Trial Expirado';
-    return 'Trial Disponível (30 dias grátis)';
-  }
-
-  String get subscriptionStatusText {
-    if (hasActivePremium) {
-      if (premiumExpiresAt == null) return 'Premium Vitalício';
-      return 'Premium até ${_formatDate(premiumExpiresAt!)}';
+    if (names.length >= 2) {
+      return '${names.first[0]}${names.last[0]}'.toUpperCase();
+    } else {
+      return names.first.substring(0, 2).toUpperCase();
     }
-    if (hasActiveTrial) {
-      final trialEndDate = trialStartedAt!.add(const Duration(days: 30));
-      return 'Trial até ${_formatDate(trialEndDate)}';
+  }
+
+  /// Se o trial está próximo do fim (2 dias ou menos)
+  bool get trialEndingSoon {
+    return isInTrial && trialDaysLeft <= 2;
+  }
+
+  /// Se o trial acabou de começar (primeiro dia)
+  bool get trialJustStarted {
+    if (!isInTrial || trialStartedAt == null) return false;
+    
+    final now = DateTime.now();
+    final difference = now.difference(trialStartedAt!);
+    return difference.inHours < 24;
+  }
+
+  /// Data de expiração do trial
+  DateTime? get trialExpiresAt {
+    if (trialStartedAt == null) return null;
+    return trialStartedAt!.add(const Duration(days: 7));
+  }
+
+  /// Se o usuário é novo (criado hoje)
+  bool get isNewUser {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final createdDay = DateTime(createdAt.year, createdAt.month, createdAt.day);
+    return createdDay.isAtSameMomentAs(today);
+  }
+
+  /// Mensagem motivacional baseada no status
+  String get motivationalMessage {
+    if (isPremium) {
+      return 'Aproveite todos os treinos premium!';
+    } else if (isInTrial) {
+      if (trialJustStarted) {
+        return 'Bem-vindo! Explore todos os recursos grátis!';
+      } else if (trialEndingSoon) {
+        return 'Últimos dias do trial. Que tal assinar?';
+      } else {
+        return 'Aproveite seu trial premium!';
+      }
+    } else {
+      return 'Assine para acessar treinos exclusivos!';
     }
-    return 'Conta Gratuita';
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  /// Call-to-action baseado no status
+  String get ctaText {
+    if (isPremium) {
+      return 'Ver Treinos';
+    } else if (isInTrial) {
+      if (trialEndingSoon) {
+        return 'Assinar Agora';
+      } else {
+        return 'Explorar Treinos';
+      }
+    } else {
+      return 'Assinar Premium';
+    }
   }
 
-  // ========================================
-  // VALIDAÇÕES
-  // ========================================
-
-  bool get isValid => id > 0 && name.isNotEmpty && email.isNotEmpty;
-
-  bool get hasValidEmail => email.contains('@') && email.contains('.');
-
-  bool get needsEmailVerification => !isEmailVerified && hasValidEmail;
-
-  bool get canStartTrial => !isPremium && trialStartedAt == null;
-
-  bool get isTrialExpired => trialStartedAt != null && !hasActiveTrial && !isPremium;
-
-  // ========================================
-  // COPYSWITH PARA ATUALIZAÇÕES
-  // ========================================
-
-  User copyWith({
+  /// Criar cópia do UserModel com novos valores
+  UserModel copyWith({
     int? id,
     String? name,
     String? email,
-    bool? isEmailVerified,
-    DateTime? createdAt,
-    DateTime? emailVerifiedAt,
     bool? isPremium,
     DateTime? trialStartedAt,
     DateTime? premiumExpiresAt,
+    DateTime? createdAt,
+    DateTime? emailVerifiedAt,
+    String? googleId,
+    String? avatarUrl,
   }) {
-    return User(
+    return UserModel(
       id: id ?? this.id,
       name: name ?? this.name,
       email: email ?? this.email,
-      isEmailVerified: isEmailVerified ?? this.isEmailVerified,
-      createdAt: createdAt ?? this.createdAt,
-      emailVerifiedAt: emailVerifiedAt ?? this.emailVerifiedAt,
       isPremium: isPremium ?? this.isPremium,
       trialStartedAt: trialStartedAt ?? this.trialStartedAt,
       premiumExpiresAt: premiumExpiresAt ?? this.premiumExpiresAt,
+      createdAt: createdAt ?? this.createdAt,
+      emailVerifiedAt: emailVerifiedAt ?? this.emailVerifiedAt,
+      googleId: googleId ?? this.googleId,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
-
-  // ========================================
-  // MÉTODOS DE CONVENIÊNCIA
-  // ========================================
-
-  /// Atualiza o status do trial
-  User startTrial() {
-    if (canStartTrial) {
-      return copyWith(trialStartedAt: DateTime.now());
-    }
-    return this;
-  }
-
-  /// Atualiza para premium
-  User upgradeToPremium({DateTime? expiresAt}) {
-    return copyWith(
-      isPremium: true,
-      premiumExpiresAt: expiresAt,
-    );
-  }
-
-  /// Marca email como verificado
-  User verifyEmail() {
-    return copyWith(
-      isEmailVerified: true,
-      emailVerifiedAt: DateTime.now(),
-    );
-  }
-
-  /// Cancela premium (mantém até data de expiração)
-  User cancelPremium() {
-    return copyWith(
-      premiumExpiresAt: premiumExpiresAt ?? DateTime.now(),
-    );
-  }
-
-  // ========================================
-  // OVERRIDE METHODS
-  // ========================================
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is User && other.id == id && other.email == email;
-  }
-
-  @override
-  int get hashCode => id.hashCode ^ email.hashCode;
 
   @override
   String toString() {
-    return 'User(id: $id, name: $name, email: $email, accountType: $accountType)';
+    return 'UserModel{id: $id, name: $name, email: $email, isPremium: $isPremium, hasAccess: $hasAccess}';
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UserModel &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          email == other.email;
+
+  @override
+  int get hashCode => id.hashCode ^ email.hashCode;
 }

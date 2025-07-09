@@ -1,10 +1,9 @@
-// lib/screens/home/home_screen.dart - ARQUIVO COMPLETO CORRIGIDO
-
 import 'package:flutter/material.dart';
-import '../../core/services/storage_service.dart';
-import '../../core/services/trial_service.dart';
-import '../../core/constants/api_constants.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider_google.dart';
 
+/// Tela Home - Dashboard principal
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -12,309 +11,513 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  final StorageService _storageService = StorageService();
-  final TrialService _trialService = TrialService();
-  
-  List<String> _testResults = [];
-  bool _isLoading = false;
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    _runTests();
-  }
-
-  Future<void> _runTests() async {
-    setState(() {
-      _isLoading = true;
-      _testResults.clear();
-    });
-
-    try {
-      // Teste 1: Storage Service
-      _addResult('🧪 Testando Storage Service...');
-      await _storageService.initialize();
-      final storageTest = await _storageService.testStorage();
-      _addResult(storageTest ? '✅ Storage: OK' : '❌ Storage: FALHOU');
-
-      // Teste 2: Trial Service  
-      _addResult('🧪 Testando Trial Service...');
-      await _trialService.initialize();
-      final isFirstOpen = await _trialService.isFirstAppOpen();
-      _addResult('📱 Primeira abertura: ${isFirstOpen ? "SIM" : "NÃO"}');
-
-      // Teste 3: Configurações
-      _addResult('🧪 Verificando configurações...');
-      _addResult('🔗 API URL: ${ApiConstants.baseUrl}');
-      
-      // Teste 4: Trial Info
-      _addResult('🧪 Informações do Trial...');
-      final trialInfo = await _trialService.getTrialInfo();
-      _addResult('⏰ Status: ${trialInfo['status_display']}');
-      _addResult('🎁 Deve mostrar oferta: ${trialInfo['should_show_offer']}');
-
-      _addResult('🎉 Todos os testes concluídos!');
-
-    } catch (e) {
-      _addResult('❌ Erro nos testes: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _addResult(String result) {
-    setState(() {
-      _testResults.add(result);
-    });
-  }
-
-  Future<void> _resetTrialSystem() async {
-    try {
-      _addResult('🔄 Resetando sistema de trial...');
-      await _trialService.resetTrialSystem();
-      await _storageService.clearAll();
-      _addResult('✅ Sistema resetado! Reinicie o app.');
-    } catch (e) {
-      _addResult('❌ Erro ao resetar: $e');
-    }
+    
+    // Configurar status bar
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+    );
+    
+    _setupAnimations();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Treino App - Testes'),
-        backgroundColor: const Color(0xFF4CAF50),
-        foregroundColor: Colors.white,
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  /// Configurar animações
+  void _setupAnimations() {
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    ));
+    
+    _fadeController.forward();
+  }
+
+  /// Fazer logout
+  Future<void> _signOut() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'Confirmar Logout',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text('Tem certeza que deseja sair?'),
         actions: [
-          IconButton(
-            onPressed: _runTests,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Executar testes novamente',
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sair'),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Header
-            Card(
-              color: const Color(0xFF4CAF50).withOpacity(0.1),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
+    );
+
+    if (shouldLogout == true) {
+      final authProvider = Provider.of<AuthProviderGoogle>(context, listen: false);
+      await authProvider.signOut();
+      // O AuthWrapper irá navegar automaticamente
+    }
+  }
+
+  /// Widget do status do usuário
+  Widget _buildUserStatus() {
+    return Consumer<AuthProviderGoogle>(
+      builder: (context, authProvider, child) {
+        final user = authProvider.user;
+        if (user == null) return const SizedBox.shrink();
+
+        return Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: user.hasAccess
+                  ? [const Color(0xFF667eea), const Color(0xFF764ba2)]
+                  : [Colors.orange, Colors.deepOrange],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  // Avatar
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 2,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        user.initials,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(width: 16),
+                  
+                  // Info do usuário
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Olá, ${user.firstName}!',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user.motivationalMessage,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Status bar
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Row(
                   children: [
                     Icon(
-                      Icons.science,
-                      color: const Color(0xFF4CAF50),
-                      size: 32,
+                      user.isPremium 
+                          ? Icons.star 
+                          : user.isInTrial 
+                              ? Icons.access_time 
+                              : Icons.lock,
+                      color: Colors.white,
+                      size: 20,
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Testes de Sistema',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
                           Text(
-                            'Verificando se tudo está funcionando',
-                            style: TextStyle(
-                              color: Colors.grey[600],
+                            user.statusText,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
+                          if (user.isInTrial) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Expira em ${user.trialExpiresAt?.day}/${user.trialExpiresAt?.month}',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
+                    if (!user.hasAccess)
+                      ElevatedButton(
+                        onPressed: () {
+                          // TODO: Implementar tela de assinatura
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Tela de assinatura será implementada'),
+                              backgroundColor: Color(0xFF667eea),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.orange,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: const Text(
+                          'Assinar',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-            ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
-            const SizedBox(height: 16),
-
-            // Loading indicator
-            if (_isLoading)
-              const LinearProgressIndicator(
-                backgroundColor: Color(0xFFE0E0E0),
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
-              ),
-
-            const SizedBox(height: 16),
-
-            // Resultados dos testes
-            Expanded(
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+  /// Widget de funcionalidade (coming soon)
+  Widget _buildFeatureCard({
+    required String title,
+    required String description,
+    required IconData icon,
+    required VoidCallback onTap,
+    bool isEnabled = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.1),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                // Ícone
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: isEnabled 
+                        ? const Color(0xFF667eea).withOpacity(0.1)
+                        : Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isEnabled 
+                        ? const Color(0xFF667eea)
+                        : Colors.grey,
+                    size: 28,
+                  ),
+                ),
+                
+                const SizedBox(width: 16),
+                
+                // Conteúdo
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.list_alt),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Resultados dos Testes',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '${_testResults.length} linhas',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isEnabled 
+                              ? const Color(0xFF2D3748)
+                              : Colors.grey[600],
+                        ),
                       ),
-                      const Divider(),
-                      Expanded(
-                        child: _testResults.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'Executando testes...',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              )
-                            : ListView.builder(
-                                itemCount: _testResults.length,
-                                itemBuilder: (context, index) {
-                                  final result = _testResults[index];
-                                  Color? textColor;
-                                  
-                                  if (result.startsWith('✅')) {
-                                    textColor = Colors.green;
-                                  } else if (result.startsWith('❌')) {
-                                    textColor = Colors.red;
-                                  } else if (result.startsWith('🧪')) {
-                                    textColor = Colors.blue;
-                                  }
-
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 2.0),
-                                    child: Text(
-                                      result,
-                                      style: TextStyle(
-                                        fontFamily: 'Courier',
-                                        fontSize: 13,
-                                        color: textColor,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Botões de ação
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _runTests,
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text('Executar Testes'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4CAF50),
-                      foregroundColor: Colors.white,
-                    ),
+                
+                // Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isEnabled 
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.amber.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _resetTrialSystem,
-                    icon: const Icon(Icons.restart_alt),
-                    label: const Text('Reset Trial'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
+                  child: Text(
+                    isEnabled ? 'Ativo' : 'Em breve',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: isEnabled 
+                          ? Colors.green[700]
+                          : Colors.amber[700],
                     ),
                   ),
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
 
-            const SizedBox(height: 16),
-
-            // Informações de debug
-            Card(
-              color: Colors.grey[50],
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text(
+          'Treino App',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2D3748),
+          ),
+        ),
+        actions: [
+          IconButton(
+            onPressed: _signOut,
+            icon: const Icon(
+              Icons.logout,
+              color: Color(0xFF667eea),
+            ),
+            tooltip: 'Sair',
+          ),
+        ],
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // STATUS DO USUÁRIO
+              _buildUserStatus(),
+              
+              // TÍTULO SEÇÃO
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Funcionalidades',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3748),
+                  ),
+                ),
+              ),
+              
+              // CARDS DE FUNCIONALIDADES
+              _buildFeatureCard(
+                title: 'Meus Treinos',
+                description: 'Visualize e gerencie seus treinos personalizados',
+                icon: Icons.fitness_center,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Funcionalidade será implementada em breve'),
+                      backgroundColor: Color(0xFF667eea),
+                    ),
+                  );
+                },
+              ),
+              
+              _buildFeatureCard(
+                title: 'Criar Treino',
+                description: 'Monte seu próprio treino com exercícios customizados',
+                icon: Icons.add_circle_outline,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Funcionalidade será implementada em breve'),
+                      backgroundColor: Color(0xFF667eea),
+                    ),
+                  );
+                },
+              ),
+              
+              _buildFeatureCard(
+                title: 'Histórico',
+                description: 'Acompanhe seu progresso e evolução',
+                icon: Icons.analytics,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Funcionalidade será implementada em breve'),
+                      backgroundColor: Color(0xFF667eea),
+                    ),
+                  );
+                },
+              ),
+              
+              _buildFeatureCard(
+                title: 'Configurações',
+                description: 'Personalize sua experiência no app',
+                icon: Icons.settings,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Funcionalidade será implementada em breve'),
+                      backgroundColor: Color(0xFF667eea),
+                    ),
+                  );
+                },
+              ),
+              
+              const SizedBox(height: 32),
+              
+              // INFORMAÇÕES ADICIONAIS
+              Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.blue.withOpacity(0.1),
+                  ),
+                ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Informações de Debug',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                      ],
+                    Icon(
+                      Icons.rocket_launch,
+                      color: Colors.blue[600],
+                      size: 32,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Autenticação Google Implementada!',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue[700],
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'API: ${ApiConstants.baseUrl}',
+                      'A base do app está funcionando perfeitamente. '
+                      'Sistema de login, trial de 7 dias e integração com Laravel '
+                      'já estão operacionais. Próximas funcionalidades em desenvolvimento!',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontFamily: 'Courier',
+                        fontSize: 14,
+                        color: Colors.blue[600],
+                        height: 1.4,
                       ),
-                    ),
-                    Text(
-                      'Versão: 1.0.0+1 (teste)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+              
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Mostrar logs no console
-          _storageService.printDebugInfo();
-          _trialService.printTrialDebugInfo();
-        },
-        backgroundColor: const Color(0xFF4CAF50),
-        child: const Icon(Icons.bug_report, color: Colors.white),
-        tooltip: 'Imprimir logs no console',
       ),
     );
   }

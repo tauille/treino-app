@@ -1,5 +1,5 @@
-// lib/models/treino_model.dart
-class Treino {
+/// Modelo do treino
+class TreinoModel {
   final int id;
   final String nomeTreino;
   final String tipoTreino;
@@ -7,16 +7,12 @@ class Treino {
   final String? dificuldade;
   final String status;
   final int totalExercicios;
-  final int duracaoEstimada; // em segundos
-  final String duracaoFormatada;
-  final String gruposMusculares;
-  final String? dificuldadeTexto;
-  final String? corDificuldade;
+  final int duracaoEstimada; // em minutos
+  final String? gruposMusculares;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final List<Exercicio>? exercicios;
 
-  Treino({
+  TreinoModel({
     required this.id,
     required this.nomeTreino,
     required this.tipoTreino,
@@ -25,39 +21,29 @@ class Treino {
     required this.status,
     required this.totalExercicios,
     required this.duracaoEstimada,
-    required this.duracaoFormatada,
-    required this.gruposMusculares,
-    this.dificuldadeTexto,
-    this.corDificuldade,
+    this.gruposMusculares,
     required this.createdAt,
     required this.updatedAt,
-    this.exercicios,
   });
 
-  factory Treino.fromJson(Map<String, dynamic> json) {
-    return Treino(
+  /// Criar TreinoModel a partir do JSON da API
+  factory TreinoModel.fromJson(Map<String, dynamic> json) {
+    return TreinoModel(
       id: json['id'],
       nomeTreino: json['nome_treino'],
       tipoTreino: json['tipo_treino'],
       descricao: json['descricao'],
       dificuldade: json['dificuldade'],
-      status: json['status'],
+      status: json['status'] ?? 'ativo',
       totalExercicios: json['total_exercicios'] ?? 0,
       duracaoEstimada: json['duracao_estimada'] ?? 0,
-      duracaoFormatada: json['duracao_formatada'] ?? '0 min',
-      gruposMusculares: json['grupos_musculares'] ?? '',
-      dificuldadeTexto: json['dificuldade_texto'],
-      corDificuldade: json['cor_dificuldade'],
+      gruposMusculares: json['grupos_musculares'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
-      exercicios: json['exercicios'] != null
-          ? (json['exercicios'] as List)
-              .map((e) => Exercicio.fromJson(e))
-              .toList()
-          : null,
     );
   }
 
+  /// Converter TreinoModel para JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -66,27 +52,35 @@ class Treino {
       'descricao': descricao,
       'dificuldade': dificuldade,
       'status': status,
+      'total_exercicios': totalExercicios,
+      'duracao_estimada': duracaoEstimada,
+      'grupos_musculares': gruposMusculares,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 
-  // 🎯 Getters úteis para UI
-  bool get isAtivo => status == 'ativo';
-
-  String get dificuldadeBadgeColor {
-    switch (dificuldade) {
-      case 'iniciante':
-        return '#4CAF50'; // Verde
-      case 'intermediario':
-        return '#FF9800'; // Laranja
-      case 'avancado':
-        return '#F44336'; // Vermelho
-      default:
-        return '#9E9E9E'; // Cinza
+  /// Duração formatada (ex: "45 min", "1h 15min")
+  String get duracaoFormatada {
+    if (duracaoEstimada <= 0) return 'N/A';
+    
+    if (duracaoEstimada < 60) {
+      return '${duracaoEstimada}min';
+    } else {
+      final horas = duracaoEstimada ~/ 60;
+      final minutos = duracaoEstimada % 60;
+      
+      if (minutos == 0) {
+        return '${horas}h';
+      } else {
+        return '${horas}h ${minutos}min';
+      }
     }
   }
 
-  String get dificuldadeText {
-    switch (dificuldade) {
+  /// Texto da dificuldade formatado
+  String get dificuldadeTexto {
+    switch (dificuldade?.toLowerCase()) {
       case 'iniciante':
         return 'Iniciante';
       case 'intermediario':
@@ -98,52 +92,148 @@ class Treino {
     }
   }
 
-  String get duracaoTexto {
-    if (duracaoEstimada < 60) {
-      return '${duracaoEstimada}s';
-    } else if (duracaoEstimada < 3600) {
-      final minutos = (duracaoEstimada / 60).floor();
-      final segundos = duracaoEstimada % 60;
-      return segundos > 0 ? '${minutos}m ${segundos}s' : '${minutos}m';
-    } else {
-      final horas = (duracaoEstimada / 3600).floor();
-      final minutos = ((duracaoEstimada % 3600) / 60).floor();
-      return minutos > 0 ? '${horas}h ${minutos}m' : '${horas}h';
+  /// Cor da dificuldade
+  String get corDificuldade {
+    switch (dificuldade?.toLowerCase()) {
+      case 'iniciante':
+        return 'green';
+      case 'intermediario':
+        return 'orange';
+      case 'avancado':
+        return 'red';
+      default:
+        return 'grey';
     }
   }
 
-  String get resumoExercicios {
-    if (totalExercicios == 0) return 'Nenhum exercício';
-    if (totalExercicios == 1) return '1 exercício';
-    return '$totalExercicios exercícios';
+  /// Ícone da dificuldade
+  String get iconeDificuldade {
+    switch (dificuldade?.toLowerCase()) {
+      case 'iniciante':
+        return 'child_friendly';
+      case 'intermediario':
+        return 'fitness_center';
+      case 'avancado':
+        return 'flash_on';
+      default:
+        return 'help_outline';
+    }
   }
 
-  // 🏷️ Para chips de grupos musculares
-  List<String> get gruposMuscularesLista {
-    if (gruposMusculares.isEmpty) return [];
-    return gruposMusculares
+  /// Ícone do tipo de treino
+  String get iconeTipoTreino {
+    switch (tipoTreino.toLowerCase()) {
+      case 'musculacao':
+      case 'musculação':
+        return 'fitness_center';
+      case 'cardio':
+      case 'cardiovascular':
+        return 'directions_run';
+      case 'funcional':
+        return 'sports_gymnastics';
+      case 'yoga':
+        return 'self_improvement';
+      case 'pilates':
+        return 'accessibility';
+      case 'crossfit':
+        return 'sports_martial_arts';
+      default:
+        return 'sports';
+    }
+  }
+
+  /// Se o treino está ativo
+  bool get isAtivo => status.toLowerCase() == 'ativo';
+
+  /// Se o treino é novo (criado hoje)
+  bool get isNovo {
+    final hoje = DateTime.now();
+    final criadoHoje = DateTime(hoje.year, hoje.month, hoje.day);
+    final criadoEm = DateTime(createdAt.year, createdAt.month, createdAt.day);
+    return criadoEm.isAtSameMomentAs(criadoHoje);
+  }
+
+  /// Se o treino foi atualizado recentemente (últimas 24h)
+  bool get foiAtualizadoRecentemente {
+    final agora = DateTime.now();
+    final diferenca = agora.difference(updatedAt);
+    return diferenca.inHours < 24;
+  }
+
+  /// Grupos musculares como lista
+  List<String> get gruposMuscularesList {
+    if (gruposMusculares == null || gruposMusculares!.isEmpty) {
+      return [];
+    }
+    return gruposMusculares!
         .split(',')
         .map((g) => g.trim())
         .where((g) => g.isNotEmpty)
         .toList();
   }
 
-  // 📊 Para ordenação e filtros
-  int get dificuldadeNivel {
-    switch (dificuldade) {
+  /// Primeiro grupo muscular
+  String get grupoMuscularPrincipal {
+    final grupos = gruposMuscularesList;
+    return grupos.isNotEmpty ? grupos.first : 'Geral';
+  }
+
+  /// Intensidade baseada na dificuldade
+  double get intensidade {
+    switch (dificuldade?.toLowerCase()) {
       case 'iniciante':
-        return 1;
+        return 0.3;
       case 'intermediario':
-        return 2;
+        return 0.6;
       case 'avancado':
-        return 3;
+        return 0.9;
       default:
-        return 0;
+        return 0.5;
     }
   }
 
-  // 🔄 copyWith para atualizações
-  Treino copyWith({
+  /// Calorias estimadas (baseado na duração)
+  int get caloriasEstimadas {
+    // Cálculo aproximado: 8-12 calorias por minuto dependendo da intensidade
+    final baseCalories = duracaoEstimada * 10;
+    final intensityMultiplier = intensidade + 0.5; // 0.8 a 1.4
+    return (baseCalories * intensityMultiplier).round();
+  }
+
+  /// Resumo do treino para exibição
+  String get resumo {
+    final partes = <String>[];
+    
+    if (totalExercicios > 0) {
+      partes.add('$totalExercicios exercícios');
+    }
+    
+    if (duracaoEstimada > 0) {
+      partes.add(duracaoFormatada);
+    }
+    
+    if (dificuldade != null) {
+      partes.add(dificuldadeTexto);
+    }
+    
+    return partes.join(' • ');
+  }
+
+  /// Se o treino é adequado para iniciantes
+  bool get adequadoParaIniciantes {
+    return dificuldade?.toLowerCase() == 'iniciante' || 
+           duracaoEstimada <= 30 ||
+           totalExercicios <= 5;
+  }
+
+  /// Se o treino é um treino rápido (menos de 30 min)
+  bool get isTreinoRapido => duracaoEstimada < 30;
+
+  /// Se o treino é longo (mais de 1 hora)
+  bool get isTreinoLongo => duracaoEstimada > 60;
+
+  /// Criar cópia do TreinoModel com novos valores
+  TreinoModel copyWith({
     int? id,
     String? nomeTreino,
     String? tipoTreino,
@@ -152,15 +242,11 @@ class Treino {
     String? status,
     int? totalExercicios,
     int? duracaoEstimada,
-    String? duracaoFormatada,
     String? gruposMusculares,
-    String? dificuldadeTexto,
-    String? corDificuldade,
     DateTime? createdAt,
     DateTime? updatedAt,
-    List<Exercicio>? exercicios,
   }) {
-    return Treino(
+    return TreinoModel(
       id: id ?? this.id,
       nomeTreino: nomeTreino ?? this.nomeTreino,
       tipoTreino: tipoTreino ?? this.tipoTreino,
@@ -169,188 +255,24 @@ class Treino {
       status: status ?? this.status,
       totalExercicios: totalExercicios ?? this.totalExercicios,
       duracaoEstimada: duracaoEstimada ?? this.duracaoEstimada,
-      duracaoFormatada: duracaoFormatada ?? this.duracaoFormatada,
       gruposMusculares: gruposMusculares ?? this.gruposMusculares,
-      dificuldadeTexto: dificuldadeTexto ?? this.dificuldadeTexto,
-      corDificuldade: corDificuldade ?? this.corDificuldade,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      exercicios: exercicios ?? this.exercicios,
     );
   }
 
   @override
   String toString() {
-    return 'Treino(id: $id, nome: $nomeTreino, tipo: $tipoTreino, dificuldade: $dificuldade)';
-  }
-}
-
-// lib/models/exercicio_model.dart
-class Exercicio {
-  final int id;
-  final int treinoId;
-  final String nomeExercicio;
-  final String? descricao;
-  final String? grupoMuscular;
-  final String tipoExecucao;
-  final int? repeticoes;
-  final int? series;
-  final int? tempoExecucao;
-  final int? tempoDescanso;
-  final double? peso;
-  final String unidadePeso;
-  final int ordem;
-  final String? observacoes;
-  final String status;
-  final String textoExecucao;
-  final String? textoDescanso;
-  final int tempoTotalEstimado;
-  final String? imagemUrl;
-
-  Exercicio({
-    required this.id,
-    required this.treinoId,
-    required this.nomeExercicio,
-    this.descricao,
-    this.grupoMuscular,
-    required this.tipoExecucao,
-    this.repeticoes,
-    this.series,
-    this.tempoExecucao,
-    this.tempoDescanso,
-    this.peso,
-    required this.unidadePeso,
-    required this.ordem,
-    this.observacoes,
-    required this.status,
-    required this.textoExecucao,
-    this.textoDescanso,
-    required this.tempoTotalEstimado,
-    this.imagemUrl,
-  });
-
-  factory Exercicio.fromJson(Map<String, dynamic> json) {
-    return Exercicio(
-      id: json['id'],
-      treinoId: json['treino_id'],
-      nomeExercicio: json['nome_exercicio'],
-      descricao: json['descricao'],
-      grupoMuscular: json['grupo_muscular'],
-      tipoExecucao: json['tipo_execucao'],
-      repeticoes: json['repeticoes'],
-      series: json['series'],
-      tempoExecucao: json['tempo_execucao'],
-      tempoDescanso: json['tempo_descanso'],
-      peso: json['peso'] != null ? double.parse(json['peso'].toString()) : null,
-      unidadePeso: json['unidade_peso'] ?? 'kg',
-      ordem: json['ordem'],
-      observacoes: json['observacoes'],
-      status: json['status'],
-      textoExecucao: json['texto_execucao'],
-      textoDescanso: json['texto_descanso'],
-      tempoTotalEstimado: json['tempo_total_estimado'] ?? 0,
-      imagemUrl: json['imagem_url'],
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'treino_id': treinoId,
-      'nome_exercicio': nomeExercicio,
-      'descricao': descricao,
-      'grupo_muscular': grupoMuscular,
-      'tipo_execucao': tipoExecucao,
-      'repeticoes': repeticoes,
-      'series': series,
-      'tempo_execucao': tempoExecucao,
-      'tempo_descanso': tempoDescanso,
-      'peso': peso,
-      'unidade_peso': unidadePeso,
-      'ordem': ordem,
-      'observacoes': observacoes,
-      'status': status,
-    };
-  }
-
-  // 🎯 Getters úteis para UI
-  bool get isAtivo => status == 'ativo';
-  bool get isRepeticao => tipoExecucao == 'repeticao';
-  bool get isTempo => tipoExecucao == 'tempo';
-
-  String get pesoFormatado {
-    if (peso == null) return '';
-    return '${peso!.toStringAsFixed(peso! % 1 == 0 ? 0 : 1)} $unidadePeso';
-  }
-
-  String get tempoExecucaoFormatado {
-    if (tempoExecucao == null) return '';
-    if (tempoExecucao! < 60) {
-      return '${tempoExecucao}s';
-    } else {
-      final minutos = (tempoExecucao! / 60).floor();
-      final segundos = tempoExecucao! % 60;
-      return segundos > 0 ? '${minutos}m ${segundos}s' : '${minutos}m';
-    }
-  }
-
-  String get tempoDescansoFormatado {
-    if (tempoDescanso == null) return '';
-    if (tempoDescanso! < 60) {
-      return '${tempoDescanso}s';
-    } else {
-      final minutos = (tempoDescanso! / 60).floor();
-      final segundos = tempoDescanso! % 60;
-      return segundos > 0 ? '${minutos}m ${segundos}s' : '${minutos}m';
-    }
-  }
-
-  // 🔄 copyWith para atualizações
-  Exercicio copyWith({
-    int? id,
-    int? treinoId,
-    String? nomeExercicio,
-    String? descricao,
-    String? grupoMuscular,
-    String? tipoExecucao,
-    int? repeticoes,
-    int? series,
-    int? tempoExecucao,
-    int? tempoDescanso,
-    double? peso,
-    String? unidadePeso,
-    int? ordem,
-    String? observacoes,
-    String? status,
-    String? textoExecucao,
-    String? textoDescanso,
-    int? tempoTotalEstimado,
-    String? imagemUrl,
-  }) {
-    return Exercicio(
-      id: id ?? this.id,
-      treinoId: treinoId ?? this.treinoId,
-      nomeExercicio: nomeExercicio ?? this.nomeExercicio,
-      descricao: descricao ?? this.descricao,
-      grupoMuscular: grupoMuscular ?? this.grupoMuscular,
-      tipoExecucao: tipoExecucao ?? this.tipoExecucao,
-      repeticoes: repeticoes ?? this.repeticoes,
-      series: series ?? this.series,
-      tempoExecucao: tempoExecucao ?? this.tempoExecucao,
-      tempoDescanso: tempoDescanso ?? this.tempoDescanso,
-      peso: peso ?? this.peso,
-      unidadePeso: unidadePeso ?? this.unidadePeso,
-      ordem: ordem ?? this.ordem,
-      observacoes: observacoes ?? this.observacoes,
-      status: status ?? this.status,
-      textoExecucao: textoExecucao ?? this.textoExecucao,
-      textoDescanso: textoDescanso ?? this.textoDescanso,
-      tempoTotalEstimado: tempoTotalEstimado ?? this.tempoTotalEstimado,
-      imagemUrl: imagemUrl ?? this.imagemUrl,
-    );
+    return 'TreinoModel{id: $id, nomeTreino: $nomeTreino, tipoTreino: $tipoTreino, dificuldade: $dificuldade}';
   }
 
   @override
-  String toString() {
-    return 'Exercicio(id: $id, nome: $nomeExercicio, grupo: $grupoMuscular)';
-  }
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TreinoModel &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

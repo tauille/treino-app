@@ -1,519 +1,458 @@
+// lib/screens/auth/google_login_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import 'register_screen.dart';
-import '../home/home_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class GoogleLoginScreen extends StatefulWidget {
+  const GoogleLoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<GoogleLoginScreen> createState() => _GoogleLoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  
-  bool _obscurePassword = true;
-  bool _rememberMe = false;
+class _GoogleLoginScreenState extends State<GoogleLoginScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _fadeController;
+  late AnimationController _scaleController;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Animações para entrada suave
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    ));
+    
+    _scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _scaleController,
+      curve: Curves.elasticOut,
+    ));
+    
+    // Iniciar animações
+    _fadeController.forward();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _scaleController.forward();
+    });
+  }
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    _fadeController.dispose();
+    _scaleController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
-
+  Future<void> _handleGoogleSignIn() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     
-    final success = await authProvider.login(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
+    final success = await authProvider.signInWithGoogle();
 
-    if (success && mounted) {
-      // Sucesso no login - navegar para home
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
-      
-      // Mostrar snackbar de sucesso
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Bem-vindo de volta, ${authProvider.user?.firstName}!'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } else if (mounted) {
-      // Erro no login - mostrar mensagem
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.errorMessage ?? 'Erro ao fazer login'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
-  Future<void> _handleGoogleLogin() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
-    final success = await authProvider.loginWithGoogle();
-
-    if (success && mounted) {
-      // Sucesso no login - navegar para home
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
-      
-      // Mostrar snackbar de sucesso
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Bem-vindo de volta, ${authProvider.user?.firstName}!'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } else if (mounted) {
-      // Erro no login - mostrar mensagem
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.errorMessage ?? 'Erro ao fazer login com Google'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
-  void _navigateToRegister() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const RegisterScreen()),
-    );
-  }
-
-  Widget _buildGoogleLoginButton() {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        return SizedBox(
-          height: 50,
-          child: ElevatedButton.icon(
-            onPressed: authProvider.isLoading ? null : _handleGoogleLogin,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.grey[800],
-              side: BorderSide(color: Colors.grey[300]!),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            icon: authProvider.isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Image.asset(
-                    'assets/google_logo.png', // Você precisará adicionar este asset
-                    height: 20,
-                    width: 20,
-                    errorBuilder: (context, error, stackTrace) {
-                      // Fallback para ícone se a imagem não existir
-                      return Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'G',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-            label: Text(
-              authProvider.isLoading 
-                  ? 'Conectando...' 
-                  : 'Entrar com Google',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+    if (mounted) {
+      if (success) {
+        // Login bem-sucedido - AuthWrapper vai redirecionar automaticamente
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Bem-vindo, ${authProvider.displayName}! 🎉'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
         );
-      },
-    );
+      } else {
+        // Mostrar erro
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authProvider.errorMessage ?? 'Erro ao fazer login'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 40),
-              
-              // Logo/Header
-              _buildHeader(),
-              
-              const SizedBox(height: 40),
-              
-              // Form de Login
-              _buildLoginForm(),
-              
-              const SizedBox(height: 24),
-              
-              // Botão de Login
-              _buildLoginButton(),
-              
-              const SizedBox(height: 16),
-              
-              // Esqueci a senha
-              _buildForgotPassword(),
-              
-              const SizedBox(height: 32),
-              
-              // Divider
-              _buildDivider(),
-              
-              const SizedBox(height: 24),
-              
-              // Login com Google
-              _buildGoogleLoginButton(),
-              
-              const SizedBox(height: 24),
-              
-              // Registrar
-              _buildRegisterSection(),
-              
-              const SizedBox(height: 24),
-              
-              // Demo accounts (apenas para debug)
-              if (const bool.fromEnvironment('dart.vm.product') == false)
-                _buildDemoAccounts(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).primaryColor.withOpacity(0.1),
+              Colors.white,
+              Theme.of(context).primaryColor.withOpacity(0.05),
             ],
           ),
         ),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Consumer<AuthProvider>(
+                builder: (context, authProvider, child) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 60),
+                      
+                      // ========================================
+                      // LOGO E BRANDING
+                      // ========================================
+                      ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).primaryColor,
+                                borderRadius: BorderRadius.circular(30),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Theme.of(context).primaryColor.withOpacity(0.3),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.fitness_center,
+                                size: 60,
+                                color: Colors.white,
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 32),
+                            
+                            Text(
+                              'Treino App',
+                              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                                fontSize: 32,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            
+                            const SizedBox(height: 12),
+                            
+                            Text(
+                              'Transforme seu corpo,\nsupere seus limites',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Colors.grey[600],
+                                height: 1.5,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 80),
+                      
+                      // ========================================
+                      // TRIAL OFFER
+                      // ========================================
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.amber[400]!,
+                              Colors.orange[500]!,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.orange.withOpacity(0.3),
+                              blurRadius: 15,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.diamond,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              '7 DIAS GRÁTIS',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Acesso completo a todas as funcionalidades premium',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 14,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 40),
+                      
+                      // ========================================
+                      // BOTÃO GOOGLE SIGN IN
+                      // ========================================
+                      SizedBox(
+                        height: 56,
+                        child: ElevatedButton.icon(
+                          onPressed: authProvider.isLoading ? null : _handleGoogleSignIn,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.grey[800],
+                            elevation: 8,
+                            shadowColor: Colors.grey.withOpacity(0.3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: Colors.grey[300]!,
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          icon: authProvider.isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                                ),
+                              )
+                            : Image.asset(
+                                'assets/images/google_logo.png', // Você precisa adicionar este asset
+                                height: 24,
+                                width: 24,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.g_mobiledata,
+                                    size: 28,
+                                    color: Colors.blue,
+                                  );
+                                },
+                              ),
+                          label: Text(
+                            authProvider.isLoading 
+                              ? 'Conectando...' 
+                              : 'Continuar com Google',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 32),
+                      
+                      // ========================================
+                      // FEATURES PREVIEW
+                      // ========================================
+                      Text(
+                        'O que você vai ter:',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[700],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      _buildFeatureItem(
+                        icon: Icons.fitness_center,
+                        title: 'Treinos Personalizados',
+                        subtitle: 'Criados especialmente para você',
+                      ),
+                      
+                      const SizedBox(height: 12),
+                      
+                      _buildFeatureItem(
+                        icon: Icons.analytics,
+                        title: 'Acompanhamento de Progresso',
+                        subtitle: 'Veja sua evolução em tempo real',
+                      ),
+                      
+                      const SizedBox(height: 12),
+                      
+                      _buildFeatureItem(
+                        icon: Icons.cloud_sync,
+                        title: 'Sincronização na Nuvem',
+                        subtitle: 'Seus dados sempre seguros',
+                      ),
+                      
+                      const SizedBox(height: 40),
+                      
+                      // ========================================
+                      // TERMOS E PRIVACIDADE
+                      // ========================================
+                      RichText(
+                        textAlign: TextAlign.center,
+                        text: TextSpan(
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                            height: 1.5,
+                          ),
+                          children: [
+                            const TextSpan(text: 'Ao continuar, você concorda com nossos '),
+                            TextSpan(
+                              text: 'Termos de Uso',
+                              style: TextStyle(
+                                color: Theme.of(context).primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const TextSpan(text: ' e '),
+                            TextSpan(
+                              text: 'Política de Privacidade',
+                              style: TextStyle(
+                                color: Theme.of(context).primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const TextSpan(text: '.'),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // ========================================
+                      // INFORMAÇÃO SOBRE PAGAMENTO
+                      // ========================================
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.blue[600],
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Pagamento seguro via Google Play. Cancele a qualquer momento.',
+                                style: TextStyle(
+                                  color: Colors.blue[700],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 24),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.blue[600],
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: const Icon(
-            Icons.fitness_center,
-            size: 40,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Treino App',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Entre em sua conta',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: Colors.grey[600],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLoginForm() {
-    return Form(
-      key: _formKey,
-      child: Column(
-        children: [
-          // Email
-          TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            decoration: InputDecoration(
-              labelText: 'Email',
-              hintText: 'Digite seu email',
-              prefixIcon: const Icon(Icons.email_outlined),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor, digite seu email';
-              }
-              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                return 'Digite um email válido';
-              }
-              return null;
-            },
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Senha
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _handleLogin(),
-            decoration: InputDecoration(
-              labelText: 'Senha',
-              hintText: 'Digite sua senha',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor, digite sua senha';
-              }
-              if (value.length < 6) {
-                return 'A senha deve ter pelo menos 6 caracteres';
-              }
-              return null;
-            },
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Lembrar-me
-          Row(
-            children: [
-              Checkbox(
-                value: _rememberMe,
-                onChanged: (value) => setState(() => _rememberMe = value ?? false),
-              ),
-              const Text('Lembrar-me'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoginButton() {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        return SizedBox(
-          height: 50,
-          child: ElevatedButton(
-            onPressed: authProvider.isLoading ? null : _handleLogin,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[600],
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: authProvider.isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text(
-                    'Entrar',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildForgotPassword() {
-    return TextButton(
-      onPressed: () {
-        // TODO: Implementar recuperação de senha
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Funcionalidade em desenvolvimento'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      },
-      child: Text(
-        'Esqueci minha senha',
-        style: TextStyle(color: Colors.blue[600]),
-      ),
-    );
-  }
-
-  Widget _buildDivider() {
+  Widget _buildFeatureItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
     return Row(
       children: [
-        Expanded(child: Divider(color: Colors.grey[300])),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'OU',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Theme.of(context).primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: Theme.of(context).primaryColor,
+            size: 24,
           ),
         ),
-        Expanded(child: Divider(color: Colors.grey[300])),
-      ],
-    );
-  }
-
-  Widget _buildRegisterSection() {
-    return Column(
-      children: [
-        Text(
-          'Não tem uma conta?',
-          style: TextStyle(color: Colors.grey[600]),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 50,
-          child: OutlinedButton(
-            onPressed: _navigateToRegister,
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: Colors.blue[600]!),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              'Criar conta grátis',
-              style: TextStyle(
-                color: Colors.blue[600],
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDemoAccounts() {
-    return Card(
-      color: Colors.orange[50],
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.orange[700], size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Contas de Demonstração',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.orange[700],
-                  ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildDemoAccountTile(
-              'Conta Gratuita',
-              'joao@exemplo.com',
-              '123456',
-              Icons.person,
-              Colors.grey,
-            ),
-            const SizedBox(height: 8),
-            _buildDemoAccountTile(
-              'Conta Premium',
-              'maria@exemplo.com',
-              '123456',
-              Icons.star,
-              Colors.amber,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDemoAccountTile(String title, String email, String password, IconData icon, Color color) {
-    return InkWell(
-      onTap: () {
-        _emailController.text = email;
-        _passwordController.text = password;
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
-                  ),
-                  Text(
-                    email,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 11),
-                  ),
-                ],
               ),
-            ),
-            Text(
-              'Tocar para usar',
-              style: TextStyle(color: Colors.grey[600], fontSize: 10),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+        Icon(
+          Icons.check_circle,
+          color: Colors.green[500],
+          size: 20,
+        ),
+      ],
     );
   }
 }

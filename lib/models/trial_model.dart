@@ -1,226 +1,252 @@
-// lib/models/trial_model.dart
-
-/// Modelo para gerenciar dados do período de trial
-class Trial {
+/// Modelo para gerenciar dados do trial de 7 dias
+class TrialModel {
+  final int userId;
   final DateTime startDate;
-  final DateTime endDate;
-  final int durationDays;
+  final DateTime? endDate;
   final bool isActive;
-  final bool hasExpired;
+  final bool isPremium;
+  final int daysRemaining;
 
-  Trial({
+  TrialModel({
+    required this.userId,
     required this.startDate,
-    required this.endDate,
-    required this.durationDays,
+    this.endDate,
     required this.isActive,
-    required this.hasExpired,
+    required this.isPremium,
+    required this.daysRemaining,
   });
 
-  /// Cria Trial a partir de datas
-  factory Trial.fromDates(DateTime startDate, DateTime endDate) {
-    final now = DateTime.now();
-    final durationDays = endDate.difference(startDate).inDays;
-    final isActive = now.isAfter(startDate) && now.isBefore(endDate);
-    final hasExpired = now.isAfter(endDate);
-
-    return Trial(
-      startDate: startDate,
-      endDate: endDate,
-      durationDays: durationDays,
-      isActive: isActive,
-      hasExpired: hasExpired,
+  /// Criar TrialModel a partir do JSON
+  factory TrialModel.fromJson(Map<String, dynamic> json) {
+    return TrialModel(
+      userId: json['user_id'],
+      startDate: DateTime.parse(json['start_date']),
+      endDate: json['end_date'] != null ? DateTime.parse(json['end_date']) : null,
+      isActive: json['is_active'] ?? false,
+      isPremium: json['is_premium'] ?? false,
+      daysRemaining: json['days_remaining'] ?? 0,
     );
   }
 
-  /// Cria Trial para começar agora com duração em dias
-  factory Trial.startNow(int durationDays) {
-    final startDate = DateTime.now();
-    final endDate = startDate.add(Duration(days: durationDays));
-
-    return Trial.fromDates(startDate, endDate);
-  }
-
-  /// Cria Trial a partir do JSON
-  factory Trial.fromJson(Map<String, dynamic> json) {
-    final startDate = DateTime.parse(json['start_date']);
-    final endDate = DateTime.parse(json['end_date']);
-    
-    return Trial.fromDates(startDate, endDate);
-  }
-
-  /// Converte Trial para JSON
+  /// Converter para JSON
   Map<String, dynamic> toJson() {
     return {
+      'user_id': userId,
       'start_date': startDate.toIso8601String(),
-      'end_date': endDate.toIso8601String(),
-      'duration_days': durationDays,
+      'end_date': endDate?.toIso8601String(),
       'is_active': isActive,
-      'has_expired': hasExpired,
+      'is_premium': isPremium,
+      'days_remaining': daysRemaining,
     };
   }
 
-  // ========================================
-  // PROPRIEDADES CALCULADAS
-  // ========================================
+  /// Se tem acesso aos recursos
+  bool get hasAccess => isPremium || isActive;
 
-  /// Dias restantes do trial
-  int get daysRemaining {
-    if (!isActive) return 0;
+  /// Se o trial está próximo do fim (2 dias ou menos)
+  bool get isEndingSoon => isActive && daysRemaining <= 2;
+
+  /// Se o trial acabou de começar (primeiro dia)
+  bool get justStarted {
+    if (!isActive) return false;
     final now = DateTime.now();
-    final difference = endDate.difference(now);
-    return difference.inDays;
+    final difference = now.difference(startDate);
+    return difference.inHours < 24;
+  }
+
+  /// Porcentagem de progresso do trial (0.0 a 1.0)
+  double get progressPercentage {
+    if (isPremium) return 1.0;
+    if (endDate == null) return 0.0;
+    
+    final totalDuration = endDate!.difference(startDate).inDays;
+    if (totalDuration <= 0) return 1.0;
+    
+    final now = DateTime.now();
+    final elapsed = now.difference(startDate).inDays;
+    
+    return (elapsed / totalDuration).clamp(0.0, 1.0);
   }
 
   /// Horas restantes do trial
   int get hoursRemaining {
-    if (!isActive) return 0;
+    if (isPremium || !isActive || endDate == null) return 0;
+    
     final now = DateTime.now();
-    final difference = endDate.difference(now);
-    return difference.inHours;
+    final difference = endDate!.difference(now);
+    
+    return difference.inHours > 0 ? difference.inHours : 0;
   }
 
-  /// Progresso do trial (0.0 a 1.0)
-  double get progress {
-    final now = DateTime.now();
-    final totalDuration = endDate.difference(startDate);
-    final usedDuration = now.difference(startDate);
-    
-    if (usedDuration.inMilliseconds <= 0) return 0.0;
-    if (usedDuration >= totalDuration) return 1.0;
-    
-    return usedDuration.inMilliseconds / totalDuration.inMilliseconds;
-  }
-
-  /// Porcentagem do trial (0 a 100)
-  int get progressPercentage => (progress * 100).round();
-
-  /// Status do trial em texto
+  /// Status textual do trial
   String get statusText {
-    if (hasExpired) return 'Expirado';
-    if (isActive) return 'Ativo ($daysRemaining dias restantes)';
-    return 'Não iniciado';
+    if (isPremium) {
+      return 'Premium Ativo';
+    } else if (isActive) {
+      if (daysRemaining == 1) {
+        return 'Último dia do trial';
+      } else if (daysRemaining <= 0) {
+        return 'Trial expirando hoje';
+      } else {
+        return 'Trial $daysRemaining dias';
+      }
+    } else {
+      return 'Trial expirado';
+    }
+  }
+
+  /// Cor do status (para UI)
+  String get statusColor {
+    if (isPremium) {
+      return 'green';
+    } else if (isActive) {
+      if (isEndingSoon) {
+        return 'orange';
+      } else {
+        return 'blue';
+      }
+    } else {
+      return 'red';
+    }
+  }
+
+  /// Ícone do status (para UI)
+  String get statusIcon {
+    if (isPremium) {
+      return 'star';
+    } else if (isActive) {
+      if (isEndingSoon) {
+        return 'schedule';
+      } else {
+        return 'access_time';
+      }
+    } else {
+      return 'lock';
+    }
+  }
+
+  /// Mensagem motivacional
+  String get motivationalMessage {
+    if (isPremium) {
+      return 'Aproveite todos os recursos premium!';
+    } else if (isActive) {
+      if (justStarted) {
+        return 'Bem-vindo! Explore todos os recursos grátis!';
+      } else if (isEndingSoon) {
+        return 'Últimos dias do trial. Que tal assinar?';
+      } else {
+        return 'Aproveite seu trial premium!';
+      }
+    } else {
+      return 'Assine para acessar recursos exclusivos!';
+    }
+  }
+
+  /// Call-to-action baseado no status
+  String get ctaText {
+    if (isPremium) {
+      return 'Explorar Recursos';
+    } else if (isActive) {
+      if (isEndingSoon) {
+        return 'Assinar Agora';
+      } else {
+        return 'Continuar Trial';
+      }
+    } else {
+      return 'Assinar Premium';
+    }
+  }
+
+  /// Data de expiração formatada
+  String get expirationDateFormatted {
+    if (endDate == null) return 'Indefinido';
+    
+    final day = endDate!.day.toString().padLeft(2, '0');
+    final month = endDate!.month.toString().padLeft(2, '0');
+    final year = endDate!.year;
+    
+    return '$day/$month/$year';
   }
 
   /// Tempo restante formatado
   String get timeRemainingFormatted {
-    if (!isActive) return '';
+    if (isPremium) return 'Ilimitado';
+    if (!isActive) return 'Expirado';
     
-    if (daysRemaining > 0) {
-      return '$daysRemaining dias restantes';
-    } else if (hoursRemaining > 0) {
-      return '$hoursRemaining horas restantes';
+    if (daysRemaining > 1) {
+      return '$daysRemaining dias';
+    } else if (daysRemaining == 1) {
+      return '1 dia';
     } else {
-      return 'Expira hoje';
+      final hours = hoursRemaining;
+      if (hours > 1) {
+        return '$hours horas';
+      } else if (hours == 1) {
+        return '1 hora';
+      } else {
+        return 'Expirando';
+      }
     }
   }
 
-  // ========================================
-  // MÉTODOS DE VERIFICAÇÃO
-  // ========================================
-
-  /// Verifica se o trial está prestes a expirar (menos de 24h)
-  bool get isExpiringSoon {
-    if (!isActive) return false;
-    return hoursRemaining <= 24;
+  /// Se deve mostrar aviso de expiração
+  bool get shouldShowExpirationWarning {
+    return isActive && (isEndingSoon || daysRemaining <= 0);
   }
 
-  /// Verifica se é o último dia do trial
-  bool get isLastDay {
-    if (!isActive) return false;
-    return daysRemaining <= 1;
+  /// Se deve mostrar botão de upgrade
+  bool get shouldShowUpgradeButton {
+    return !isPremium && (isEndingSoon || !isActive);
   }
 
-  /// Verifica se acabou de começar (menos de 24h)
-  bool get isJustStarted {
-    if (!isActive) return false;
+  /// Criar cópia do TrialModel com novos valores
+  TrialModel copyWith({
+    int? userId,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool? isActive,
+    bool? isPremium,
+    int? daysRemaining,
+  }) {
+    return TrialModel(
+      userId: userId ?? this.userId,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      isActive: isActive ?? this.isActive,
+      isPremium: isPremium ?? this.isPremium,
+      daysRemaining: daysRemaining ?? this.daysRemaining,
+    );
+  }
+
+  /// Atualizar dados baseado na data atual
+  TrialModel updateWithCurrentDate() {
+    if (isPremium || endDate == null) return this;
+    
     final now = DateTime.now();
-    final timeSinceStart = now.difference(startDate);
-    return timeSinceStart.inHours <= 24;
+    final newIsActive = now.isBefore(endDate!);
+    final newDaysRemaining = newIsActive 
+        ? endDate!.difference(now).inDays + 1
+        : 0;
+    
+    return copyWith(
+      isActive: newIsActive,
+      daysRemaining: newDaysRemaining,
+    );
   }
 
   @override
   String toString() {
-    return 'Trial(daysRemaining: $daysRemaining, isActive: $isActive, progress: ${progressPercentage}%)';
-  }
-}
-
-// ========================================
-// CONFIGURAÇÃO DE TRIAL
-// ========================================
-
-class TrialConfig {
-  final int durationDays;
-  final List<String> features;
-  final String welcomeMessage;
-  final String expirationWarning;
-
-  const TrialConfig({
-    required this.durationDays,
-    required this.features,
-    required this.welcomeMessage,
-    required this.expirationWarning,
-  });
-
-  /// Configuração padrão do trial
-  static const TrialConfig defaultConfig = TrialConfig(
-    durationDays: 7,
-    features: [
-      'Treinos ilimitados',
-      'Exercícios personalizados',
-      'Acompanhamento de progresso',
-      'Sincronização na nuvem',
-      'Suporte premium',
-    ],
-    welcomeMessage: '''
-🎉 Bem-vindo ao Treino App!
-
-Experimente GRÁTIS por 7 dias todos os recursos premium.
-''',
-    expirationWarning: '''
-⚠️ Seu trial expira em breve!
-
-Para continuar usando todos os recursos, considere fazer upgrade para Premium.
-''',
-  );
-
-  /// Cria Trial com esta configuração
-  Trial createTrial() {
-    return Trial.startNow(durationDays);
-  }
-}
-
-// ========================================
-// STATUS DE TRIAL DO USUÁRIO
-// ========================================
-
-enum TrialStatus {
-  /// Usuário nunca usou trial
-  neverUsed,
-  
-  /// Trial ativo
-  active,
-  
-  /// Trial expirado
-  expired,
-  
-  /// Usuário é premium (não precisa de trial)
-  premium,
-}
-
-extension TrialStatusExtension on TrialStatus {
-  String get displayName {
-    switch (this) {
-      case TrialStatus.neverUsed:
-        return 'Disponível';
-      case TrialStatus.active:
-        return 'Ativo';
-      case TrialStatus.expired:
-        return 'Expirado';
-      case TrialStatus.premium:
-        return 'Premium';
-    }
+    return 'TrialModel{userId: $userId, isActive: $isActive, isPremium: $isPremium, daysRemaining: $daysRemaining}';
   }
 
-  bool get canStartTrial => this == TrialStatus.neverUsed;
-  bool get hasAccess => this == TrialStatus.active || this == TrialStatus.premium;
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TrialModel &&
+          runtimeType == other.runtimeType &&
+          userId == other.userId &&
+          startDate == other.startDate;
+
+  @override
+  int get hashCode => userId.hashCode ^ startDate.hashCode;
 }

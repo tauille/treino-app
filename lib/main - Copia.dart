@@ -1,17 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'core/services/storage_service.dart';
-import 'core/services/trial_service.dart';
-import 'providers/auth_provider.dart';
+import 'providers/auth_provider_google.dart';
+import 'providers/treino_provider.dart';
+import 'core/services/google_auth_service.dart';
 import 'screens/auth/auth_wrapper.dart';
-import 'tests/quick_test.dart'
+import 'config/api_config.dart'; // ← ✅ ADICIONE ESTA LINHA
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Inicializar serviços
-  await StorageService.init();
-  print('✅ StorageService inicializado');
+  ApiConfig.useDeviceRealMode('10.125.135.38'); // ✅ Agora funciona
+  
+  // Configurações iniciais
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
+  
+  // Configurar status bar transparente
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ),
+  );
+  
+  // Inicializar Google Auth Service
+  await GoogleAuthService().initialize();
   
   runApp(const TreinoApp());
 }
@@ -23,138 +38,101 @@ class TreinoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // AuthProvider deve vir primeiro
-        ChangeNotifierProvider(
-          create: (context) => AuthProvider(),
-          lazy: false, // Carregar imediatamente
-        ),
-        
-        // Outros providers podem vir depois
-        Provider<TrialService>(
-          create: (context) => TrialService(),
-          lazy: false,
-        ),
+        ChangeNotifierProvider(create: (context) => AuthProviderGoogle()),
+        ChangeNotifierProvider(create: (context) => TreinoProvider()),
       ],
       child: MaterialApp(
         title: 'Treino App',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          // Tema principal
           primarySwatch: Colors.blue,
-          primaryColor: Colors.blue[600],
-          
-          // Esquema de cores
+          primaryColor: const Color(0xFF667eea),
           colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue[600]!,
+            seedColor: const Color(0xFF667eea),
             brightness: Brightness.light,
           ),
+          fontFamily: 'Poppins',
+          useMaterial3: true,
           
-          // AppBar tema
-          appBarTheme: AppBarTheme(
-            backgroundColor: Colors.blue[600],
-            foregroundColor: Colors.white,
+          // ===== TEMA PERSONALIZADO =====
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.transparent,
             elevation: 0,
-            centerTitle: true,
+            systemOverlayStyle: SystemUiOverlayStyle.dark,
+            titleTextStyle: TextStyle(
+              color: Color(0xFF2D3748),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+            iconTheme: IconThemeData(
+              color: Color(0xFF667eea),
+            ),
           ),
           
-          // Botões tema
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[600],
-              foregroundColor: Colors.white,
+              elevation: 2,
+              shadowColor: Colors.black12,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 12,
+              ),
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           
-          // Input tema
           inputDecorationTheme: InputDecorationTheme(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
             ),
             filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
           ),
           
-          // Card tema
-          cardTheme: CardTheme(
+          cardTheme: CardThemeData(
             elevation: 2,
+            shadowColor: Colors.black12,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
           ),
           
-          // Divider tema
-          dividerTheme: DividerThemeData(
-            color: Colors.grey[300],
-            thickness: 1,
-          ),
+          // ===== CORES PERSONALIZADAS =====
+          scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         ),
         
         // Rota inicial
         home: const AuthWrapper(),
         
-        // Rotas nomeadas (opcional)
-        routes: {
-          '/login': (context) => const AuthWrapper(),
-          '/home': (context) => const AuthWrapper(),
-        },
-        
-        // Tratar rotas não encontradas
-        onUnknownRoute: (settings) {
-          return MaterialPageRoute(
-            builder: (context) => const AuthWrapper(),
+        // Configurações adicionais
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaleFactor: 1.0, // Evitar zoom de texto do sistema
+            ),
+            child: child!,
           );
         },
       ),
-    );
-  }
-}
-
-// Widget para debug - pode ser removido em produção
-class DebugInfo extends StatelessWidget {
-  const DebugInfo({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        return Container(
-          padding: const EdgeInsets.all(8),
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[300]!),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Debug Info:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[700],
-                ),
-              ),
-              Text('Estado: ${authProvider.state}'),
-              Text('Logado: ${authProvider.isAuthenticated}'),
-              Text('Usuário: ${authProvider.user?.name ?? 'null'}'),
-              Text('Premium: ${authProvider.hasPremium}'),
-              Text('Trial: ${authProvider.hasActiveTrial}'),
-              if (authProvider.errorMessage != null)
-                Text(
-                  'Erro: ${authProvider.errorMessage}',
-                  style: const TextStyle(color: Colors.red),
-                ),
-            ],
-          ),
-        );
-      },
     );
   }
 }
