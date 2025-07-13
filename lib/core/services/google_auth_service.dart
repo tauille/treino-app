@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/user_model.dart';
-import '../../config/api_config.dart'; // ✅ MUDANÇA: ApiConfig em vez de ApiConstants
+import '../constants/api_constants.dart'; // ✅ MUDANÇA: ApiConstants com NetworkDetector
 
 /// Serviço de autenticação Google + Laravel
 class GoogleAuthService {
@@ -47,7 +47,11 @@ class GoogleAuthService {
       
       if (kDebugMode) {
         print('✅ GoogleAuthService inicializado');
-        print('📱 Base URL: ${ApiConfig.baseUrl}'); // ✅ MUDANÇA: ApiConfig
+        
+        // ✅ MUDANÇA: Usar detecção automática
+        final baseUrl = await ApiConstants.getBaseUrl();
+        print('📱 Base URL detectada: $baseUrl');
+        print('📡 IP atual: ${ApiConstants.getCurrentIP()}');
         print('🔐 Token armazenado: ${_authToken != null}');
         print('👤 Usuário carregado: ${_currentUser?.name}');
       }
@@ -144,14 +148,31 @@ class GoogleAuthService {
     if (_authToken == null) return false;
     
     try {
+      // ✅ MUDANÇA: Usar detecção automática
+      final url = await ApiConstants.getUrl(ApiConstants.authVerifyToken);
+      
+      if (kDebugMode) {
+        print('🔍 Verificando token em: $url');
+      }
+      
       final response = await http.get(
-        Uri.parse(ApiConfig.buildUrl('/auth/verify-token')), // ✅ MUDANÇA: ApiConfig.buildUrl
+        Uri.parse(url),
         headers: _getAuthHeaders(),
-      ).timeout(ApiConfig.defaultTimeout); // ✅ MUDANÇA: timeout configurável
+      ).timeout(ApiConstants.defaultTimeout);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return data['success'] == true;
+        final isValid = data['success'] == true;
+        
+        if (kDebugMode) {
+          print('📊 Token válido: $isValid');
+        }
+        
+        return isValid;
+      }
+      
+      if (kDebugMode) {
+        print('❌ Token inválido - Status: ${response.statusCode}');
       }
       
       return false;
@@ -168,16 +189,28 @@ class GoogleAuthService {
     }
 
     try {
+      // ✅ MUDANÇA: Usar detecção automática
+      final url = await ApiConstants.getUrl(ApiConstants.authMe);
+      
+      if (kDebugMode) {
+        print('🔄 Atualizando dados do usuário: $url');
+      }
+
       final response = await http.get(
-        Uri.parse(ApiConfig.buildUrl('/auth/me')), // ✅ MUDANÇA: ApiConfig.buildUrl
+        Uri.parse(url),
         headers: _getAuthHeaders(),
-      ).timeout(ApiConfig.defaultTimeout); // ✅ MUDANÇA: timeout configurável
+      ).timeout(ApiConstants.defaultTimeout);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success']) {
           _currentUser = UserModel.fromJson(data['data']['user']);
           await _saveUserData();
+          
+          if (kDebugMode) {
+            print('✅ Dados do usuário atualizados: ${_currentUser?.name}');
+          }
+          
           return {'success': true, 'user': _currentUser};
         }
       }
@@ -194,18 +227,27 @@ class GoogleAuthService {
   /// Enviar dados Google para Laravel
   Future<Map<String, dynamic>> _sendGoogleAuthToLaravel(Map<String, dynamic> googleData) async {
     try {
+      // ✅ MUDANÇA: Usar detecção automática
+      final url = await ApiConstants.getUrl(ApiConstants.authGoogle);
+      
+      if (kDebugMode) {
+        print('📤 Enviando dados Google para Laravel...');
+        print('📡 URL detectada: $url');
+        print('📋 Dados: ${googleData.keys}');
+      }
+      
       final response = await http.post(
-        Uri.parse(ApiConfig.buildUrl('/auth/google')), // ✅ MUDANÇA: ApiConfig.buildUrl
-        headers: ApiConfig.defaultHeaders, // ✅ MUDANÇA: headers configuráveis
+        Uri.parse(url),
+        headers: ApiConstants.defaultHeaders,
         body: json.encode(googleData),
-      ).timeout(ApiConfig.defaultTimeout); // ✅ MUDANÇA: timeout configurável
+      ).timeout(ApiConstants.defaultTimeout);
 
       final data = json.decode(response.body);
       
       if (kDebugMode) {
-        print('📤 Enviando para Laravel: ${response.statusCode}');
-        print('📡 URL: ${ApiConfig.buildUrl('/auth/google')}'); // ✅ DEBUG: mostrar URL
-        print('📥 Resposta: ${data['message']}');
+        print('📊 Resposta Laravel: ${response.statusCode}');
+        print('📥 Mensagem: ${data['message']}');
+        print('✅ Sucesso: ${data['success']}');
       }
 
       return data;
@@ -222,10 +264,21 @@ class GoogleAuthService {
   /// Notificar logout ao Laravel
   Future<void> _notifyLaravelLogout() async {
     try {
+      // ✅ MUDANÇA: Usar detecção automática
+      final url = await ApiConstants.getUrl(ApiConstants.authLogout);
+      
+      if (kDebugMode) {
+        print('🚪 Notificando logout ao Laravel: $url');
+      }
+      
       await http.post(
-        Uri.parse(ApiConfig.buildUrl('/auth/logout')), // ✅ MUDANÇA: ApiConfig.buildUrl
+        Uri.parse(url),
         headers: _getAuthHeaders(),
-      ).timeout(ApiConfig.shortTimeout); // ✅ MUDANÇA: timeout mais curto para logout
+      ).timeout(ApiConstants.shortTimeout);
+      
+      if (kDebugMode) {
+        print('✅ Logout notificado ao servidor');
+      }
     } catch (e) {
       if (kDebugMode) print('❌ Erro ao notificar logout: $e');
     }
@@ -243,7 +296,11 @@ class GoogleAuthService {
       // Salvar dados do usuário
       await _saveUserData();
       
-      if (kDebugMode) print('✅ Dados salvos com sucesso');
+      if (kDebugMode) {
+        print('✅ Dados salvos com sucesso');
+        print('👤 Usuário: ${_currentUser?.name} (${_currentUser?.email})');
+        print('🔑 Token: ${_authToken?.substring(0, 20)}...');
+      }
     } catch (e) {
       if (kDebugMode) print('❌ Erro ao salvar dados: $e');
     }
@@ -271,11 +328,22 @@ class GoogleAuthService {
         _currentUser = UserModel.fromJson(json.decode(userData));
       }
       
+      if (kDebugMode) {
+        print('📂 Dados carregados do storage:');
+        print('   Token: ${_authToken != null ? 'Presente' : 'Ausente'}');
+        print('   Usuário: ${_currentUser?.name ?? 'null'}');
+      }
+      
       // Verificar se token ainda é válido
       if (_authToken != null && _currentUser != null) {
+        if (kDebugMode) print('🔍 Verificando validade do token...');
+        
         final isValid = await verifyToken();
         if (!isValid) {
+          if (kDebugMode) print('❌ Token inválido, limpando dados...');
           await _clearAuthData();
+        } else {
+          if (kDebugMode) print('✅ Token válido!');
         }
       }
     } catch (e) {
@@ -303,7 +371,8 @@ class GoogleAuthService {
 
   /// Obter headers de autenticação
   Map<String, String> _getAuthHeaders() {
-    return ApiConfig.getAuthHeaders(_authToken ?? ''); // ✅ MUDANÇA: usar método do ApiConfig
+    // ✅ MUDANÇA: Usar método do ApiConstants
+    return ApiConstants.getAuthHeaders(_authToken ?? '');
   }
 
   /// Verificar se é usuário novo
@@ -316,5 +385,33 @@ class GoogleAuthService {
       return difference < 10;
     }
     return false;
+  }
+
+  /// Teste de conectividade
+  Future<bool> testConnection() async {
+    try {
+      // ✅ MUDANÇA: Usar detecção automática
+      return await ApiConstants.testCurrentAPI();
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro no teste de conectividade: $e');
+      return false;
+    }
+  }
+
+  /// Debug: Imprimir informações de rede
+  Future<void> printNetworkDebug() async {
+    try {
+      if (kDebugMode) {
+        print('🌐 === DEBUG REDE GOOGLE AUTH ===');
+        final baseUrl = await ApiConstants.getBaseUrl();
+        print('📡 Base URL: $baseUrl');
+        print('📍 IP atual: ${ApiConstants.getCurrentIP()}');
+        print('📋 Info rede: ${ApiConstants.getNetworkInfo()}');
+        print('🧪 Conectividade: ${await testConnection()}');
+        print('================================');
+      }
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro no debug de rede: $e');
+    }
   }
 }

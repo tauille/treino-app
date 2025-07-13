@@ -1,18 +1,13 @@
 // lib/core/services/auth_service.dart
-// ⚠️ VERSÃO TEMPORÁRIA - Para fazer o app rodar e testar conectividade
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../models/user_model.dart';
 import '../../models/api_response_model.dart';
+import '../constants/api_constants.dart';  // ✅ USAR API CONSTANTS
 import 'storage_service.dart';
 
 class AuthService {
-  // 🔧 Configure sua URL base aqui
-  static const String baseUrl = 'http://10.125.135.38:8000/api';
-  // Para Android Emulator: 'http://10.0.2.2:8000/api'
-  // Para dispositivo físico: 'http://SEU_IP:8000/api'
-  
+  // ✅ REMOVER IP FIXO - Usar detecção automática
   static const Map<String, String> headers = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -36,6 +31,10 @@ class AuthService {
   }) async {
     try {
       print('🔐 Tentando fazer login...');
+      
+      // ✅ USAR DETECÇÃO AUTOMÁTICA
+      final baseUrl = await ApiConstants.getBaseUrl();
+      print('📡 URL detectada para login: $baseUrl');
       
       final response = await http.post(
         Uri.parse('$baseUrl/login'),
@@ -105,6 +104,10 @@ class AuthService {
   }) async {
     try {
       print('👤 Tentando registrar usuário...');
+      
+      // ✅ USAR DETECÇÃO AUTOMÁTICA
+      final baseUrl = await ApiConstants.getBaseUrl();
+      print('📡 URL detectada para registro: $baseUrl');
       
       final response = await http.post(
         Uri.parse('$baseUrl/register'),
@@ -177,6 +180,9 @@ class AuthService {
       if (token != null) {
         // Tentar fazer logout no servidor
         try {
+          // ✅ USAR DETECÇÃO AUTOMÁTICA
+          final baseUrl = await ApiConstants.getBaseUrl();
+          
           await http.post(
             Uri.parse('$baseUrl/logout'),
             headers: {
@@ -244,8 +250,8 @@ class AuthService {
 
   Future<String?> _getToken() async {
     try {
-      await _storage.ensureInitialized();
-      return await _storage.getToken();
+      await _storage.init();
+      return await _storage.getAuthToken();  // ✅ USAR MÉTODO CORRETO
     } catch (e) {
       print('❌ Erro ao buscar token: $e');
       return null;
@@ -254,8 +260,8 @@ class AuthService {
 
   Future<void> _saveToken(String token) async {
     try {
-      await _storage.ensureInitialized();
-      await _storage.saveToken(token);
+      await _storage.init();
+      await _storage.saveAuthToken(token);  // ✅ USAR MÉTODO CORRETO
     } catch (e) {
       print('❌ Erro ao salvar token: $e');
       throw Exception('Erro ao salvar credenciais');
@@ -264,7 +270,7 @@ class AuthService {
 
   Future<User?> _getUser() async {
     try {
-      await _storage.ensureInitialized();
+      await _storage.init();
       final userData = await _storage.getUserData();
       
       if (userData == null) return null;
@@ -278,19 +284,20 @@ class AuthService {
 
   Future<void> _saveUser(User user) async {
     try {
-      await _storage.ensureInitialized();
+      await _storage.init();
       
-      await _storage.saveUserData(
-        userId: user.id,
-        userName: user.name,
-        userEmail: user.email,
-        isPremium: user.isPremium,
-        trialStartedAt: user.trialStartedAt,
-        premiumExpiresAt: user.premiumExpiresAt,
-        isEmailVerified: user.isEmailVerified,
-        emailVerifiedAt: user.emailVerifiedAt,
-        createdAt: user.createdAt,
-      );
+      // ✅ USAR MÉTODO CORRETO DO STORAGE
+      await _storage.saveUserData({
+        'id': user.id,
+        'name': user.name,
+        'email': user.email,
+        'is_premium': user.isPremium,
+        'trial_started_at': user.trialStartedAt?.toIso8601String(),
+        'premium_expires_at': user.premiumExpiresAt?.toIso8601String(),
+        'is_email_verified': user.isEmailVerified,
+        'email_verified_at': user.emailVerifiedAt?.toIso8601String(),
+        'created_at': user.createdAt?.toIso8601String(),
+      });
     } catch (e) {
       print('❌ Erro ao salvar usuário: $e');
       throw Exception('Erro ao salvar dados do usuário');
@@ -299,8 +306,8 @@ class AuthService {
 
   Future<void> _clearAuthData() async {
     try {
-      await _storage.ensureInitialized();
-      await _storage.clearAuthData();
+      await _storage.init();
+      await _storage.clearUserData();  // ✅ USAR MÉTODO CORRETO
     } catch (e) {
       print('❌ Erro ao limpar dados de autenticação: $e');
     }
@@ -315,20 +322,8 @@ class AuthService {
     try {
       print('🔍 Testando conexão com API...');
       
-      final response = await http.get(
-        Uri.parse('$baseUrl/status'),
-        headers: headers,
-      ).timeout(const Duration(seconds: 10));
-
-      final success = response.statusCode == 200;
-      
-      if (success) {
-        print('✅ Conexão com API OK!');
-      } else {
-        print('❌ Conexão falhou: ${response.statusCode}');
-      }
-      
-      return success;
+      // ✅ USAR DETECÇÃO AUTOMÁTICA
+      return await ApiConstants.testCurrentAPI();
     } catch (e) {
       print('❌ Erro de conexão: $e');
       return false;
@@ -347,7 +342,8 @@ class AuthService {
       print('   User: ${user?.name ?? 'null'} (${user?.email ?? 'no email'})');
       print('   Authenticated: $isAuth');
       print('   Premium: ${user?.isPremium ?? false}');
-      print('   Trial: ${user?.hasActiveTrial ?? false}');
+      print('   Current IP: ${ApiConstants.getCurrentIP()}');
+      print('   Base URL: ${await ApiConstants.getBaseUrl()}');
     } catch (e) {
       print('❌ Erro ao imprimir debug de auth: $e');
     }

@@ -1,17 +1,37 @@
-/// Constantes para integração com a API Laravel
+import '../services/network_detector.dart';
+
+/// Constantes para integração com a API Laravel com detecção automática de rede
 class ApiConstants {
+  // ===== DETECTOR DE REDE =====
+  static final NetworkDetector _networkDetector = NetworkDetector();
+  
   // ===== BASE URLs =====
   
-  // Desenvolvimento Local
-  static const String _devBaseUrl = 'http://10.0.2.2:8000/api'; // Android Emulator
-  // static const String _devBaseUrl = 'http://localhost:8000/api'; // iOS Simulator
-  // static const String _devBaseUrl = 'http://192.168.1.100:8000/api'; // IP da sua máquina
-  
-  // Produção
+  // URLs de fallback (caso o detector falhe)
+  static const String _fallbackBaseUrl = 'http://192.168.18.48:8000/api';
   static const String _prodBaseUrl = 'https://sua-api.com/api';
   
-  // Base URL atual (mudar para produção quando fazer deploy)
-  static const String baseUrl = _devBaseUrl;
+  // ===== MÉTODO PRINCIPAL =====
+  
+  /// Obter URL base automaticamente (detecta a rede)
+  static Future<String> getBaseUrl() async {
+    try {
+      return await _networkDetector.detectWorkingAPI();
+    } catch (e) {
+      print('❌ Erro na detecção automática, usando fallback: $e');
+      return _fallbackBaseUrl;
+    }
+  }
+  
+  /// Forçar nova detecção de rede
+  static Future<String> forceNetworkDetection() async {
+    return await _networkDetector.forceDetection();
+  }
+  
+  /// Testar se a API atual ainda funciona
+  static Future<bool> testCurrentAPI() async {
+    return await _networkDetector.testCurrentAPI();
+  }
   
   // ===== ENDPOINTS AUTH =====
   static const String authGoogle = '/auth/google';
@@ -78,9 +98,16 @@ class ApiConstants {
   
   // ===== HELPER METHODS =====
   
-  /// Obter URL completa para endpoint
-  static String getUrl(String endpoint) {
+  /// Obter URL completa para endpoint (com detecção automática)
+  static Future<String> getUrl(String endpoint) async {
+    final baseUrl = await getBaseUrl();
     return baseUrl + endpoint;
+  }
+  
+  /// Obter URL completa de forma síncrona (usa cache se disponível)
+  static String getUrlSync(String endpoint) {
+    final cachedBaseUrl = _networkDetector.currentBaseUrl ?? _fallbackBaseUrl;
+    return cachedBaseUrl + endpoint;
   }
   
   /// Obter headers com autenticação
@@ -113,27 +140,84 @@ class ApiConstants {
   }
   
   /// Construir URL para treino específico
-  static String getTreinoUrl(int treinoId) {
-    return '$baseUrl$treinoShow/$treinoId';
+  static Future<String> getTreinoUrl(int treinoId) async {
+    return await getUrl('$treinoShow/$treinoId');
+  }
+  
+  /// Construir URL para treino específico (síncrono)
+  static String getTreinoUrlSync(int treinoId) {
+    return getUrlSync('$treinoShow/$treinoId');
   }
   
   /// Construir URL para exercício específico
-  static String getExercicioUrl(int treinoId, int exercicioId) {
-    return '$baseUrl$exercicios/$treinoId/exercicios/$exercicioId';
+  static Future<String> getExercicioUrl(int treinoId, int exercicioId) async {
+    return await getUrl('$exercicios/$treinoId/exercicios/$exercicioId');
+  }
+  
+  /// Construir URL para exercício específico (síncrono)
+  static String getExercicioUrlSync(int treinoId, int exercicioId) {
+    return getUrlSync('$exercicios/$treinoId/exercicios/$exercicioId');
   }
   
   /// Construir URL para exercícios de um treino
-  static String getExerciciosUrl(int treinoId) {
-    return '$baseUrl$exercicios/$treinoId/exercicios';
+  static Future<String> getExerciciosUrl(int treinoId) async {
+    return await getUrl('$exercicios/$treinoId/exercicios');
+  }
+  
+  /// Construir URL para exercícios de um treino (síncrono)
+  static String getExerciciosUrlSync(int treinoId) {
+    return getUrlSync('$exercicios/$treinoId/exercicios');
   }
   
   /// Construir URL para treinos por dificuldade
-  static String getTreinosByDificuldadeUrl(String dificuldade) {
-    return '$baseUrl$treinosByDificuldade/$dificuldade';
+  static Future<String> getTreinosByDificuldadeUrl(String dificuldade) async {
+    return await getUrl('$treinosByDificuldade/$dificuldade');
+  }
+  
+  /// Construir URL para treinos por dificuldade (síncrono)
+  static String getTreinosByDificuldadeUrlSync(String dificuldade) {
+    return getUrlSync('$treinosByDificuldade/$dificuldade');
   }
   
   /// Construir URL para exercícios por grupo muscular
-  static String getExerciciosByGrupoUrl(int treinoId, String grupo) {
-    return '$baseUrl$exerciciosByGrupo/$treinoId/exercicios/grupo/$grupo';
+  static Future<String> getExerciciosByGrupoUrl(int treinoId, String grupo) async {
+    return await getUrl('$exerciciosByGrupo/$treinoId/exercicios/grupo/$grupo');
+  }
+  
+  /// Construir URL para exercícios por grupo muscular (síncrono)
+  static String getExerciciosByGrupoUrlSync(int treinoId, String grupo) {
+    return getUrlSync('$exerciciosByGrupo/$treinoId/exercicios/grupo/$grupo');
+  }
+  
+  // ===== MÉTODOS DE REDE =====
+  
+  /// Obter informações da rede atual
+  static Map<String, dynamic> getNetworkInfo() {
+    return _networkDetector.getNetworkInfo();
+  }
+  
+  /// Verificar se está usando IP específico
+  static bool isUsingIP(String ip) {
+    return _networkDetector.isUsingIP(ip);
+  }
+  
+  /// Obter IP atual
+  static String? getCurrentIP() {
+    return _networkDetector.currentIP;
+  }
+  
+  /// Obter lista de IPs possíveis
+  static List<String> getPossibleIPs() {
+    return _networkDetector.possibleIPs;
+  }
+  
+  /// Adicionar IP temporário para teste
+  static void addTempIP(String ip) {
+    _networkDetector.addTempIP(ip);
+  }
+  
+  /// Reset do detector de rede
+  static void resetNetwork() {
+    _networkDetector.reset();
   }
 }

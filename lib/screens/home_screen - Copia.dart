@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/services/google_auth_service.dart';
+import '../models/user_model.dart';
 import 'login_screen.dart';
+import 'treino/criar_treino_screen.dart';
 
 /// Tela Home - Dashboard principal (estrutura básica)
 class HomeScreen extends StatefulWidget {
@@ -179,6 +181,100 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Widget de card funcional (para Criar Treino)
+  Widget _buildFunctionalCard(String title, String description, IconData icon, VoidCallback onTap) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+              border: Border.all(
+                color: const Color(0xFF667eea).withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF667eea).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: const Color(0xFF667eea),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2D3748),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF667eea).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'TESTE',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF667eea),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  color: Color(0xFF667eea),
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Widget de funcionalidades em breve
   Widget _buildComingSoonCard(String title, String description, IconData icon) {
     return Container(
@@ -321,16 +417,27 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   
                   // CARDS DE FUNCIONALIDADES
+                  
+                  // ✅ CARD FUNCIONAL - CRIAR TREINO (TESTE)
+                  _buildFunctionalCard(
+                    'Criar Treino',
+                    'Monte seu próprio treino com exercícios customizados',
+                    Icons.add_circle_outline,
+                    () {
+                      print('🧪 TESTE: Navegando para Criar Treino...');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CriarTreinoScreen(),
+                        ),
+                      );
+                    },
+                  ),
+
                   _buildComingSoonCard(
                     'Meus Treinos',
                     'Visualize e gerencie seus treinos personalizados',
                     Icons.fitness_center,
-                  ),
-                  
-                  _buildComingSoonCard(
-                    'Criar Treino',
-                    'Monte seu próprio treino com exercícios customizados',
-                    Icons.add_circle_outline,
                   ),
                   
                   _buildComingSoonCard(

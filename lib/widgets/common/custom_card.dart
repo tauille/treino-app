@@ -1,582 +1,324 @@
 import 'package:flutter/material.dart';
 
-/// Card personalizado com diferentes estilos
 class CustomCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
-  final Color? backgroundColor;
-  final double? elevation;
+  final Color? color;
+  final Gradient? gradient;
   final BorderRadius? borderRadius;
-  final Border? border;
   final List<BoxShadow>? boxShadow;
+  final Border? border;
+  final double? elevation;
+  final double? width;
+  final double? height;
   final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
-  final bool isClickable;
+  final bool isSelected;
+  final Color? selectedColor;
 
   const CustomCard({
-    super.key,
+    Key? key,
     required this.child,
     this.padding,
     this.margin,
-    this.backgroundColor,
-    this.elevation,
+    this.color,
+    this.gradient,
     this.borderRadius,
-    this.border,
     this.boxShadow,
+    this.border,
+    this.elevation,
+    this.width,
+    this.height,
     this.onTap,
-    this.onLongPress,
-    this.isClickable = false,
-  });
+    this.isSelected = false,
+    this.selectedColor,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    Widget cardContent = Container(
-      padding: padding ?? const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: backgroundColor ?? theme.cardColor,
-        borderRadius: borderRadius ?? BorderRadius.circular(12),
-        border: border,
-        boxShadow: boxShadow ?? [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: elevation ?? 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: child,
-    );
+    Widget cardContent = _buildCardContent();
 
-    if (isClickable || onTap != null || onLongPress != null) {
-      cardContent = Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          onLongPress: onLongPress,
-          borderRadius: borderRadius ?? BorderRadius.circular(12),
-          child: cardContent,
-        ),
-      );
-    }
-
-    return Container(
-      margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: cardContent,
-    );
-  }
-}
-
-/// Card com gradiente
-class GradientCard extends StatelessWidget {
-  final Widget child;
-  final List<Color> gradientColors;
-  final EdgeInsetsGeometry? padding;
-  final EdgeInsetsGeometry? margin;
-  final BorderRadius? borderRadius;
-  final VoidCallback? onTap;
-  final AlignmentGeometry begin;
-  final AlignmentGeometry end;
-
-  const GradientCard({
-    super.key,
-    required this.child,
-    required this.gradientColors,
-    this.padding,
-    this.margin,
-    this.borderRadius,
-    this.onTap,
-    this.begin = Alignment.topLeft,
-    this.end = Alignment.bottomRight,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    Widget cardContent = Container(
-      padding: padding ?? const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: begin,
-          end: end,
-          colors: gradientColors,
-        ),
-        borderRadius: borderRadius ?? BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: gradientColors.first.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: child,
-    );
-
+    // Se tem onTap, envolver com GestureDetector ou InkWell
     if (onTap != null) {
-      cardContent = Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: borderRadius ?? BorderRadius.circular(12),
-          child: cardContent,
+      cardContent = _buildTappableCard(cardContent);
+    }
+
+    return cardContent;
+  }
+
+  Widget _buildCardContent() {
+    // Se há gradient, usar Container personalizado
+    if (gradient != null) {
+      return Container(
+        width: width,
+        height: height,
+        margin: margin,
+        padding: padding ?? const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: borderRadius ?? BorderRadius.circular(16),
+          boxShadow: boxShadow ?? _defaultShadow,
+          border: _getBorder(),
+        ),
+        child: child,
+      );
+    }
+
+    // Caso contrário, usar Card padrão ou Container
+    if (elevation != null) {
+      return Card(
+        margin: margin,
+        color: _getBackgroundColor(),
+        elevation: elevation!,
+        shape: RoundedRectangleBorder(
+          borderRadius: borderRadius ?? BorderRadius.circular(16),
+          side: _getBorderSide(),
+        ),
+        child: Container(
+          width: width,
+          height: height,
+          padding: padding ?? const EdgeInsets.all(20),
+          child: child,
         ),
       );
     }
 
     return Container(
-      margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: cardContent,
+      width: width,
+      height: height,
+      margin: margin,
+      padding: padding ?? const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _getBackgroundColor(),
+        borderRadius: borderRadius ?? BorderRadius.circular(16),
+        boxShadow: boxShadow ?? _defaultShadow,
+        border: _getBorder(),
+      ),
+      child: child,
     );
   }
-}
 
-/// Card de estatística
-class StatsCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color? iconColor;
-  final Color? backgroundColor;
-  final VoidCallback? onTap;
-  final String? subtitle;
+  Widget _buildTappableCard(Widget cardContent) {
+    if (borderRadius != null || gradient != null) {
+      // Usar GestureDetector para cards com border radius customizado
+      return GestureDetector(
+        onTap: onTap,
+        child: cardContent,
+      );
+    } else {
+      // Usar InkWell para ripple effect
+      return InkWell(
+        onTap: onTap,
+        borderRadius: borderRadius ?? BorderRadius.circular(16),
+        child: cardContent,
+      );
+    }
+  }
 
-  const StatsCard({
-    super.key,
-    required this.title,
-    required this.value,
-    required this.icon,
-    this.iconColor,
-    this.backgroundColor,
-    this.onTap,
-    this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  Color _getBackgroundColor() {
+    if (isSelected && selectedColor != null) {
+      return selectedColor!;
+    }
     
+    if (isSelected) {
+      return const Color(0xFF667eea).withOpacity(0.1);
+    }
+    
+    return color ?? Colors.white;
+  }
+
+  Border? _getBorder() {
+    if (border != null) return border;
+    
+    if (isSelected) {
+      return Border.all(
+        color: selectedColor ?? const Color(0xFF667eea),
+        width: 2,
+      );
+    }
+    
+    return null;
+  }
+
+  BorderSide _getBorderSide() {
+    if (isSelected) {
+      return BorderSide(
+        color: selectedColor ?? const Color(0xFF667eea),
+        width: 2,
+      );
+    }
+    
+    return BorderSide.none;
+  }
+
+  List<BoxShadow> get _defaultShadow => [
+    BoxShadow(
+      color: Colors.grey.withOpacity(0.1),
+      spreadRadius: 1,
+      blurRadius: 10,
+      offset: const Offset(0, 2),
+    ),
+  ];
+
+  // ===== FACTORY CONSTRUCTORS =====
+
+  /// Card com gradiente
+  factory CustomCard.gradient({
+    required Widget child,
+    required Gradient gradient,
+    EdgeInsetsGeometry? padding,
+    EdgeInsetsGeometry? margin,
+    BorderRadius? borderRadius,
+    VoidCallback? onTap,
+  }) {
     return CustomCard(
+      child: child,
+      gradient: gradient,
+      padding: padding,
+      margin: margin,
+      borderRadius: borderRadius,
       onTap: onTap,
-      isClickable: onTap != null,
-      backgroundColor: backgroundColor,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: (iconColor ?? theme.primaryColor).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  color: iconColor ?? theme.primaryColor,
-                  size: 20,
-                ),
-              ),
-              const Spacer(),
-              if (onTap != null)
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 14,
-                  color: Colors.grey[600],
-                ),
-            ],
-          ),
-          
-          const SizedBox(height: 12),
-          
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D3748),
-            ),
-          ),
-          
-          const SizedBox(height: 4),
-          
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          
-          if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              subtitle!,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[500],
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
-}
 
-/// Card de feature/funcionalidade
-class FeatureCard extends StatelessWidget {
-  final String title;
-  final String description;
-  final IconData icon;
-  final VoidCallback? onTap;
-  final bool isEnabled;
-  final String? badge;
-  final Color? badgeColor;
-
-  const FeatureCard({
-    super.key,
-    required this.title,
-    required this.description,
-    required this.icon,
-    this.onTap,
-    this.isEnabled = true,
-    this.badge,
-    this.badgeColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
+  /// Card elevado (Material Design)
+  factory CustomCard.elevated({
+    required Widget child,
+    double elevation = 4,
+    Color? color,
+    EdgeInsetsGeometry? padding,
+    EdgeInsetsGeometry? margin,
+    BorderRadius? borderRadius,
+    VoidCallback? onTap,
+  }) {
     return CustomCard(
-      onTap: isEnabled ? onTap : null,
-      isClickable: isEnabled && onTap != null,
-      child: Opacity(
-        opacity: isEnabled ? 1.0 : 0.6,
-        child: Row(
-          children: [
-            // Ícone
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: isEnabled 
-                    ? theme.primaryColor.withOpacity(0.1)
-                    : Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                color: isEnabled ? theme.primaryColor : Colors.grey,
-                size: 24,
-              ),
-            ),
-            
-            const SizedBox(width: 16),
-            
-            // Conteúdo
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: isEnabled 
-                                ? const Color(0xFF2D3748)
-                                : Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                      if (badge != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: (badgeColor ?? Colors.orange).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            badge!,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: badgeColor ?? Colors.orange[700],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Seta
-            if (isEnabled && onTap != null)
-              Icon(
-                Icons.chevron_right,
-                color: Colors.grey[400],
-                size: 20,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Card de treino
-class WorkoutCard extends StatelessWidget {
-  final String name;
-  final String type;
-  final String? difficulty;
-  final int exerciseCount;
-  final String duration;
-  final VoidCallback? onTap;
-  final bool isNew;
-
-  const WorkoutCard({
-    super.key,
-    required this.name,
-    required this.type,
-    this.difficulty,
-    required this.exerciseCount,
-    required this.duration,
-    this.onTap,
-    this.isNew = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return CustomCard(
+      child: child,
+      elevation: elevation,
+      color: color,
+      padding: padding,
+      margin: margin,
+      borderRadius: borderRadius,
       onTap: onTap,
-      isClickable: onTap != null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3748),
-                  ),
-                ),
-              ),
-              if (isNew)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'NOVO',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green[700],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Tipo
-          Text(
-            type,
-            style: TextStyle(
-              fontSize: 14,
-              color: theme.primaryColor,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Stats
-          Row(
-            children: [
-              _buildStat(Icons.fitness_center, '$exerciseCount exercícios'),
-              const SizedBox(width: 16),
-              _buildStat(Icons.schedule, duration),
-              if (difficulty != null) ...[
-                const SizedBox(width: 16),
-                _buildStat(Icons.trending_up, difficulty!),
-              ],
-            ],
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildStat(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: 14,
-          color: Colors.grey[600],
-        ),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
+  /// Card plano (apenas com sombra sutil)
+  factory CustomCard.flat({
+    required Widget child,
+    Color? color,
+    EdgeInsetsGeometry? padding,
+    EdgeInsetsGeometry? margin,
+    BorderRadius? borderRadius,
+    VoidCallback? onTap,
+  }) {
+    return CustomCard(
+      child: child,
+      color: color,
+      padding: padding,
+      margin: margin,
+      borderRadius: borderRadius,
+      onTap: onTap,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.05),
+          spreadRadius: 0,
+          blurRadius: 8,
+          offset: const Offset(0, 1),
         ),
       ],
     );
   }
-}
 
-/// Card de informação/alerta
-class InfoCard extends StatelessWidget {
-  final String title;
-  final String message;
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
-  final Widget? action;
-
-  const InfoCard({
-    super.key,
-    required this.title,
-    required this.message,
-    required this.icon,
-    required this.color,
-    this.onTap,
-    this.action,
-  });
-
-  factory InfoCard.info({
-    required String title,
-    required String message,
+  /// Card selecionável
+  factory CustomCard.selectable({
+    required Widget child,
+    required bool isSelected,
+    Color? selectedColor,
+    EdgeInsetsGeometry? padding,
+    EdgeInsetsGeometry? margin,
+    BorderRadius? borderRadius,
     VoidCallback? onTap,
-    Widget? action,
   }) {
-    return InfoCard(
-      title: title,
-      message: message,
-      icon: Icons.info_outline,
-      color: Colors.blue,
-      onTap: onTap,
-      action: action,
-    );
-  }
-
-  factory InfoCard.warning({
-    required String title,
-    required String message,
-    VoidCallback? onTap,
-    Widget? action,
-  }) {
-    return InfoCard(
-      title: title,
-      message: message,
-      icon: Icons.warning_outlined,
-      color: Colors.orange,
-      onTap: onTap,
-      action: action,
-    );
-  }
-
-  factory InfoCard.success({
-    required String title,
-    required String message,
-    VoidCallback? onTap,
-    Widget? action,
-  }) {
-    return InfoCard(
-      title: title,
-      message: message,
-      icon: Icons.check_circle_outline,
-      color: Colors.green,
-      onTap: onTap,
-      action: action,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return CustomCard(
+      child: child,
+      isSelected: isSelected,
+      selectedColor: selectedColor,
+      padding: padding,
+      margin: margin,
+      borderRadius: borderRadius,
       onTap: onTap,
-      isClickable: onTap != null,
-      backgroundColor: color.withOpacity(0.05),
-      border: Border.all(color: color.withOpacity(0.2)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                color: color,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 8),
-          
-          Text(
-            message,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[700],
-              height: 1.4,
-            ),
-          ),
-          
-          if (action != null) ...[
-            const SizedBox(height: 12),
-            action!,
-          ],
+    );
+  }
+
+  /// Card com bordas
+  factory CustomCard.outlined({
+    required Widget child,
+    Color borderColor = Colors.grey,
+    double borderWidth = 1,
+    EdgeInsetsGeometry? padding,
+    EdgeInsetsGeometry? margin,
+    BorderRadius? borderRadius,
+    VoidCallback? onTap,
+  }) {
+    return CustomCard(
+      child: child,
+      border: Border.all(color: borderColor, width: borderWidth),
+      padding: padding,
+      margin: margin,
+      borderRadius: borderRadius,
+      onTap: onTap,
+      boxShadow: [], // Sem sombra para cards outlined
+    );
+  }
+
+  /// Card compacto (padding menor)
+  factory CustomCard.compact({
+    required Widget child,
+    Color? color,
+    EdgeInsetsGeometry? margin,
+    BorderRadius? borderRadius,
+    VoidCallback? onTap,
+  }) {
+    return CustomCard(
+      child: child,
+      color: color,
+      padding: const EdgeInsets.all(12),
+      margin: margin,
+      borderRadius: borderRadius,
+      onTap: onTap,
+    );
+  }
+
+  /// Card hero (destaque)
+  factory CustomCard.hero({
+    required Widget child,
+    EdgeInsetsGeometry? padding,
+    EdgeInsetsGeometry? margin,
+    BorderRadius? borderRadius,
+    VoidCallback? onTap,
+  }) {
+    return CustomCard(
+      child: child,
+      gradient: LinearGradient(
+        colors: [
+          const Color(0xFF667eea),
+          const Color(0xFF764ba2),
         ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
+      padding: padding,
+      margin: margin,
+      borderRadius: borderRadius,
+      onTap: onTap,
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFF667eea).withOpacity(0.3),
+          spreadRadius: 0,
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+      ],
     );
   }
 }

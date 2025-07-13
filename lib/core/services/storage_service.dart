@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+
 /// Serviço para gerenciar armazenamento local seguro e comum
 class StorageService {
   // ===== SINGLETON =====
@@ -15,9 +16,7 @@ class StorageService {
     aOptions: AndroidOptions(
       encryptedSharedPreferences: true,
     ),
-    iOptions: IOSOptions(
-      accessibility: IOSAccessibility.first_unlock_this_device,
-    ),
+    iOptions: IOSOptions(),
   );
   
   SharedPreferences? _prefs;
@@ -318,6 +317,100 @@ class StorageService {
     }
   }
 
+  // ===== MÉTODOS GENÉRICOS PARA STRINGS (NECESSÁRIO PARA NETWORK DETECTOR) =====
+
+  /// Salvar string genérica
+  Future<bool> saveString(String key, String value) async {
+    try {
+      final prefs = await _getPrefs();
+      final result = await prefs.setString(key, value);
+      if (kDebugMode) print('✅ String salva: $key');
+      return result;
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao salvar string: $e');
+      return false;
+    }
+  }
+
+  /// Obter string genérica
+  Future<String?> getString(String key) async {
+    try {
+      final prefs = await _getPrefs();
+      return prefs.getString(key);
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao ler string: $e');
+      return null;
+    }
+  }
+
+  /// Remover chave específica
+  Future<bool> remove(String key) async {
+    try {
+      final prefs = await _getPrefs();
+      final result = await prefs.remove(key);
+      if (kDebugMode) print('🗑️ Chave removida: $key');
+      return result;
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao remover chave: $e');
+      return false;
+    }
+  }
+
+  /// Verificar se chave existe
+  Future<bool> containsKey(String key) async {
+    try {
+      final prefs = await _getPrefs();
+      return prefs.containsKey(key);
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao verificar chave: $e');
+      return false;
+    }
+  }
+
+  /// Salvar inteiro genérico
+  Future<bool> saveInt(String key, int value) async {
+    try {
+      final prefs = await _getPrefs();
+      return await prefs.setInt(key, value);
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao salvar int: $e');
+      return false;
+    }
+  }
+
+  /// Obter inteiro genérico
+  Future<int?> getInt(String key) async {
+    try {
+      final prefs = await _getPrefs();
+      return prefs.getInt(key);
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao ler int: $e');
+      return null;
+    }
+  }
+
+  /// Salvar boolean genérico
+  Future<bool> saveBool(String key, bool value) async {
+    try {
+      final prefs = await _getPrefs();
+      return await prefs.setBool(key, value);
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao salvar bool: $e');
+      return false;
+    }
+  }
+
+  /// Obter boolean genérico
+  Future<bool?> getBool(String key) async {
+    try {
+      final prefs = await _getPrefs();
+      return prefs.getBool(key);
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao ler bool: $e');
+      return null;
+    }
+  }
+
   // ===== CACHE =====
 
   /// Salvar dados em cache
@@ -396,6 +489,69 @@ class StorageService {
     } catch (e) {
       if (kDebugMode) print('❌ Erro ao limpar cache: $e');
       return false;
+    }
+  }
+
+  // ===== MÉTODOS ESPECÍFICOS PARA REDE (PARA NETWORK DETECTOR) =====
+
+  /// Salvar URL ativa da API
+  Future<bool> saveActiveApiUrl(String url) async {
+    return await saveString('active_api_url', url);
+  }
+
+  /// Obter URL ativa da API
+  Future<String?> getActiveApiUrl() async {
+    return await getString('active_api_url');
+  }
+
+  /// Remover URL ativa da API
+  Future<bool> removeActiveApiUrl() async {
+    return await remove('active_api_url');
+  }
+
+  /// Salvar timestamp da última verificação de rede
+  Future<bool> saveLastNetworkCheck(DateTime timestamp) async {
+    return await saveString('last_network_check', timestamp.toIso8601String());
+  }
+
+  /// Obter timestamp da última verificação de rede
+  Future<DateTime?> getLastNetworkCheck() async {
+    final timestamp = await getString('last_network_check');
+    if (timestamp != null) {
+      try {
+        return DateTime.parse(timestamp);
+      } catch (e) {
+        if (kDebugMode) print('❌ Erro ao parsear timestamp: $e');
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /// Salvar configurações de rede
+  Future<bool> saveNetworkConfig(Map<String, dynamic> config) async {
+    try {
+      final prefs = await _getPrefs();
+      final jsonString = json.encode(config);
+      return await prefs.setString('network_config', jsonString);
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao salvar config de rede: $e');
+      return false;
+    }
+  }
+
+  /// Obter configurações de rede
+  Future<Map<String, dynamic>?> getNetworkConfig() async {
+    try {
+      final prefs = await _getPrefs();
+      final jsonString = prefs.getString('network_config');
+      if (jsonString != null) {
+        return json.decode(jsonString);
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) print('❌ Erro ao ler config de rede: $e');
+      return null;
     }
   }
 
