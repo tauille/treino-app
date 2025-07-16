@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider_google.dart';
+import '../treino/meus_treinos_screen.dart';
+import '../treino/criar_treino_screen.dart';
 
 /// Tela Home - Dashboard principal
 class HomeScreen extends StatefulWidget {
@@ -18,9 +20,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    
-    // 🚨 DEBUG - Para confirmar que estamos no arquivo correto
-    print('🚨 ARQUIVO CORRETO CARREGADO: lib/screens/home/home_screen.dart');
     
     // Configurar status bar
     SystemChrome.setSystemUIOverlayStyle(
@@ -101,74 +100,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  /// ✅ Navegar para tela de Criar Treino
+  /// ✅ Navegar para Meus Treinos
+  void _navigateToMeusTreinos() {
+    print('🏋️ Navegando para MeusTreinosScreen...');
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MeusTreinosScreen(),
+      ),
+    );
+  }
+
+  /// ✅ Navegar para Criar Treino
   void _navigateToCriarTreino() {
     print('🚀 Navegando para CriarTreinoScreen...');
     
-    try {
-      Navigator.pushNamed(context, '/criar-treino');
-      print('✅ Navegação por rota nomeada iniciada');
-    } catch (e) {
-      print('❌ Erro na navegação por rota: $e');
-      
-      // Fallback: navegação direta
-      try {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) {
-              // Como não temos o import direto, vamos tentar carregar dinamicamente
-              // ou usar um placeholder por enquanto
-              return Scaffold(
-                appBar: AppBar(
-                  title: const Text('Criar Treino'),
-                  backgroundColor: const Color(0xFF667eea),
-                  foregroundColor: Colors.white,
-                ),
-                body: const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.construction,
-                        size: 64,
-                        color: Color(0xFF667eea),
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Tela em Desenvolvimento',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'A tela de criar treino será implementada aqui',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-        print('✅ Navegação direta com placeholder funcionou');
-      } catch (e2) {
-        print('❌ Erro na navegação direta: $e2');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao abrir tela: $e2'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CriarTreinoScreen(),
+      ),
+    );
   }
 
   /// Widget do status do usuário
@@ -339,14 +292,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  /// Widget de funcionalidade (coming soon)
+  /// Widget de funcionalidade
   Widget _buildFeatureCard({
     required String title,
     required String description,
     required IconData icon,
     required VoidCallback onTap,
     bool isEnabled = false,
+    Color? enabledColor,
   }) {
+    final cardColor = isEnabled 
+        ? (enabledColor ?? const Color(0xFF667eea))
+        : Colors.grey;
+        
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Material(
@@ -366,16 +324,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: isEnabled 
-                        ? const Color(0xFF667eea).withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                    color: cardColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
                     icon,
-                    color: isEnabled 
-                        ? const Color(0xFF667eea)
-                        : Colors.grey,
+                    color: cardColor,
                     size: 28,
                   ),
                 ),
@@ -486,27 +440,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               
               // CARDS DE FUNCIONALIDADES
+              
+              // ✅ MEUS TREINOS - AGORA HABILITADO!
               _buildFeatureCard(
                 title: 'Meus Treinos',
                 description: 'Visualize e gerencie seus treinos personalizados',
                 icon: Icons.fitness_center,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Funcionalidade será implementada em breve'),
-                      backgroundColor: Color(0xFF667eea),
-                    ),
-                  );
-                },
+                isEnabled: true, // ✅ HABILITADO!
+                enabledColor: Colors.blue, // Cor diferente para distinguir
+                onTap: _navigateToMeusTreinos, // ✅ NAVEGAÇÃO!
               ),
               
-              // ✅ CARD CRIAR TREINO - AGORA FUNCIONAL!
+              // ✅ CRIAR TREINO - JÁ FUNCIONANDO
               _buildFeatureCard(
                 title: 'Criar Treino',
                 description: 'Monte seu próprio treino com exercícios customizados',
                 icon: Icons.add_circle_outline,
-                isEnabled: true, // ✅ HABILITADO!
-                onTap: _navigateToCriarTreino, // ✅ FUNÇÃO DE NAVEGAÇÃO!
+                isEnabled: true,
+                enabledColor: Colors.green, // Verde para criar
+                onTap: _navigateToCriarTreino,
               ),
               
               _buildFeatureCard(
@@ -539,40 +491,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               
               const SizedBox(height: 32),
               
-              // INFORMAÇÕES ADICIONAIS
+              // INFORMAÇÕES ADICIONAIS - ATUALIZADA
               Container(
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.05),
+                  color: Colors.green.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.green.withOpacity(0.1),
                   ),
                 ),
                 child: Column(
                   children: [
                     Icon(
-                      Icons.rocket_launch,
-                      color: Colors.blue[600],
+                      Icons.check_circle,
+                      color: Colors.green[600],
                       size: 32,
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Criar Treino Disponível!',
+                      'Sistema Completo Funcionando!',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Colors.blue[700],
+                        color: Colors.green[700],
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'A funcionalidade "Criar Treino" agora está ativa! '
-                      'Clique no card verde acima para testar a navegação.',
+                      '✅ Criar Treinos\n'
+                      '✅ Ver Meus Treinos\n'
+                      '✅ Detalhes Completos\n'
+                      '✅ Sistema de Busca e Filtros',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.blue[600],
+                        color: Colors.green[600],
                         height: 1.4,
                       ),
                       textAlign: TextAlign.center,

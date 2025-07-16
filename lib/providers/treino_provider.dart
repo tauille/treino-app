@@ -1,323 +1,348 @@
 import 'package:flutter/foundation.dart';
 import '../models/treino_model.dart';
+import '../models/api_response_model.dart';
 import '../core/services/treino_service.dart';
 
 class TreinoProvider with ChangeNotifier {
-  // Estado dos treinos
+  // ===== ESTADO DA LISTA DE TREINOS =====
   List<TreinoModel> _treinos = [];
-  TreinoModel? _treinoAtual;
   bool _isLoading = false;
-  bool _isLoadingMore = false;
-  String? _errorMessage;
-  
-  // Getters
+  String? _error;
+
+  // ===== ESTADO DO TREINO INDIVIDUAL =====
+  TreinoModel? _treinoAtual;
+  bool _isLoadingTreino = false;
+
+  // ===== ESTADO DE CRIAÇÃO/EDIÇÃO =====
+  bool _isSaving = false;
+
+  // ===== GETTERS =====
   List<TreinoModel> get treinos => _treinos;
-  TreinoModel? get treinoAtual => _treinoAtual;
   bool get isLoading => _isLoading;
-  bool get isLoadingMore => _isLoadingMore;
-  String? get errorMessage => _errorMessage;
-  bool get hasError => _errorMessage != null;
-  bool get isEmpty => _treinos.isEmpty && !_isLoading;
-  
-  // Estatísticas
+  String? get error => _error;
+  TreinoModel? get treinoAtual => _treinoAtual;
+  bool get isLoadingTreino => _isLoadingTreino;
+  bool get isSaving => _isSaving;
+
+  // ===== GETTERS ÚTEIS =====
+  List<TreinoModel> get treinosAtivos => _treinos.where((t) => t.isAtivo).toList();
   int get totalTreinos => _treinos.length;
-  int get treinosAtivos => _treinos.where((treino) => treino.isAtivo).length;
-  int get treinosInativos => _treinos.where((treino) => treino.isInativo).length;
+  int get totalTreinosAtivos => treinosAtivos.length;
+  bool get hasError => _error != null;
+
+  // ===== MÉTODO PRINCIPAL QUE ESTAVA FALTANDO =====
   
-  int get totalExercicios => _treinos.fold<int>(
-    0, 
-    (sum, treino) => sum + (treino.totalExercicios ?? 0),
-  );
-  
-  List<TreinoModel> get treinosRecentes {
-    final agora = DateTime.now();
-    return _treinos.where((treino) => 
-      treino.createdAt != null && 
-      agora.difference(treino.createdAt!).inDays <= 30
-    ).toList();
-  }
-
-  // ========================================================================
-  // MÉTODOS CRUD
-  // ========================================================================
-
-  /// Criar novo treino
-  Future<TreinoModel?> criarTreino(TreinoModel treino) async {
-    try {
-      _setLoading(true);
-      _clearError();
-
-      print('🚀 Criando treino: ${treino.nomeTreino}');
-      
-      // ✅ Chama o TreinoService e processa ApiResponse
-      final response = await TreinoService.criarTreino(treino);
-      
-      if (response.success && response.data != null) {
-        final treinoCriado = response.data!;
-        
-        // Adicionar treino à lista (no início)
-        _treinos.insert(0, treinoCriado);
-        _treinoAtual = treinoCriado;
-        
-        print('✅ Treino criado e adicionado à lista: ${treinoCriado.nomeTreino}');
-        notifyListeners();
-        
-        return treinoCriado;
-      } else {
-        _setError(response.message ?? 'Erro ao criar treino');
-        return null;
-      }
-    } catch (e) {
-      print('❌ Erro ao criar treino: $e');
-      _setError('Erro interno: $e');
-      return null;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  /// Listar treinos do usuário
-  Future<void> carregarTreinos({
+  /// Listar treinos com filtros opcionais
+  Future<ApiResponse<List<TreinoModel>>> listarTreinos({
     String? busca,
     String? dificuldade,
     String? tipoTreino,
-    bool forceRefresh = false,
+    String? orderBy,
+    String? orderDirection,
+    int? perPage,
   }) async {
-    if (_isLoading && !forceRefresh) return;
+    _setLoading(true);
+    _clearError();
 
     try {
-      _setLoading(true);
-      _clearError();
+      print('🔍 Carregando treinos...');
+      print('📋 Filtros: busca=$busca, dificuldade=$dificuldade, tipo=$tipoTreino');
 
-      print('📥 Carregando treinos...');
-      
-      // ✅ Chama o TreinoService e processa ApiResponse
+      // ===== CORREÇÃO: USAR MÉTODO ESTÁTICO =====
       final response = await TreinoService.listarTreinos(
         busca: busca,
         dificuldade: dificuldade,
         tipoTreino: tipoTreino,
+        orderBy: orderBy,
+        orderDirection: orderDirection,
+        perPage: perPage,
       );
-      
+
+      print('📊 Resposta da API: success=${response.success}');
+      print('📦 Total de treinos: ${response.data?.length ?? 0}');
+
       if (response.success && response.data != null) {
+        // Atualizar lista local
         _treinos = response.data!;
-        print('✅ ${_treinos.length} treinos carregados');
+        notifyListeners();
+        
+        return ApiResponse.success(
+          data: response.data!,
+          message: response.message ?? 'Treinos carregados com sucesso',
+        );
       } else {
-        _setError(response.message ?? 'Erro ao carregar treinos');
-        _treinos = [];
+        final errorMsg = response.message ?? 'Erro ao carregar treinos';
+        _setError(errorMsg);
+        
+        return ApiResponse.error(
+          message: errorMsg,
+          errors: response.errors,
+        );
       }
-      
-      notifyListeners();
     } catch (e) {
-      print('❌ Erro ao carregar treinos: $e');
-      _setError('Erro interno: $e');
-      _treinos = [];
-      notifyListeners();
+      final errorMessage = 'Erro inesperado ao carregar treinos: $e';
+      _setError(errorMessage);
+      debugPrint('❌ Erro em listarTreinos: $e');
+      
+      return ApiResponse.error(message: errorMessage);
     } finally {
       _setLoading(false);
     }
   }
 
   /// Buscar treino por ID
-  Future<TreinoModel?> buscarTreino(int id) async {
+  Future<ApiResponse<TreinoModel>> buscarTreino(int id) async {
+    _setLoadingTreino(true);
+    _clearError();
+
     try {
-      _clearError();
-
       print('🔍 Buscando treino ID: $id');
-      
-      // ✅ Chama o TreinoService e processa ApiResponse
+
+      // ===== CORREÇÃO: USAR MÉTODO ESTÁTICO =====
       final response = await TreinoService.buscarTreino(id);
-      
+
       if (response.success && response.data != null) {
-        final treino = response.data!;
-        _treinoAtual = treino;
-
-        // Atualizar treino na lista se já existir
-        final index = _treinos.indexWhere((t) => t.id == id);
-        if (index != -1) {
-          _treinos[index] = treino;
-        } else {
-          _treinos.insert(0, treino);
-        }
-
-        print('✅ Treino encontrado: ${treino.nomeTreino}');
+        _treinoAtual = response.data!;
         notifyListeners();
         
-        return treino;
+        print('✅ Treino encontrado: ${response.data!.nomeTreino}');
+        
+        return ApiResponse.success(
+          data: response.data!,
+          message: response.message ?? 'Treino carregado com sucesso',
+        );
       } else {
-        _setError(response.message ?? 'Treino não encontrado');
-        return null;
+        final errorMsg = response.message ?? 'Treino não encontrado';
+        _setError(errorMsg);
+        
+        return ApiResponse.error(
+          message: errorMsg,
+          errors: response.errors,
+        );
       }
     } catch (e) {
-      print('❌ Erro ao buscar treino: $e');
-      _setError('Erro interno: $e');
-      return null;
+      final errorMessage = 'Erro inesperado ao buscar treino: $e';
+      _setError(errorMessage);
+      debugPrint('❌ Erro em buscarTreino: $e');
+      
+      return ApiResponse.error(message: errorMessage);
+    } finally {
+      _setLoadingTreino(false);
     }
   }
 
-  /// Atualizar treino
-  Future<TreinoModel?> atualizarTreino(TreinoModel treino) async {
+  /// Criar novo treino
+  Future<ApiResponse<TreinoModel>> criarTreino(TreinoModel treino) async {
+    _setSaving(true);
+    _clearError();
+
     try {
-      _setLoading(true);
-      _clearError();
+      print('🚀 Criando treino: ${treino.nomeTreino}');
 
-      print('✏️ Atualizando treino: ${treino.nomeTreino}');
-      
-      // ✅ Chama o TreinoService e processa ApiResponse
-      final response = await TreinoService.atualizarTreino(treino);
-      
+      // ===== CORREÇÃO: USAR MÉTODO ESTÁTICO =====
+      final response = await TreinoService.criarTreino(treino);
+
       if (response.success && response.data != null) {
-        final treinoAtualizado = response.data!;
+        // Adicionar à lista local
+        _treinos.add(response.data!);
+        _treinoAtual = response.data!;
+        notifyListeners();
+        
+        print('✅ Treino criado com sucesso: ${response.data!.nomeTreino}');
+        
+        return ApiResponse.success(
+          data: response.data!,
+          message: response.message ?? 'Treino criado com sucesso',
+        );
+      } else {
+        final errorMsg = response.message ?? 'Erro ao criar treino';
+        _setError(errorMsg);
+        
+        return ApiResponse.error(
+          message: errorMsg,
+          errors: response.errors,
+        );
+      }
+    } catch (e) {
+      final errorMessage = 'Erro inesperado ao criar treino: $e';
+      _setError(errorMessage);
+      debugPrint('❌ Erro em criarTreino: $e');
+      
+      return ApiResponse.error(message: errorMessage);
+    } finally {
+      _setSaving(false);
+    }
+  }
 
-        // Atualizar treino na lista
+  /// Atualizar treino existente
+  Future<ApiResponse<TreinoModel>> atualizarTreino(TreinoModel treino) async {
+    if (treino.id == null) {
+      return ApiResponse.error(message: 'ID do treino é obrigatório para atualização');
+    }
+
+    _setSaving(true);
+    _clearError();
+
+    try {
+      print('🔄 Atualizando treino: ${treino.nomeTreino}');
+
+      // ===== CORREÇÃO: USAR MÉTODO ESTÁTICO =====
+      final response = await TreinoService.atualizarTreino(treino);
+
+      if (response.success && response.data != null) {
+        // Atualizar na lista local
         final index = _treinos.indexWhere((t) => t.id == treino.id);
         if (index != -1) {
-          _treinos[index] = treinoAtualizado;
+          _treinos[index] = response.data!;
         }
-        
-        // Atualizar treino atual se for o mesmo
-        if (_treinoAtual?.id == treino.id) {
-          _treinoAtual = treinoAtualizado;
-        }
-
-        print('✅ Treino atualizado: ${treinoAtualizado.nomeTreino}');
+        _treinoAtual = response.data!;
         notifyListeners();
         
-        return treinoAtualizado;
+        print('✅ Treino atualizado com sucesso');
+        
+        return ApiResponse.success(
+          data: response.data!,
+          message: response.message ?? 'Treino atualizado com sucesso',
+        );
       } else {
-        _setError(response.message ?? 'Erro ao atualizar treino');
-        return null;
+        final errorMsg = response.message ?? 'Erro ao atualizar treino';
+        _setError(errorMsg);
+        
+        return ApiResponse.error(
+          message: errorMsg,
+          errors: response.errors,
+        );
       }
     } catch (e) {
-      print('❌ Erro ao atualizar treino: $e');
-      _setError('Erro interno: $e');
-      return null;
+      final errorMessage = 'Erro inesperado ao atualizar treino: $e';
+      _setError(errorMessage);
+      debugPrint('❌ Erro em atualizarTreino: $e');
+      
+      return ApiResponse.error(message: errorMessage);
     } finally {
-      _setLoading(false);
+      _setSaving(false);
     }
   }
 
-  /// Deletar treino
-  Future<bool> deletarTreino(int id) async {
-    try {
-      _setLoading(true);
-      _clearError();
+  /// Remover treino (soft delete)
+  Future<ApiResponse<bool>> removerTreino(int id) async {
+    _setSaving(true);
+    _clearError();
 
-      print('🗑️ Deletando treino ID: $id');
-      
-      // ✅ Chama o TreinoService e processa ApiResponse
+    try {
+      print('🗑️ Removendo treino ID: $id');
+
+      // ===== CORREÇÃO: USAR deletarTreino (MÉTODO CORRETO NO SERVICE) =====
       final response = await TreinoService.deletarTreino(id);
-      
-      if (response.success && response.data == true) {
-        // Remover treino da lista
-        _treinos.removeWhere((treino) => treino.id == id);
+
+      if (response.success) {
+        // Remover da lista local
+        _treinos.removeWhere((t) => t.id == id);
         
-        // Limpar treino atual se for o mesmo
+        // Se era o treino atual, limpar
         if (_treinoAtual?.id == id) {
           _treinoAtual = null;
         }
-
-        print('✅ Treino deletado com sucesso');
+        
         notifyListeners();
         
-        return true;
+        print('✅ Treino removido com sucesso');
+        
+        return ApiResponse.success(
+          data: true,
+          message: response.message ?? 'Treino removido com sucesso',
+        );
       } else {
-        _setError(response.message ?? 'Erro ao deletar treino');
-        return false;
+        final errorMsg = response.message ?? 'Erro ao remover treino';
+        _setError(errorMsg);
+        
+        return ApiResponse.error(
+          message: errorMsg,
+          errors: response.errors,
+        );
       }
     } catch (e) {
-      print('❌ Erro ao deletar treino: $e');
-      _setError('Erro interno: $e');
-      return false;
+      final errorMessage = 'Erro inesperado ao remover treino: $e';
+      _setError(errorMessage);
+      debugPrint('❌ Erro em removerTreino: $e');
+      
+      return ApiResponse.error(message: errorMessage);
     } finally {
-      _setLoading(false);
+      _setSaving(false);
     }
   }
 
-  // ========================================================================
-  // MÉTODOS DE FILTRO E BUSCA
-  // ========================================================================
+  /// Listar treinos por dificuldade
+  Future<ApiResponse<List<TreinoModel>>> listarTreinosPorDificuldade(String dificuldade) async {
+    try {
+      // ===== CORREÇÃO: USAR MÉTODO ESTÁTICO =====
+      final response = await TreinoService.listarTreinosPorDificuldade(dificuldade);
+      
+      if (response.success && response.data != null) {
+        // Opcionalmente atualizar lista local com filtro
+        // _treinos = response.data!;
+        // notifyListeners();
+      }
+      
+      return response;
+    } catch (e) {
+      debugPrint('❌ Erro em listarTreinosPorDificuldade: $e');
+      return ApiResponse.error(message: 'Erro inesperado: $e');
+    }
+  }
 
-  /// Filtrar treinos por dificuldade
+  /// Buscar treinos (filtro local)
+  List<TreinoModel> buscarTreinosLocal(String termo) {
+    if (termo.isEmpty) return _treinos;
+    
+    final termoLower = termo.toLowerCase();
+    return _treinos.where((treino) {
+      return treino.nomeTreino.toLowerCase().contains(termoLower) ||
+             treino.tipoTreino.toLowerCase().contains(termoLower) ||
+             (treino.descricao?.toLowerCase().contains(termoLower) ?? false);
+    }).toList();
+  }
+
+  /// Filtrar treinos por dificuldade (local)
   List<TreinoModel> filtrarPorDificuldade(String dificuldade) {
     return _treinos.where((treino) => treino.dificuldade == dificuldade).toList();
   }
 
-  /// Filtrar treinos por tipo
+  /// Filtrar treinos por tipo (local)
   List<TreinoModel> filtrarPorTipo(String tipo) {
     return _treinos.where((treino) => treino.tipoTreino == tipo).toList();
   }
 
-  /// Buscar treinos por texto
-  List<TreinoModel> buscarPorTexto(String texto) {
-    final textoLower = texto.toLowerCase();
-    return _treinos.where((treino) {
-      return treino.nomeTreino.toLowerCase().contains(textoLower) ||
-             (treino.descricao?.toLowerCase().contains(textoLower) ?? false) ||
-             treino.tipoTreino.toLowerCase().contains(textoLower);
-    }).toList();
+  /// Recarregar lista de treinos
+  Future<void> recarregar() async {
+    await listarTreinos();
   }
 
-  /// Obter treinos por dificuldade (da API)
-  Future<List<TreinoModel>> carregarTreinosPorDificuldade(String dificuldade) async {
+  /// Limpar treino atual
+  void limparTreinoAtual() {
+    _treinoAtual = null;
+    notifyListeners();
+  }
+
+  /// Limpar lista de treinos
+  void limparTreinos() {
+    _treinos.clear();
+    _treinoAtual = null;
+    _clearError();
+    notifyListeners();
+  }
+
+  /// Inicializar provider (chamar no app startup)
+  Future<void> inicializar() async {
     try {
-      _clearError();
-      
-      print('📥 Carregando treinos de dificuldade: $dificuldade');
-      
-      // ✅ Chama o TreinoService e processa ApiResponse
-      final response = await TreinoService.listarTreinosPorDificuldade(dificuldade);
-      
-      if (response.success && response.data != null) {
-        print('✅ ${response.data!.length} treinos de dificuldade $dificuldade carregados');
-        return response.data!;
-      } else {
-        _setError(response.message ?? 'Erro ao carregar treinos por dificuldade');
-        return [];
-      }
+      await listarTreinos();
+      print('✅ TreinoProvider inicializado com sucesso');
     } catch (e) {
-      print('❌ Erro ao carregar treinos por dificuldade: $e');
-      _setError('Erro interno: $e');
-      return [];
+      print('❌ Erro ao inicializar TreinoProvider: $e');
     }
   }
 
-  // ========================================================================
-  // MÉTODOS DE ESTADO
-  // ========================================================================
-
-  /// Definir treino atual
-  void setTreinoAtual(TreinoModel? treino) {
-    _treinoAtual = treino;
-    notifyListeners();
-  }
-
-  /// Limpar dados
-  void limpar() {
-    _treinos = [];
-    _treinoAtual = null;
-    _isLoading = false;
-    _errorMessage = null;
-    notifyListeners();
-  }
-
-  /// Definir estado de loading
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
-  /// Definir erro
-  void _setError(String error) {
-    _errorMessage = error;
-    notifyListeners();
-  }
-
-  /// Limpar erro
-  void _clearError() {
-    _errorMessage = null;
-  }
-
-  /// Testar conexão com API
+  /// Testar conexão com a API
   Future<bool> testarConexao() async {
     try {
       return await TreinoService.testarConexao();
@@ -327,21 +352,51 @@ class TreinoProvider with ChangeNotifier {
     }
   }
 
-  // ========================================================================
-  // MÉTODOS UTILITÁRIOS
-  // ========================================================================
+  // ===== MÉTODOS AUXILIARES PARA CONTROLE DE ESTADO =====
 
-  /// Reordenar treinos
-  void reordenarTreinos(int oldIndex, int newIndex) {
-    if (oldIndex < newIndex) {
-      newIndex -= 1;
+  void _setLoading(bool loading) {
+    if (_isLoading != loading) {
+      _isLoading = loading;
+      notifyListeners();
     }
-    final treino = _treinos.removeAt(oldIndex);
-    _treinos.insert(newIndex, treino);
-    notifyListeners();
   }
 
-  /// Obter treino por ID (da lista local)
+  void _setLoadingTreino(bool loading) {
+    if (_isLoadingTreino != loading) {
+      _isLoadingTreino = loading;
+      notifyListeners();
+    }
+  }
+
+  void _setSaving(bool saving) {
+    if (_isSaving != saving) {
+      _isSaving = saving;
+      notifyListeners();
+    }
+  }
+
+  void _setError(String? error) {
+    if (_error != error) {
+      _error = error;
+      notifyListeners();
+    }
+  }
+
+  void _clearError() {
+    if (_error != null) {
+      _error = null;
+      notifyListeners();
+    }
+  }
+
+  // ===== MÉTODOS UTILITÁRIOS =====
+
+  /// Verificar se um treino existe na lista
+  bool treinoExiste(int id) {
+    return _treinos.any((treino) => treino.id == id);
+  }
+
+  /// Obter treino da lista por ID
   TreinoModel? obterTreinoPorId(int id) {
     try {
       return _treinos.firstWhere((treino) => treino.id == id);
@@ -350,40 +405,131 @@ class TreinoProvider with ChangeNotifier {
     }
   }
 
-  /// Verificar se treino existe na lista
-  bool treinoExiste(int id) {
-    return _treinos.any((treino) => treino.id == id);
+  /// Obter estatísticas dos treinos
+  Map<String, dynamic> obterEstatisticas() {
+    final ativos = treinosAtivos;
+    
+    return {
+      'total': _treinos.length,
+      'ativos': ativos.length,
+      'inativos': _treinos.length - ativos.length,
+      'por_dificuldade': {
+        'iniciante': ativos.where((t) => t.dificuldade == 'iniciante').length,
+        'intermediario': ativos.where((t) => t.dificuldade == 'intermediario').length,
+        'avancado': ativos.where((t) => t.dificuldade == 'avancado').length,
+      },
+      'tipos': ativos.map((t) => t.tipoTreino).toSet().toList(),
+    };
   }
 
-  /// Obter índice do treino na lista
-  int obterIndiceTreino(int id) {
-    return _treinos.indexWhere((treino) => treino.id == id);
-  }
+  /// Duplicar treino
+  Future<ApiResponse<TreinoModel>> duplicarTreino(TreinoModel treino) async {
+    try {
+      final treinoDuplicado = TreinoModel.novo(
+        nomeTreino: '${treino.nomeTreino} (Cópia)',
+        tipoTreino: treino.tipoTreino,
+        descricao: treino.descricao,
+        dificuldade: treino.dificuldade,
+        exercicios: treino.exercicios.map((e) => ExercicioModel.novo(
+          nomeExercicio: e.nomeExercicio,
+          descricao: e.descricao,
+          grupoMuscular: e.grupoMuscular,
+          tipoExecucao: e.tipoExecucao,
+          repeticoes: e.repeticoes,
+          series: e.series,
+          tempoExecucao: e.tempoExecucao,
+          tempoDescanso: e.tempoDescanso,
+          peso: e.peso,
+          unidadePeso: e.unidadePeso,
+          observacoes: e.observacoes,
+        )).toList(),
+      );
 
-  /// Adicionar treino à lista (sem API)
-  void adicionarTreinoLocal(TreinoModel treino) {
-    _treinos.insert(0, treino);
-    notifyListeners();
-  }
-
-  /// Remover treino da lista (sem API)
-  void removerTreinoLocal(int id) {
-    _treinos.removeWhere((treino) => treino.id == id);
-    if (_treinoAtual?.id == id) {
-      _treinoAtual = null;
+      return await criarTreino(treinoDuplicado);
+    } catch (e) {
+      return ApiResponse.error(message: 'Erro ao duplicar treino: $e');
     }
-    notifyListeners();
   }
 
-  /// Atualizar treino na lista (sem API)
-  void atualizarTreinoLocal(TreinoModel treino) {
-    final index = _treinos.indexWhere((t) => t.id == treino.id);
-    if (index != -1) {
-      _treinos[index] = treino;
-      if (_treinoAtual?.id == treino.id) {
-        _treinoAtual = treino;
-      }
-      notifyListeners();
+  /// Verificar se há dados carregados
+  bool get temDados => _treinos.isNotEmpty;
+
+  /// Verificar se está carregando algo
+  bool get isCarregandoAlgo => _isLoading || _isLoadingTreino || _isSaving;
+
+  /// Obter resumo do estado atual
+  String get statusResumo {
+    if (_isLoading) return 'Carregando treinos...';
+    if (_isLoadingTreino) return 'Carregando detalhes...';
+    if (_isSaving) return 'Salvando...';
+    if (_error != null) return 'Erro: $_error';
+    if (_treinos.isEmpty) return 'Nenhum treino encontrado';
+    return '${_treinos.length} treinos carregados';
+  }
+
+  @override
+  void dispose() {
+    print('🧹 Limpando TreinoProvider...');
+    _treinos.clear();
+    _treinoAtual = null;
+    _error = null;
+    super.dispose();
+  }
+
+  // ===== DEBUG E LOGS =====
+  
+  void _logEstado(String operacao) {
+    if (kDebugMode) {
+      print('📊 [$operacao] TreinoProvider State:');
+      print('   • Treinos: ${_treinos.length}');
+      print('   • Loading: $_isLoading');
+      print('   • Error: $_error');
+      print('   • Atual: ${_treinoAtual?.nomeTreino ?? 'null'}');
+    }
+  }
+
+  // ===== MÉTODOS PARA EXERCÍCIOS =====
+
+  /// Listar exercícios de um treino
+  Future<ApiResponse<List<ExercicioModel>>> listarExercicios(int treinoId) async {
+    try {
+      return await TreinoService.listarExercicios(treinoId);
+    } catch (e) {
+      debugPrint('❌ Erro em listarExercicios: $e');
+      return ApiResponse.error(message: 'Erro inesperado: $e');
+    }
+  }
+
+  /// Criar exercício em um treino
+  Future<ApiResponse<ExercicioModel>> criarExercicio(int treinoId, ExercicioModel exercicio) async {
+    try {
+      return await TreinoService.criarExercicio(treinoId, exercicio);
+    } catch (e) {
+      debugPrint('❌ Erro em criarExercicio: $e');
+      return ApiResponse.error(message: 'Erro inesperado: $e');
+    }
+  }
+
+  /// Deletar exercício
+  Future<ApiResponse<bool>> deletarExercicio(int treinoId, int exercicioId) async {
+    try {
+      return await TreinoService.deletarExercicio(treinoId, exercicioId);
+    } catch (e) {
+      debugPrint('❌ Erro em deletarExercicio: $e');
+      return ApiResponse.error(message: 'Erro inesperado: $e');
+    }
+  }
+
+  /// Reordenar exercícios
+  Future<ApiResponse<bool>> reordenarExercicios(
+    int treinoId,
+    List<Map<String, dynamic>> exerciciosOrdenados,
+  ) async {
+    try {
+      return await TreinoService.reordenarExercicios(treinoId, exerciciosOrdenados);
+    } catch (e) {
+      debugPrint('❌ Erro em reordenarExercicios: $e');
+      return ApiResponse.error(message: 'Erro inesperado: $e');
     }
   }
 }

@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class TreinoModel {
   final int? id;
   final String nomeTreino;
@@ -146,7 +148,7 @@ class TreinoModel {
     return copyWith(exercicios: novosExercicios);
   }
 
-  // Getters úteis
+  // ===== GETTERS BÁSICOS =====
   bool get isNovo => id == null;
   bool get isAtivo => status == 'ativo';
   bool get isInativo => status == 'inativo';
@@ -154,20 +156,52 @@ class TreinoModel {
   
   // Usar o campo totalExercicios se disponível, senão calcular
   int get totalExerciciosCalculado => totalExercicios ?? totalExerciciosAtivos;
+
+  // ===== CORES E DIFICULDADES =====
   
-  // Cores para dificuldade
-  static const Map<String, String> coresDificuldade = {
+  static const Map<String, Color> coresDificuldadeColor = {
+    'iniciante': Color(0xFF4CAF50),     // Verde
+    'intermediario': Color(0xFFFF9800), // Laranja
+    'avancado': Color(0xFFF44336),      // Vermelho
+  };
+
+  static const Map<String, String> coresDificuldadeHex = {
     'iniciante': '#4CAF50',
     'intermediario': '#FF9800',
     'avancado': '#F44336',
   };
 
-  String get corDificuldadeCalculada {
-    return corDificuldade ?? coresDificuldade[dificuldade] ?? '#9E9E9E';
+  /// Converter string hex para Color
+  Color _hexToColor(String hex) {
+    try {
+      return Color(int.parse(hex.replaceFirst('#', '0xFF')));
+    } catch (e) {
+      return const Color(0xFF9E9E9E); // Cinza padrão
+    }
   }
 
-  String get dificuldadeTextoCalculado {
-    if (dificuldadeTexto != null) return dificuldadeTexto!;
+  /// ===== GETTER PRINCIPAL PARA CORES (RESOLVE ERRO DE TIPO) =====
+  Color get corDificuldadeColor {
+    // Se tem cor do backend, usar ela
+    if (corDificuldade != null && corDificuldade!.isNotEmpty) {
+      return _hexToColor(corDificuldade!);
+    }
+    
+    // Senão, usar cor padrão baseada na dificuldade
+    return coresDificuldadeColor[dificuldade] ?? const Color(0xFF9E9E9E);
+  }
+
+  String get corDificuldadeCalculada {
+    return corDificuldade ?? coresDificuldadeHex[dificuldade] ?? '#9E9E9E';
+  }
+
+  // ===== GETTERS SEGUROS (RESOLVE ERROS DE NULL) =====
+  
+  /// Getter seguro para dificuldadeTexto
+  String get dificuldadeTextoSeguro {
+    if (dificuldadeTexto != null && dificuldadeTexto!.isNotEmpty) {
+      return dificuldadeTexto!;
+    }
     
     switch (dificuldade) {
       case 'iniciante':
@@ -180,6 +214,98 @@ class TreinoModel {
         return 'Não definido';
     }
   }
+
+  /// Getter seguro para duracaoFormatada
+  String get duracaoFormatadaSegura {
+    if (duracaoFormatada != null && duracaoFormatada!.isNotEmpty) {
+      return duracaoFormatada!;
+    }
+    
+    // Calcular com base na duração estimada
+    if (duracaoEstimada != null && duracaoEstimada! > 0) {
+      final minutos = duracaoEstimada! ~/ 60;
+      final segundos = duracaoEstimada! % 60;
+      
+      if (minutos > 0) {
+        return segundos > 0 ? '${minutos}min ${segundos}s' : '${minutos}min';
+      } else {
+        return '${segundos}s';
+      }
+    }
+    
+    // Calcular com base nos exercícios se não tiver duração estimada
+    final duracaoCalculada = _calcularDuracaoExercicios();
+    if (duracaoCalculada > 0) {
+      final minutos = duracaoCalculada ~/ 60;
+      final segundos = duracaoCalculada % 60;
+      
+      if (minutos > 0) {
+        return segundos > 0 ? '${minutos}min ${segundos}s' : '${minutos}min';
+      } else {
+        return '${segundos}s';
+      }
+    }
+    
+    return 'Não informado';
+  }
+
+  /// Getter seguro para gruposMusculares
+  String get gruposMuscularesSeguro {
+    if (gruposMusculares != null && gruposMusculares!.isNotEmpty) {
+      return gruposMusculares!;
+    }
+    
+    // Calcular com base nos exercícios
+    final grupos = exercicios
+        .where((e) => e.grupoMuscular != null && e.grupoMuscular!.isNotEmpty)
+        .map((e) => e.grupoMuscular!)
+        .toSet()
+        .toList();
+    
+    if (grupos.isEmpty) return 'Não informado';
+    if (grupos.length == 1) return grupos.first;
+    if (grupos.length <= 3) return grupos.join(', ');
+    
+    return '${grupos.take(2).join(', ')} e mais ${grupos.length - 2}';
+  }
+
+  // ===== MÉTODOS AUXILIARES =====
+  
+  /// Calcular duração baseada nos exercícios
+  int _calcularDuracaoExercicios() {
+    int duracaoTotal = 0;
+    
+    for (final exercicio in exercicios) {
+      if (exercicio.series != null) {
+        final series = exercicio.series!;
+        
+        if (exercicio.isRepeticao && exercicio.repeticoes != null) {
+          // Estimar tempo para repetições (2 segundos por repetição + tempo de descanso)
+          final tempoExecucao = exercicio.repeticoes! * 2; // 2s por repetição
+          final tempoDescanso = exercicio.tempoDescanso ?? 60; // 60s padrão
+          duracaoTotal += (tempoExecucao + tempoDescanso) * series;
+        } else if (exercicio.isTempo && exercicio.tempoExecucao != null) {
+          // Tempo direto de execução + tempo de descanso
+          final tempoExecucao = exercicio.tempoExecucao!;
+          final tempoDescanso = exercicio.tempoDescanso ?? 30; // 30s padrão
+          duracaoTotal += (tempoExecucao + tempoDescanso) * series;
+        }
+      }
+    }
+    
+    return duracaoTotal;
+  }
+
+  // ===== GETTERS PARA COMPATIBILIDADE =====
+  
+  /// Para compatibilidade com código existente
+  String get dificuldadeTextoCalculado => dificuldadeTextoSeguro;
+
+  /// Verificar se tem exercícios
+  bool get temExercicios => exercicios.isNotEmpty;
+
+  /// Verificar se está completo (tem nome, tipo e pelo menos 1 exercício)
+  bool get isCompleto => nomeTreino.isNotEmpty && tipoTreino.isNotEmpty && temExercicios;
 
   @override
   String toString() {
@@ -356,7 +482,7 @@ class ExercicioModel {
     );
   }
 
-  // Getters úteis
+  // ===== GETTERS ÚTEIS =====
   bool get isAtivo => status == 'ativo';
   bool get isNovo => id == null;
   bool get isRepeticao => tipoExecucao == 'repeticao';
