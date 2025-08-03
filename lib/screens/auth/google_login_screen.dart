@@ -26,7 +26,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
   void initState() {
     super.initState();
     
-    // Configurar status bar
+    // Configurar status bar para tema escuro
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -126,7 +126,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
             ),
           ],
         ),
-        backgroundColor: Colors.red[600],
+        backgroundColor: const Color(0xFFFF6B6B),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
@@ -145,7 +145,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.8,
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: Color(0xFF2A2D3A),
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(20),
             topRight: Radius.circular(20),
@@ -159,7 +159,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: const Color(0xFF6B7280),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -175,12 +175,13 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close, color: Colors.white),
                   ),
                 ],
               ),
@@ -235,15 +236,15 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF667eea),
+              color: Color(0xFFFF8C42),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             content,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
-              color: Colors.grey[700],
+              color: Color(0xFF9CA3AF),
               height: 1.5,
             ),
           ),
@@ -261,8 +262,8 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
+              Color(0xFF1A1D29),
+              Color(0xFF2A2D3A),
             ],
           ),
         ),
@@ -276,16 +277,20 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // LOGO
+                      // LOGO com gradiente
                       Container(
                         width: 100,
                         height: 100,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF8C42), Color(0xFFFF6B6B)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.circular(25),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: const Color(0xFFFF8C42).withOpacity(0.3),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -294,7 +299,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                         child: const Icon(
                           Icons.fitness_center,
                           size: 50,
-                          color: Color(0xFF667eea),
+                          color: Colors.white,
                         ),
                       ),
                       
@@ -349,8 +354,8 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                                   onPressed: authProvider.isLoading ? null : _signInWithGoogle,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.white,
-                                    foregroundColor: const Color(0xFF757575),
-                                    elevation: 3,
+                                    foregroundColor: const Color(0xFF374151),
+                                    elevation: 8,
                                     shadowColor: Colors.black26,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(28),
@@ -361,7 +366,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                                           width: 20,
                                           height: 20,
                                           child: SpinKitFadingCircle(
-                                            color: Color(0xFF667eea),
+                                            color: Color(0xFFFF8C42),
                                             size: 20,
                                           ),
                                         )
@@ -387,29 +392,37 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                         
                         const SizedBox(height: 24),
                         
-                        // TRIAL INFO
+                        // TRIAL INFO com gradiente turquesa
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF4ECDC4).withOpacity(0.3),
+                                blurRadius: 15,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
                           ),
                           child: Column(
                             children: [
-                              Icon(
-                                Icons.star,
-                                color: Colors.yellow[400],
-                                size: 24,
+                              const Icon(
+                                Icons.diamond,
+                                color: Colors.white,
+                                size: 28,
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
                               const Text(
                                 '7 Dias Grátis',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 16,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -417,8 +430,8 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                               Text(
                                 'Teste premium sem compromisso',
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.8),
-                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 14,
                                 ),
                               ),
                             ],

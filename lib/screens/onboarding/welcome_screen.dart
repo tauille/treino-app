@@ -24,7 +24,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   void initState() {
     super.initState();
     
-    // Configurar status bar
+    // Configurar status bar para tema escuro
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -82,20 +82,31 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2D3A),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        title: const Text('Sair da conta?'),
-        content: const Text('Você perderá o acesso aos dados salvos.'),
+        title: const Text(
+          'Sair da conta?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Você perderá o acesso aos dados salvos.',
+          style: TextStyle(color: Color(0xFF9CA3AF)),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Color(0xFF9CA3AF)),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: const Color(0xFFFF6B6B),
+              foregroundColor: Colors.white,
             ),
             child: const Text('Sair'),
           ),
@@ -123,7 +134,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             ),
           ],
         ),
-        backgroundColor: Colors.blue[600],
+        backgroundColor: const Color(0xFF4ECDC4),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
@@ -138,22 +149,27 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     required IconData icon,
     required String title,
     required String description,
+    Color? iconColor,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFF2A2D3A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF374151),
+                width: 1,
+              ),
             ),
             child: Icon(
               icon,
-              color: Colors.white,
-              size: 24,
+              color: iconColor ?? const Color(0xFF4ECDC4),
+              size: 28,
             ),
           ),
           const SizedBox(width: 16),
@@ -169,11 +185,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   description,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
+                  style: const TextStyle(
+                    color: Color(0xFF9CA3AF),
                     fontSize: 14,
                   ),
                 ),
@@ -194,8 +210,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
+              Color(0xFF1A1D29),
+              Color(0xFF2A2D3A),
             ],
           ),
         ),
@@ -208,7 +224,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 children: [
                   // ===== HEADER =====
                   Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -217,29 +233,34 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           Row(
                             children: [
                               Container(
-                                width: 40,
-                                height: 40,
+                                width: 48,
+                                height: 48,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(20),
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFFFF8C42), Color(0xFFFF6B6B)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(24),
                                 ),
                                 child: Center(
                                   child: Text(
                                     user.initials,
                                     style: const TextStyle(
                                       color: Colors.white,
+                                      fontSize: 18,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 12),
                               Text(
                                 'Olá, ${user.firstName}',
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -247,13 +268,20 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         ],
                         
                         // Botão sair
-                        IconButton(
-                          onPressed: _signOut,
-                          icon: const Icon(
-                            Icons.logout,
-                            color: Colors.white,
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2A2D3A),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          tooltip: 'Sair',
+                          child: IconButton(
+                            onPressed: _signOut,
+                            icon: const Icon(
+                              Icons.logout,
+                              color: Color(0xFF9CA3AF),
+                              size: 24,
+                            ),
+                            tooltip: 'Sair',
+                          ),
                         ),
                       ],
                     ),
@@ -265,86 +293,191 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       opacity: _fadeAnimation,
                       child: SlideTransition(
                         position: _slideAnimation,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
                           child: Column(
                             children: [
-                              // Ícone principal
+                              // Ícone principal com gradiente
                               Container(
-                                width: 100,
-                                height: 100,
+                                width: 120,
+                                height: 120,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(50),
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFFFF8C42), Color(0xFFFF6B6B)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(30),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFFF8C42).withOpacity(0.3),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
                                 ),
                                 child: const Icon(
                                   Icons.star,
-                                  size: 50,
+                                  size: 60,
                                   color: Colors.white,
                                 ),
-                              ),
-                              
-                              const SizedBox(height: 24),
-                              
-                              // Título
-                              Text(
-                                user?.isInTrial == true 
-                                    ? 'Aproveite seu Trial!'
-                                    : 'Desbloqueie o Premium',
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              
-                              const SizedBox(height: 12),
-                              
-                              // Subtítulo
-                              Text(
-                                user?.isInTrial == true
-                                    ? 'Você tem ${user!.trialDaysLeft} dias para explorar todos os recursos premium'
-                                    : 'Seu trial expirou. Assine para continuar aproveitando treinos personalizados',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white.withOpacity(0.9),
-                                  height: 1.4,
-                                ),
-                                textAlign: TextAlign.center,
                               ),
                               
                               const SizedBox(height: 32),
                               
-                              // Features premium
-                              Expanded(
-                                child: SingleChildScrollView(
+                              // Título principal
+                              Text(
+                                user?.isInTrial == true 
+                                    ? 'Bem-Vindo!'
+                                    : 'Desbloqueie o Premium',
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: -0.5,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              
+                              const SizedBox(height: 16),
+                              
+                              // Subtítulo
+                              Text(
+                                user?.isInTrial == true
+                                    ? 'Entre com sua conta Google para\ncomeçar seus treinos personalizados'
+                                    : 'Seu trial expirou. Assine para continuar aproveitando treinos personalizados',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Color(0xFF9CA3AF),
+                                  height: 1.5,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              
+                              const SizedBox(height: 40),
+                              
+                              // Card de trial offer
+                              if (user?.isInTrial == true)
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF4ECDC4).withOpacity(0.3),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 10),
+                                      ),
+                                    ],
+                                  ),
                                   child: Column(
                                     children: [
-                                      _buildPremiumFeature(
-                                        icon: Icons.fitness_center,
-                                        title: 'Treinos Ilimitados',
-                                        description: 'Acesso a todos os treinos personalizados',
+                                      const Icon(
+                                        Icons.diamond,
+                                        size: 40,
+                                        color: Colors.white,
                                       ),
-                                      _buildPremiumFeature(
-                                        icon: Icons.analytics,
-                                        title: 'Relatórios Detalhados',
-                                        description: 'Acompanhe seu progresso com gráficos',
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        '7 Dias Grátis',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.5,
+                                        ),
                                       ),
-                                      _buildPremiumFeature(
-                                        icon: Icons.cloud_sync,
-                                        title: 'Sincronização',
-                                        description: 'Seus dados salvos na nuvem',
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Teste premium sem compromisso',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.9),
+                                          fontSize: 16,
+                                        ),
                                       ),
-                                      _buildPremiumFeature(
-                                        icon: Icons.support_agent,
-                                        title: 'Suporte Premium',
-                                        description: 'Atendimento prioritário e exclusivo',
+                                      const SizedBox(height: 16),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          '${user!.trialDaysLeft} dias restantes',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
+                              
+                              const SizedBox(height: 32),
+                              
+                              // Features premium em cards
+                              Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2A2D3A),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: const Color(0xFF374151),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Recursos Premium',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    _buildPremiumFeature(
+                                      icon: Icons.fitness_center,
+                                      title: 'Treinos Ilimitados',
+                                      description: 'Acesso a todos os treinos personalizados',
+                                      iconColor: const Color(0xFFFF8C42),
+                                    ),
+                                    _buildPremiumFeature(
+                                      icon: Icons.analytics,
+                                      title: 'Relatórios Detalhados',
+                                      description: 'Acompanhe seu progresso com gráficos',
+                                      iconColor: const Color(0xFF4ECDC4),
+                                    ),
+                                    _buildPremiumFeature(
+                                      icon: Icons.cloud_sync,
+                                      title: 'Sincronização',
+                                      description: 'Seus dados salvos na nuvem',
+                                      iconColor: const Color(0xFFFF6B6B),
+                                    ),
+                                    _buildPremiumFeature(
+                                      icon: Icons.support_agent,
+                                      title: 'Suporte Premium',
+                                      description: 'Atendimento prioritário e exclusivo',
+                                      iconColor: const Color(0xFFFFD93D),
+                                    ),
+                                  ],
+                                ),
                               ),
+                              
+                              const SizedBox(height: 32),
                             ],
                           ),
                         ),
@@ -352,35 +485,38 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     ),
                   ),
                   
-                  // ===== BOTÕES =====
+                  // ===== BOTÕES INFERIORES =====
                   Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // Preço
+                        // Preço em card
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
+                            color: const Color(0xFF2A2D3A),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: const Color(0xFF374151),
+                              width: 1,
+                            ),
                           ),
-                          child: Column(
+                          child: const Column(
                             children: [
                               Text(
                                 'R\$ 9,90/mês',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 24,
+                                  fontSize: 28,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
+                              SizedBox(height: 4),
                               Text(
                                 'Cancele quando quiser',
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Color(0xFF9CA3AF),
                                   fontSize: 14,
                                 ),
                               ),
@@ -388,46 +524,62 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           ),
                         ),
                         
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                         
-                        // Botão principal
+                        // Botão principal com gradiente
                         SizedBox(
                           width: double.infinity,
                           height: 56,
-                          child: ElevatedButton(
-                            onPressed: _startSubscription,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFF667eea),
-                              elevation: 3,
-                              shadowColor: Colors.black26,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(28),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFFF8C42), Color(0xFFFF6B6B)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  user?.isInTrial == true 
-                                      ? 'Assinar Premium'
-                                      : 'Reativar Premium',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFFF8C42).withOpacity(0.3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 6),
                                 ),
                               ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: _startSubscription,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    user?.isInTrial == true 
+                                        ? 'Continuar com Google'
+                                        : 'Reativar Premium',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                         
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         
                         // Botão secundário (se em trial)
                         if (user?.isInTrial == true)
@@ -436,11 +588,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               // Navegar para home mesmo em trial
                               // O AuthWrapper vai lidar com isso
                             },
-                            child: Text(
-                              'Continuar com Trial',
+                            child: const Text(
+                              'Pular por agora',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 14,
+                                color: Color(0xFF9CA3AF),
+                                fontSize: 16,
                                 decoration: TextDecoration.underline,
                               ),
                             ),

@@ -6,7 +6,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../providers/auth_provider_google.dart';
 import '../../core/services/google_auth_service.dart';
 import 'google_login_screen.dart';
-import '../home/home_screen.dart';
+import '../main_navigation_screen.dart'; // 🆕 MUDANÇA: Nova tela principal
 import '../onboarding/welcome_screen.dart';
 
 /// Wrapper que gerencia o estado de autenticação
@@ -36,7 +36,7 @@ class _AuthWrapperState extends State<AuthWrapper>
   void initState() {
     super.initState();
     
-    // Configurar status bar
+    // Configurar status bar para tema escuro
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -165,7 +165,7 @@ class _AuthWrapperState extends State<AuthWrapper>
     _initializeApp();
   }
 
-  /// Widget de splash/loading
+  /// Widget de splash/loading ADAPTADO PARA TEMA ESCURO
   Widget _buildSplashScreen() {
     return Scaffold(
       body: Container(
@@ -174,8 +174,8 @@ class _AuthWrapperState extends State<AuthWrapper>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
+              Color(0xFF1A1D29),
+              Color(0xFF2A2D3A),
             ],
           ),
         ),
@@ -194,16 +194,20 @@ class _AuthWrapperState extends State<AuthWrapper>
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // LOGO/ÍCONE
+                            // LOGO/ÍCONE com gradiente
                             Container(
                               width: 120,
                               height: 120,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFFF8C42), Color(0xFFFF6B6B)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
                                 borderRadius: BorderRadius.circular(30),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
+                                    color: const Color(0xFFFF8C42).withOpacity(0.3),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
                                   ),
@@ -212,7 +216,7 @@ class _AuthWrapperState extends State<AuthWrapper>
                               child: const Icon(
                                 Icons.fitness_center,
                                 size: 60,
-                                color: Color(0xFF667eea),
+                                color: Colors.white,
                               ),
                             ),
                             
@@ -257,9 +261,9 @@ class _AuthWrapperState extends State<AuthWrapper>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       if (!_hasError) ...[
-                        // LOADING
+                        // LOADING com cor turquesa
                         const SpinKitFadingCube(
-                          color: Colors.white,
+                          color: Color(0xFF4ECDC4),
                           size: 40.0,
                         ),
                         
@@ -279,7 +283,7 @@ class _AuthWrapperState extends State<AuthWrapper>
                         // ERRO
                         Icon(
                           Icons.error_outline,
-                          color: Colors.white.withOpacity(0.8),
+                          color: const Color(0xFFFF6B6B).withOpacity(0.8),
                           size: 48,
                         ),
                         
@@ -301,24 +305,42 @@ class _AuthWrapperState extends State<AuthWrapper>
                         
                         const SizedBox(height: 24),
                         
-                        // BOTÃO RETRY
-                        ElevatedButton(
-                          onPressed: _retry,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF667eea),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 32,
-                              vertical: 12,
+                        // BOTÃO RETRY com gradiente
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF8C42), Color(0xFFFF6B6B)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
-                            ),
+                            borderRadius: BorderRadius.circular(25),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFF8C42).withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
                           ),
-                          child: const Text(
-                            'Tentar Novamente',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
+                          child: ElevatedButton(
+                            onPressed: _retry,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: Colors.white,
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(25),
+                              ),
+                            ),
+                            child: const Text(
+                              'Tentar Novamente',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),
@@ -365,7 +387,7 @@ class _AuthWrapperState extends State<AuthWrapper>
           
           // Se usuário tem acesso (premium ou trial válido)
           if (user.hasAccess) {
-            return const HomeScreen();
+            return const MainNavigationScreen(); // 🆕 ÚNICA MUDANÇA: Nova tela principal
           }
           
           // Se trial expirou - mostrar welcome com upgrade
