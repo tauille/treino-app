@@ -1,277 +1,276 @@
 import 'package:flutter/material.dart';
 
-/// 🧡 SISTEMA DE CORES LARANJA - Apenas tons de laranja
+/// Sistema de cores moderno e suave - REDESIGN 2024
 class SportColors {
-  // ===== CORES PRINCIPAIS LARANJA =====
+  // ===== CORES PRINCIPAIS SUAVES =====
   
-  /// Laranja principal
-  static const Color primary = Color(0xFFEA580C);
-  static const Color primaryDark = Color(0xFFDC2626);
-  static const Color primaryLight = Color(0xFFF97316);
+  /// Azul suave principal - menos intenso, mais elegante
+  static const Color primary = Color(0xFF6366F1);
+  static const Color primaryDark = Color(0xFF4F46E5);
+  static const Color primaryLight = Color(0xFF818CF8);
   
-  /// Laranja secundário
-  static const Color secondary = Color(0xFFF59E0B);
-  static const Color secondaryDark = Color(0xFFD97706);
-  static const Color secondaryLight = Color(0xFFFBBF24);
+  /// Verde menta motivacional - suave e fresco
+  static const Color secondary = Color(0xFF10B981);
+  static const Color secondaryDark = Color(0xFF059669);
+  static const Color secondaryLight = Color(0xFF34D399);
   
-  /// Laranja accent
-  static const Color accent = Color(0xFFFF8800);
-  static const Color accentDark = Color(0xFFE67300);
-  static const Color accentLight = Color(0xFFFF9F33);
+  /// Cor de destaque suave
+  static const Color accent = Color(0xFF06B6D4);
+  static const Color accentDark = Color(0xFF0891B2);
+  static const Color accentLight = Color(0xFF22D3EE);
 
-  // ===== GRADIENTES APENAS LARANJA =====
+  // ===== GRADIENTES SUAVES =====
   
-  /// Gradiente principal laranja
+  /// Gradiente principal suave (azul elegante)
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFFEA580C), Color(0xFFF97316)],
+    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   
-  /// Gradiente secundário laranja escuro
+  /// Gradiente secundário (verde menta fresco)
   static const LinearGradient secondaryGradient = LinearGradient(
-    colors: [Color(0xFFDC2626), Color(0xFFEA580C)],
+    colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   
-  /// Gradiente laranja claro
-  static const LinearGradient lightGradient = LinearGradient(
-    colors: [Color(0xFFF97316), Color(0xFFFBBF24)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  
-  /// Gradiente laranja vibrante
-  static const LinearGradient accentGradient = LinearGradient(
-    colors: [Color(0xFFFF8800), Color(0xFFFF9F33)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  
-  /// Gradiente premium laranja
-  static const LinearGradient premiumGradient = LinearGradient(
-    colors: [Color(0xFFEA580C), Color(0xFFFF8800)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  /// Gradiente motivacional laranja
-  static const LinearGradient motivationalGradient = LinearGradient(
-    colors: [Color(0xFFF97316), Color(0xFFFBBF24)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  /// Gradiente de energia laranja-amarelo (MANTIDO PARA COMPATIBILIDADE)
-  static const LinearGradient energyGradient = LinearGradient(
-    colors: [Color(0xFFEA580C), Color(0xFFFBBF24)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  /// Gradiente de sucesso verde (MANTIDO PARA COMPATIBILIDADE)
+  /// Gradiente de sucesso suave
   static const LinearGradient successGradient = LinearGradient(
-    colors: [Color(0xFF22C55E), Color(0xFF4ADE80)],
+    colors: [Color(0xFF10B981), Color(0xFF34D399)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  /// Gradiente premium elegante
+  static const LinearGradient premiumGradient = LinearGradient(
+    colors: [Color(0xFF8B5CF6), Color(0xFFA855F7)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  // ===== CORES DE DIFICULDADE LARANJA =====
+  /// Gradiente de energia (para ações principais)
+  static const LinearGradient energyGradient = LinearGradient(
+    colors: [Color(0xFFF59E0B), Color(0xFFEAB308)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  /// ✅ ADICIONADO: Gradiente motivacional (que estava faltando)
+  static const LinearGradient motivationalGradient = LinearGradient(
+    colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // ===== CORES DE DIFICULDADE SUAVES =====
   
-  /// Laranja claro para iniciante
-  static const Color beginnerColor = Color(0xFFFBBF24);
+  /// Verde suave para iniciante
+  static const Color beginnerColor = Color(0xFF22C55E);
   static const LinearGradient beginnerGradient = LinearGradient(
-    colors: [Color(0xFFFBBF24), Color(0xFFF59E0B)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  
-  /// Laranja médio para intermediário
-  static const Color intermediateColor = Color(0xFFEA580C);
-  static const LinearGradient intermediateGradient = LinearGradient(
-    colors: [Color(0xFFEA580C), Color(0xFFF97316)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  
-  /// Laranja escuro para avançado
-  static const Color advancedColor = Color(0xFFDC2626);
-  static const LinearGradient advancedGradient = LinearGradient(
-    colors: [Color(0xFFDC2626), Color(0xFFEA580C)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  // ===== CORES NEUTRAS =====
-  
-  static const Color white = Color(0xFFFFFFFF);
-  
-  /// Fundos com tom quente
-  static const Color background = Color(0xFFFEF7F0);
-  static const Color backgroundLight = Color(0xFFFFFCF9);
-  static const Color backgroundDark = Color(0xFFFDF2E9);
-  
-  /// Cinzas com tom quente
-  static const Color grey50 = Color(0xFFFAFAF9);
-  static const Color grey100 = Color(0xFFF5F5F4);
-  static const Color grey200 = Color(0xFFE7E5E4);
-  static const Color grey300 = Color(0xFFD6D3D1);
-  static const Color grey400 = Color(0xFFA8A29E);
-  static const Color grey500 = Color(0xFF78716C);
-  static const Color grey600 = Color(0xFF57534E);
-  static const Color grey700 = Color(0xFF44403C);
-  static const Color grey800 = Color(0xFF292524);
-  static const Color grey900 = Color(0xFF1C1917);
-
-  static const Color lightGrey = Color(0xFFFAFAF9);
-
-  // ===== TEXTOS COM MELHOR CONTRASTE =====
-  
-  static const Color textPrimary = Color(0xFF1C1917);
-  static const Color textSecondary = Color(0xFF57534E);
-  static const Color textTertiary = Color(0xFF78716C);
-  static const Color textLight = Color(0xFFA8A29E);
-
-  // ===== CORES DE STATUS =====
-  
-  static const Color success = Color(0xFF22C55E);  // Verde só para sucesso (MANTIDO)
-  static const Color successLight = Color(0xFFDCFCE7);
-  static const Color successDark = Color(0xFF16A34A);
-  
-  static const Color warning = Color(0xFFFBBF24);  // Laranja claro
-  static const Color warningLight = Color(0xFFFEF3C7);
-  static const Color warningDark = Color(0xFFF59E0B);
-  
-  static const Color error = Color(0xFFDC2626);    // Vermelho
-  static const Color errorLight = Color(0xFFFEE2E2);
-  static const Color errorDark = Color(0xFFB91C1C);
-  
-  static const Color info = Color(0xFF3B82F6);     // Azul só para info
-  static const Color infoLight = Color(0xFFDBEAFE);
-  static const Color infoDark = Color(0xFF2563EB);
-
-  // ===== CORES DE TIPOS DE TREINO LARANJA =====
-  
-  /// Musculação - laranja escuro
-  static const Color musculationColor = Color(0xFFDC2626);
-  static const LinearGradient musculationGradient = LinearGradient(
-    colors: [Color(0xFFDC2626), Color(0xFFEA580C)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  
-  /// Cardio - laranja vibrante
-  static const Color cardioColor = Color(0xFFEA580C);
-  static const LinearGradient cardioGradient = LinearGradient(
-    colors: [Color(0xFFEA580C), Color(0xFFF97316)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  
-  /// Funcional - laranja médio
-  static const Color functionalColor = Color(0xFFF59E0B);
-  static const LinearGradient functionalGradient = LinearGradient(
-    colors: [Color(0xFFF59E0B), Color(0xFFFBBF24)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  
-  /// Yoga/Pilates - laranja claro
-  static const Color yogaColor = Color(0xFFFBBF24);
-  static const LinearGradient yogaGradient = LinearGradient(
-    colors: [Color(0xFFFBBF24), Color(0xFFF59E0B)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  // ===== HELPERS MANTIDOS =====
-  
-  static Color getDifficultyColor(String? difficulty) {
-    switch (difficulty?.toLowerCase()) {
-      case 'iniciante': return beginnerColor;
-      case 'intermediario': case 'intermediário': return intermediateColor;
-      case 'avancado': case 'avançado': return advancedColor;
-      default: return grey500;
-    }
-  }
-  
-  static LinearGradient getDifficultyGradient(String? difficulty) {
-    switch (difficulty?.toLowerCase()) {
-      case 'iniciante': return beginnerGradient;
-      case 'intermediario': case 'intermediário': return intermediateGradient;
-      case 'avancado': case 'avançado': return advancedGradient;
-      default: return primaryGradient;
-    }
-  }
-  
-  static Color getWorkoutTypeColor(String? type) {
-    switch (type?.toLowerCase()) {
-      case 'musculação': case 'musculacao': return musculationColor;
-      case 'cardio': case 'cardiovascular': return cardioColor;
-      case 'funcional': return functionalColor;
-      case 'yoga': case 'pilates': return yogaColor;
-      default: return primary;
-    }
-  }
-  
-  static LinearGradient getWorkoutTypeGradient(String? type) {
-    switch (type?.toLowerCase()) {
-      case 'musculação': case 'musculacao': return musculationGradient;
-      case 'cardio': case 'cardiovascular': return cardioGradient;
-      case 'funcional': return functionalGradient;
-      case 'yoga': case 'pilates': return yogaGradient;
-      default: return primaryGradient;
-    }
-  }
-
-  // ===== MÉTODOS EXTRAS PARA COMPATIBILIDADE =====
-  
-  /// Obter cor de sucesso
-  static Color getSuccessColor() => success;
-  
-  /// Obter cor de erro
-  static Color getErrorColor() => error;
-  
-  /// Obter cor de warning
-  static Color getWarningColor() => warning;
-  
-  /// Obter gradiente de energia
-  static LinearGradient getEnergyGradient() => energyGradient;
-
-  // ===== CORES ESPECIAIS =====
-  
-  static const Color dashboardCard = Color(0xFFFFFFFF);
-  static const Color dashboardBackground = Color(0xFFFEF7F0);
-  
-  static const Color bottomNavBackground = Color(0xFFFFFFFF);
-  static const Color bottomNavSelected = Color(0xFFEA580C);
-  static const Color bottomNavUnselected = Color(0xFF78716C);
-  
-  static const Color actionCardPrimary = Color(0xFFEA580C);
-  static const Color actionCardSecondary = Color(0xFFF97316);
-  static const Color actionCardTertiary = Color(0xFFF59E0B);
-  static const Color actionCardQuaternary = Color(0xFFFBBF24);
-
-  // ===== GRADIENTES EXTRAS PARA COMPATIBILIDADE =====
-  
-  /// Gradiente para treinos completos
-  static const LinearGradient completedGradient = LinearGradient(
     colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
-
-  /// Gradiente para elementos ativos
-  static const LinearGradient activeGradient = LinearGradient(
-    colors: [Color(0xFFEA580C), Color(0xFFF97316)],
+  
+  /// Laranja suave para intermediário
+  static const Color intermediateColor = Color(0xFFF59E0B);
+  static const LinearGradient intermediateGradient = LinearGradient(
+    colors: [Color(0xFFF59E0B), Color(0xFFEAB308)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+  
+  /// Vermelho suave para avançado
+  static const Color advancedColor = Color(0xFFEF4444);
+  static const LinearGradient advancedGradient = LinearGradient(
+    colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // ===== CORES NEUTRAS MODERNAS =====
+  
+  /// Branco puro
+  static const Color white = Color(0xFFFFFFFF);
+  
+  /// Fundos suaves e modernos
+  static const Color background = Color(0xFFFAFAFA);
+  static const Color backgroundLight = Color(0xFFFCFCFD);
+  static const Color backgroundDark = Color(0xFFF8F9FA);
+  
+  /// Cinzas suaves e elegantes
+  static const Color grey50 = Color(0xFFFAFAFA);
+  static const Color grey100 = Color(0xFFF5F5F5);
+  static const Color grey200 = Color(0xFFE5E5E5);
+  static const Color grey300 = Color(0xFFD4D4D4);
+  static const Color grey400 = Color(0xFFA3A3A3);
+  static const Color grey500 = Color(0xFF737373);
+  static const Color grey600 = Color(0xFF525252);
+  static const Color grey700 = Color(0xFF404040);
+  static const Color grey800 = Color(0xFF262626);
+  static const Color grey900 = Color(0xFF171717);
+
+  /// ✅ ADICIONADO: lightGrey (que estava faltando)
+  static const Color lightGrey = Color(0xFFF5F5F5);
+
+  // ===== TEXTOS COM MELHOR CONTRASTE =====
+  
+  /// Textos principais
+  static const Color textPrimary = Color(0xFF111827);
+  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textTertiary = Color(0xFF9CA3AF);
+  static const Color textLight = Color(0xFFD1D5DB);
+
+  // ===== CORES DE STATUS SUAVES =====
+  
+  /// Sucesso suave
+  static const Color success = Color(0xFF10B981);
+  static const Color successLight = Color(0xFFECFDF5);
+  static const Color successDark = Color(0xFF059669);
+  
+  /// Aviso suave
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color warningLight = Color(0xFFFEF3C7);
+  static const Color warningDark = Color(0xFFD97706);
+  
+  /// Erro suave
+  static const Color error = Color(0xFFEF4444);
+  static const Color errorLight = Color(0xFFFEE2E2);
+  static const Color errorDark = Color(0xFFDC2626);
+  
+  /// Informação suave
+  static const Color info = Color(0xFF3B82F6);
+  static const Color infoLight = Color(0xFFEBF8FF);
+  static const Color infoDark = Color(0xFF2563EB);
+
+  // ===== CORES DE TIPOS DE TREINO SUAVES =====
+  
+  /// Musculação - roxo suave
+  static const Color musculationColor = Color(0xFF8B5CF6);
+  static const LinearGradient musculationGradient = LinearGradient(
+    colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  /// Cardio - coral suave
+  static const Color cardioColor = Color(0xFFFF6B6B);
+  static const LinearGradient cardioGradient = LinearGradient(
+    colors: [Color(0xFFFF6B6B), Color(0xFFEE5A52)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  /// Funcional - verde azulado
+  static const Color functionalColor = Color(0xFF06B6D4);
+  static const LinearGradient functionalGradient = LinearGradient(
+    colors: [Color(0xFF06B6D4), Color(0xFF0891B2)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  /// Yoga/Pilates - rosa suave
+  static const Color yogaColor = Color(0xFFEC4899);
+  static const LinearGradient yogaGradient = LinearGradient(
+    colors: [Color(0xFFEC4899), Color(0xFFDB2777)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // ===== HELPERS ATUALIZADOS =====
+  
+  /// Obter cor por dificuldade
+  static Color getDifficultyColor(String? difficulty) {
+    switch (difficulty?.toLowerCase()) {
+      case 'iniciante':
+        return beginnerColor;
+      case 'intermediario':
+      case 'intermediário':
+        return intermediateColor;
+      case 'avancado':
+      case 'avançado':
+        return advancedColor;
+      default:
+        return grey500;
+    }
+  }
+  
+  /// Obter gradiente por dificuldade
+  static LinearGradient getDifficultyGradient(String? difficulty) {
+    switch (difficulty?.toLowerCase()) {
+      case 'iniciante':
+        return beginnerGradient;
+      case 'intermediario':
+      case 'intermediário':
+        return intermediateGradient;
+      case 'avancado':
+      case 'avançado':
+        return advancedGradient;
+      default:
+        return primaryGradient;
+    }
+  }
+  
+  /// Obter cor por tipo de treino
+  static Color getWorkoutTypeColor(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'musculação':
+      case 'musculacao':
+        return musculationColor;
+      case 'cardio':
+      case 'cardiovascular':
+        return cardioColor;
+      case 'funcional':
+        return functionalColor;
+      case 'yoga':
+      case 'pilates':
+        return yogaColor;
+      default:
+        return primary;
+    }
+  }
+  
+  /// Obter gradiente por tipo de treino
+  static LinearGradient getWorkoutTypeGradient(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'musculação':
+      case 'musculacao':
+        return musculationGradient;
+      case 'cardio':
+      case 'cardiovascular':
+        return cardioGradient;
+      case 'funcional':
+        return functionalGradient;
+      case 'yoga':
+      case 'pilates':
+        return yogaGradient;
+      default:
+        return primaryGradient;
+    }
+  }
+
+  // ===== CORES ESPECIAIS PARA O NOVO DESIGN =====
+  
+  /// Cor para dashboard cards
+  static const Color dashboardCard = Color(0xFFFFFFFF);
+  static const Color dashboardBackground = Color(0xFFFAFAFA);
+  
+  /// Cores para bottom navigation
+  static const Color bottomNavBackground = Color(0xFFFFFFFF);
+  static const Color bottomNavSelected = Color(0xFF6366F1);
+  static const Color bottomNavUnselected = Color(0xFF9CA3AF);
+  
+  /// Cores para actions cards
+  static const Color actionCardPrimary = Color(0xFF6366F1);
+  static const Color actionCardSecondary = Color(0xFF10B981);
+  static const Color actionCardTertiary = Color(0xFFF59E0B);
+  static const Color actionCardQuaternary = Color(0xFFEC4899);
 }
 
-/// WIDGETS APENAS LARANJA
+/// ✅ ADICIONADO: Classe SportWidgets com todos os métodos que seu código precisa
 class SportWidgets {
+  /// Botão com gradiente
   static Widget gradientButton({
     required String text,
     required VoidCallback? onPressed,
@@ -284,8 +283,6 @@ class SportWidgets {
     bool isLoading = false,
     IconData? icon,
   }) {
-    final isDisabled = onPressed == null;
-    
     return Container(
       width: width,
       height: height,
@@ -298,13 +295,13 @@ class SportWidgets {
             )
           : SportColors.primaryGradient),
         borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: !isDisabled ? [
+        boxShadow: [
           BoxShadow(
-            color: (gradient?.colors.first ?? color ?? SportColors.primary).withOpacity(0.3),
+            color: (color ?? SportColors.primary).withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
-        ] : null,
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -317,11 +314,7 @@ class SportWidgets {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (icon != null) ...[
-                  Icon(
-                    icon, 
-                    color: Colors.white,
-                    size: 20
-                  ),
+                  Icon(icon, color: Colors.white, size: 20),
                   const SizedBox(width: 8),
                 ],
                 if (isLoading)
@@ -351,6 +344,7 @@ class SportWidgets {
     );
   }
 
+  /// Badge de dificuldade
   static Widget difficultyBadge({
     required String difficulty,
     EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -379,6 +373,7 @@ class SportWidgets {
     );
   }
 
+  /// Card com gradiente
   static Widget gradientCard({
     required Widget child,
     LinearGradient? gradient,
@@ -395,15 +390,11 @@ class SportWidgets {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             )
-          : const LinearGradient(
-              colors: [Colors.white, Color(0xFFFEF7F0)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            )),
+          : SportColors.primaryGradient),
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: boxShadow ?? [
           BoxShadow(
-            color: SportColors.primary.withOpacity(0.1),
+            color: (color ?? SportColors.primary).withOpacity(0.2),
             blurRadius: 20,
             offset: const Offset(0, 8),
             spreadRadius: 0,
@@ -417,6 +408,7 @@ class SportWidgets {
     );
   }
 
+  /// Card de ação moderno (mantido da versão anterior)
   static Widget actionCard({
     required String title,
     required String subtitle,
@@ -486,8 +478,8 @@ class SportWidgets {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    color: Colors.white70,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -500,6 +492,7 @@ class SportWidgets {
     );
   }
   
+  /// Badge moderno de status
   static Widget statusBadge({
     required String text,
     Color? color,
@@ -527,83 +520,11 @@ class SportWidgets {
       ),
     );
   }
-
-  /// Avatar com tons de laranja
-  static Widget userAvatar({
-    required String initials,
-    double size = 40,
-    Color? backgroundColor,
-  }) {
-    // Usar diferentes tons de laranja baseado na primeira letra
-    Color avatarColor;
-    if (initials.isNotEmpty) {
-      final firstChar = initials[0].toLowerCase();
-      final charCode = firstChar.codeUnitAt(0);
-      
-      // Diferentes tons de laranja baseado no código do caractere
-      switch (charCode % 4) {
-        case 0:
-          avatarColor = SportColors.primary;      // Laranja principal
-          break;
-        case 1:
-          avatarColor = SportColors.primaryDark;  // Laranja escuro
-          break;
-        case 2:
-          avatarColor = SportColors.secondary;    // Laranja dourado
-          break;
-        case 3:
-          avatarColor = SportColors.accent;       // Laranja vibrante
-          break;
-        default:
-          avatarColor = SportColors.primary;
-      }
-    } else {
-      avatarColor = SportColors.primary;
-    }
-    
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: backgroundColor ?? avatarColor,
-        borderRadius: BorderRadius.circular(size / 2),
-      ),
-      child: Center(
-        child: Text(
-          initials.toUpperCase(),
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: size * 0.4,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// WIDGET COMPACTO PARA CRIAR TREINO (substitui o card cinza grande)
-  static Widget createWorkoutButton({
-    required VoidCallback onPressed,
-    String text = 'Criar Novo Treino',
-    IconData icon = Icons.add_circle_outline,
-    double? width,
-  }) {
-    return Container(
-      width: width,
-      child: SportWidgets.gradientButton(
-        text: text,
-        onPressed: onPressed,
-        gradient: SportColors.primaryGradient,
-        icon: icon,
-        height: 56,
-        borderRadius: 16,
-      ),
-    );
-  }
 }
 
-/// Mantendo compatibilidade
+/// Widgets customizados modernos (mantido para compatibilidade)
 class ModernSportWidgets {
+  /// Card de ação moderno
   static Widget actionCard({
     required String title,
     required String subtitle,
@@ -628,6 +549,7 @@ class ModernSportWidgets {
     );
   }
   
+  /// Badge moderno de status
   static Widget statusBadge({
     required String text,
     Color? color,
@@ -643,14 +565,15 @@ class ModernSportWidgets {
   }
 }
 
-/// TEMA APENAS LARANJA COMPLETO
+/// Tema moderno e suave do aplicativo
 class SportTheme {
+  /// Tema claro moderno
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: SportColors.background,
       
+      // Esquema de cores suaves
       colorScheme: const ColorScheme.light(
         primary: SportColors.primary,
         onPrimary: SportColors.white,
@@ -667,6 +590,7 @@ class SportTheme {
         outline: SportColors.grey300,
       ),
       
+      // AppBar moderna
       appBarTheme: const AppBarTheme(
         backgroundColor: SportColors.white,
         foregroundColor: SportColors.textPrimary,
@@ -682,6 +606,7 @@ class SportTheme {
         ),
       ),
       
+      // Botões elevados modernos
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: SportColors.primary,
@@ -703,6 +628,7 @@ class SportTheme {
         ),
       ),
       
+      // Cards modernos
       cardTheme: CardThemeData(
         color: SportColors.white,
         elevation: 0,
@@ -720,6 +646,7 @@ class SportTheme {
         ),
       ),
       
+      // Inputs modernos
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: SportColors.grey50,
@@ -754,6 +681,7 @@ class SportTheme {
         ),
       ),
       
+      // FAB moderno
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: SportColors.primary,
         foregroundColor: SportColors.white,
@@ -762,6 +690,7 @@ class SportTheme {
         iconSize: 28,
       ),
       
+      // Bottom Navigation moderno
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: SportColors.bottomNavBackground,
         selectedItemColor: SportColors.bottomNavSelected,
@@ -778,6 +707,7 @@ class SportTheme {
         ),
       ),
       
+      // Texto moderno
       textTheme: const TextTheme(
         headlineLarge: TextStyle(
           fontSize: 32,
@@ -834,104 +764,25 @@ class SportTheme {
     );
   }
   
-  // Tema escuro laranja
+  /// Tema escuro moderno (para futuro)
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: const Color(0xFF1A0F0A),
       
       colorScheme: const ColorScheme.dark(
-        primary: SportColors.primary,
-        onPrimary: Colors.black,
-        secondary: SportColors.secondary,
-        onSecondary: Colors.black,
-        tertiary: SportColors.accent,
-        onTertiary: Colors.black,
-        surface: Color(0xFF2D1B13),
-        onSurface: Color(0xFFFFF7F0),
-        background: Color(0xFF1A0F0A),
-        onBackground: Color(0xFFFFF7F0),
+        primary: SportColors.primaryLight,
+        onPrimary: SportColors.grey900,
+        secondary: SportColors.secondaryLight,
+        onSecondary: SportColors.grey900,
+        tertiary: SportColors.accentLight,
+        onTertiary: SportColors.grey900,
+        surface: SportColors.grey800,
+        onSurface: SportColors.white,
+        background: SportColors.grey900,
+        onBackground: SportColors.white,
         error: SportColors.error,
-        onError: Colors.black,
-        outline: Color(0xFF57534E),
-      ),
-      
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF2D1B13),
-        foregroundColor: Color(0xFFFFF7F0),
-        elevation: 0,
-        centerTitle: false,
-        scrolledUnderElevation: 1,
-        shadowColor: Color(0xFF292524),
-        titleTextStyle: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFFFFF7F0),
-          letterSpacing: -0.5,
-        ),
-      ),
-      
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: SportColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 16,
-          ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ),
-      
-      cardTheme: CardThemeData(
-        color: const Color(0xFF2D1B13),
-        elevation: 0,
-        shadowColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(
-            color: SportColors.grey600.withOpacity(0.3),
-            width: 1,
-          ),
-        ),
-        margin: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 8,
-        ),
-      ),
-      
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: SportColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        shape: CircleBorder(),
-        iconSize: 28,
-      ),
-      
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Color(0xFF2D1B13),
-        selectedItemColor: SportColors.primary,
-        unselectedItemColor: Color(0xFFD6D3D1),
-        type: BottomNavigationBarType.fixed,
-        elevation: 0,
-        selectedLabelStyle: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
+        onError: SportColors.white,
       ),
     );
   }

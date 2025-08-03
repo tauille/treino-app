@@ -13,6 +13,7 @@ class NetworkDetector {
   /// Lista de IPs/redes onde você trabalha
   static const List<String> _possibleIPs = [
     '192.168.18.48',    // Rede atual
+    '192.168.18.16',    // Rede atual  
     '10.125.135.38',    // Rede anterior  
     '192.168.1.100',    // Casa/Escritório 1
     '192.168.0.100',    // Casa/Escritório 2
@@ -279,5 +280,17 @@ class NetworkDetector {
     _currentWorkingIP = null;
     _currentBaseUrl = null;
     _isDetecting = false;
+  }
+
+  // ===== ✅ MÉTODOS ADICIONADOS PARA FLEXIBILIDADE =====
+
+  /// Obter URL de fallback (sempre o primeiro IP da lista)
+  String getFallbackUrl() {
+    return _getDefaultUrl();
+  }
+
+  /// Obter URL atual ou fallback se não tiver nenhuma detectada
+  String getCurrentOrFallbackUrl() {
+    return _currentBaseUrl ?? getFallbackUrl();
   }
 }

@@ -7,8 +7,7 @@ class ApiConstants {
   
   // ===== BASE URLs =====
   
-  // URLs de fallback (caso o detector falhe)
-  static const String _fallbackBaseUrl = 'http://192.168.18.48:8000/api';
+  // URLs de produção (não precisa mais de fallback fixo!)
   static const String _prodBaseUrl = 'https://sua-api.com/api';
   
   // ===== MÉTODO PRINCIPAL =====
@@ -18,8 +17,9 @@ class ApiConstants {
     try {
       return await _networkDetector.detectWorkingAPI();
     } catch (e) {
-      print('❌ Erro na detecção automática, usando fallback: $e');
-      return _fallbackBaseUrl;
+      print('❌ Erro na detecção automática, usando fallback inteligente: $e');
+      // ✅ USAR FALLBACK DO PRÓPRIO NETWORKDETECTOR (primeiro IP da lista)
+      return _networkDetector.getFallbackUrl();
     }
   }
   
@@ -106,7 +106,8 @@ class ApiConstants {
   
   /// Obter URL completa de forma síncrona (usa cache se disponível)
   static String getUrlSync(String endpoint) {
-    final cachedBaseUrl = _networkDetector.currentBaseUrl ?? _fallbackBaseUrl;
+    // ✅ USAR FALLBACK INTELIGENTE DO NETWORKDETECTOR
+    final cachedBaseUrl = _networkDetector.getCurrentOrFallbackUrl();
     return cachedBaseUrl + endpoint;
   }
   

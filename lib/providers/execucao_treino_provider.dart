@@ -2,8 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/execucao_treino.dart';
 import '../models/execucao_exercicio.dart';
-import '../services/execucao_treino_service.dart';
-
+import '../core/services/execucao_treino.dart';
 class ExecucaoTreinoProvider extends ChangeNotifier {
   final ExecucaoTreinoService _service;
 

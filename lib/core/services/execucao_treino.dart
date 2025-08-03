@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/execucao_treino.dart';
-import '../models/api_response.dart';
+import '../../models/execucao_treino.dart';
+import '../../models/api_response_model.dart';
+
 
 class ExecucaoTreinoService {
   final String baseUrl;

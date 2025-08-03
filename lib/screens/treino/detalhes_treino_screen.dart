@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../../providers/treino_provider.dart';
 import '../../models/treino_model.dart';
+import '../../core/routes/app_routes.dart';
 
 /// Tela de detalhes do treino com lista de exercícios
 class DetalhesTreinoScreen extends StatefulWidget {
@@ -112,6 +113,63 @@ class _DetalhesTreinoScreenState extends State<DetalhesTreinoScreen>
         );
       }
     }
+  }
+
+  // ✅ MÉTODO ÚNICO PARA INICIAR TREINO (DIRETO PARA EXECUÇÃO)
+  
+  /// Iniciar treino direto para execução (sem preparação)
+  void _iniciarTreino() {
+    final treino = _treinoDetalhado ?? widget.treino;
+    
+    if (treino.exercicios.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.warning, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Este treino não possui exercícios')),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
+    }
+
+    // Mostrar feedback de início
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.play_arrow, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Iniciando treino "${treino.nomeTreino}"...')),
+          ],
+        ),
+        backgroundColor: const Color(0xFF667eea),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    
+    // ✅ NAVEGAR DIRETO PARA EXECUÇÃO (SEM PREPARAÇÃO)
+    Navigator.pushNamed(
+      context,
+      AppRoutes.treinoExecucao,
+      arguments: treino,
+    );
+  }
+  
+  /// Verificar se treino pode ser iniciado
+  bool get _podeIniciarTreino {
+    final treino = _treinoDetalhado ?? widget.treino;
+    return treino.exercicios.isNotEmpty;
   }
 
   /// Widget do header do treino
@@ -543,6 +601,92 @@ class _DetalhesTreinoScreenState extends State<DetalhesTreinoScreen>
     );
   }
 
+  // ✅ BOTTOM ACTION BAR SIMPLIFICADO (SÓ UM BOTÃO)
+  Widget _buildBottomActionBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Status do treino (se não puder iniciar)
+            if (!_podeIniciarTreino)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning, color: Colors.orange.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Adicione exercícios para iniciar este treino',
+                        style: TextStyle(
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            // ✅ BOTÃO ÚNICO - INICIAR TREINO DIRETO
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _podeIniciarTreino ? _iniciarTreino : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF667eea),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  disabledBackgroundColor: Colors.grey.shade300,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _podeIniciarTreino ? Icons.play_arrow : Icons.block,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _podeIniciarTreino ? 'Iniciar Treino' : 'Sem Exercícios',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final treino = _treinoDetalhado ?? widget.treino;
@@ -586,6 +730,10 @@ class _DetalhesTreinoScreenState extends State<DetalhesTreinoScreen>
           ),
         ],
       ),
+      
+      // ✅ BOTTOM NAVIGATION BAR SIMPLIFICADO
+      bottomNavigationBar: _buildBottomActionBar(),
+      
       body: _isLoading
           ? const Center(
               child: SpinKitFadingCircle(

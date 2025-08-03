@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 /// Widget para mostrar estados vazios com ícone, título e ação
 class EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String message;
+  final IconData? icon;
+  final String? title;
+  final String? message;
+  final String? subtitle; // 🆕 NOVO PARÂMETRO ADICIONADO
   final String? actionText;
   final VoidCallback? onActionPressed;
   final Color? iconColor;
@@ -14,9 +15,10 @@ class EmptyState extends StatelessWidget {
 
   const EmptyState({
     super.key,
-    required this.icon,
-    required this.title,
-    required this.message,
+    this.icon,
+    this.title,
+    this.message,
+    this.subtitle, // 🆕 NOVO PARÂMETRO
     this.actionText,
     this.onActionPressed,
     this.iconColor,
@@ -29,6 +31,12 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
+    // Valores padrão inteligentes
+    final displayIcon = icon ?? Icons.info_outline;
+    final displayTitle = title ?? 'Informação';
+    final displayMessage = message ?? subtitle ?? 'Nenhuma informação disponível';
+    final displayIconColor = iconColor ?? Colors.grey[400];
+    
     return Padding(
       padding: padding ?? const EdgeInsets.all(32),
       child: Center(
@@ -40,13 +48,13 @@ class EmptyState extends StatelessWidget {
               width: iconSize + 32,
               height: iconSize + 32,
               decoration: BoxDecoration(
-                color: (iconColor ?? Colors.grey[400])!.withOpacity(0.1),
+                color: displayIconColor!.withOpacity(0.1),
                 borderRadius: BorderRadius.circular((iconSize + 32) / 2),
               ),
               child: Icon(
-                icon,
+                displayIcon,
                 size: iconSize,
-                color: iconColor ?? Colors.grey[400],
+                color: displayIconColor,
               ),
             ),
             
@@ -54,7 +62,7 @@ class EmptyState extends StatelessWidget {
             
             // Título
             Text(
-              title,
+              displayTitle,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -65,16 +73,43 @@ class EmptyState extends StatelessWidget {
             
             const SizedBox(height: 8),
             
-            // Mensagem
-            Text(
-              message,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-                height: 1.4,
+            // Mensagem principal
+            if (message != null) ...[
+              Text(
+                message!,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
+              
+              // 🆕 SUBTÍTULO (quando message e subtitle existem)
+              if (subtitle != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  subtitle!,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                    height: 1.3,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ] else if (subtitle != null) ...[
+              // Usar subtitle como mensagem principal quando message não existe
+              Text(
+                subtitle!,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
             
             const SizedBox(height: 24),
             

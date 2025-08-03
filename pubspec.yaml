@@ -41,6 +41,11 @@ dependencies:
   # ===== IN-APP PURCHASE (para futuro) =====
   in_app_purchase: ^3.1.11           # Google Play Billing
   
+  # 🆕 TREINO FEATURES - CORRIGIDO
+  audioplayers: ^5.0.0        # Para sons
+  wakelock_plus: ^1.1.4       # Para manter tela ativa
+  # vibration: ^3.0.0         # ❌ REMOVIDO - causava problemas de compilação
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -55,6 +60,8 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/animations/
+    - assets/fonts/        # ✅ Para as fontes
+    - assets/sounds/       # ✅ Para os sons
   
   # ===== FONTES =====
   fonts:

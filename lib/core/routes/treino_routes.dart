@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../screens/treino/meus_treinos_screen.dart';
 import '../../screens/treino/detalhes_treino_screen.dart';
 import '../../screens/treino/criar_treino_screen.dart';
+import '../../screens/treino/treino_preparacao_screen.dart';
+import '../../screens/treino/execucao_treino_screen.dart';
 import '../../models/treino_model.dart';
 import 'app_routes.dart';
 
@@ -36,6 +38,58 @@ class TreinoRoutes {
     );
   }
 
+  // ===== NAVEGAÇÃO DE EXECUÇÃO - NOVO =====
+
+  /// Navegar para Preparação do Treino
+  static Future<void> goToTreinoPreparacao(
+    BuildContext context, 
+    TreinoModel treino,
+  ) async {
+    await Navigator.pushNamed(
+      context, 
+      AppRoutes.treinoPreparacao,
+      arguments: treino,
+    );
+  }
+
+  /// Navegar para Execução do Treino
+  static Future<void> goToTreinoExecucao(
+    BuildContext context, 
+    TreinoModel treino,
+  ) async {
+    await Navigator.pushNamed(
+      context, 
+      AppRoutes.treinoExecucao,
+      arguments: treino,
+    );
+  }
+
+  /// Iniciar treino com preparação e feedback
+  static Future<void> iniciarTreinoCompleto(
+    BuildContext context,
+    TreinoModel treino,
+  ) async {
+    _showInfoSnackBar(
+      context, 
+      'Preparando treino "${treino.nomeTreino}"...',
+    );
+    
+    await goToTreinoPreparacao(context, treino);
+  }
+
+  /// Continuar treino direto para execução
+  static Future<void> continuarTreino(
+    BuildContext context,
+    TreinoModel treino,
+  ) async {
+    _showInfoSnackBar(
+      context, 
+      'Continuando treino "${treino.nomeTreino}"...',
+    );
+    
+    await goToTreinoExecucao(context, treino);
+  }
+
   // ===== NAVEGAÇÃO COM REPLACEMENT =====
 
   /// Substituir tela atual por Meus Treinos
@@ -50,6 +104,21 @@ class TreinoRoutes {
       AppRoutes.meusTreinos,
       (route) => route.settings.name == AppRoutes.home,
     );
+  }
+
+  /// Finalizar treino e voltar para início
+  static Future<void> finalizarTreinoEVoltar(BuildContext context) async {
+    _showSuccessSnackBar(
+      context,
+      'Treino finalizado com sucesso! 🎉',
+      action: SnackBarAction(
+        label: 'Ver Histórico',
+        textColor: Colors.white,
+        onPressed: () => Navigator.pushNamed(context, AppRoutes.historico),
+      ),
+    );
+    
+    await backToMeusTreinos(context);
   }
 
   // ===== NAVEGAÇÃO COM FEEDBACK =====
@@ -112,6 +181,25 @@ class TreinoRoutes {
     }
   }
 
+  /// Iniciar treino verificando condições
+  static Future<void> iniciarTreinoSecure(
+    BuildContext context,
+    TreinoModel treino,
+  ) async {
+    if (await _checkAuth(context)) {
+      // Verificar se treino tem exercícios
+      if (treino.exercicios.isEmpty) {
+        _showErrorSnackBar(
+          context, 
+          'Este treino não possui exercícios cadastrados',
+        );
+        return;
+      }
+      
+      await iniciarTreinoCompleto(context, treino);
+    }
+  }
+
   // ===== NAVEGAÇÃO COM ANIMAÇÕES CUSTOMIZADAS =====
 
   /// Slide da direita
@@ -140,6 +228,28 @@ class TreinoRoutes {
       _scaleTransition(const CriarTreinoScreen()),
     );
     return resultado;
+  }
+
+  /// Preparação com slide from bottom
+  static Future<void> goToTreinoPreparacaoWithSlide(
+    BuildContext context,
+    TreinoModel treino,
+  ) async {
+    await Navigator.push(
+      context,
+      _slideFromBottom(TreinoPreparacaoScreen(treino: treino)),
+    );
+  }
+
+  /// Execução com fade
+  static Future<void> goToTreinoExecucaoWithFade(
+    BuildContext context,
+    TreinoModel treino,
+  ) async {
+    await Navigator.push(
+      context,
+      _fadeTransition(ExecucaoTreinoScreen(treino: treino)),
+    );
   }
 
   // ===== MÉTODOS UTILITÁRIOS PRIVADOS =====
@@ -199,6 +309,25 @@ class TreinoRoutes {
     );
   }
 
+  /// Mostrar SnackBar de erro
+  static void _showErrorSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   /// Mostrar diálogo de confirmação de deleção
   static Future<bool?> _showDeleteDialog(
     BuildContext context,
@@ -236,6 +365,23 @@ class TreinoRoutes {
         return SlideTransition(
           position: Tween<Offset>(
             begin: const Offset(1.0, 0.0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+          child: child,
+        );
+      },
+    );
+  }
+
+  /// Slide from bottom
+  static Route<T> _slideFromBottom<T extends Object?>(Widget page) {
+    return PageRouteBuilder<T>(
+      pageBuilder: (context, animation, _) => page,
+      transitionDuration: const Duration(milliseconds: 400),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.0, 1.0),
             end: Offset.zero,
           ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
           child: child,
@@ -289,5 +435,26 @@ class TreinoRoutes {
       AppRoutes.meusTreinos,
       (route) => false,
     );
+  }
+
+  // ===== FLUXO COMPLETO DE EXECUÇÃO =====
+
+  /// Fluxo completo: Preparação → Execução → Finalização
+  static Future<void> executarFluxoCompleto(
+    BuildContext context,
+    TreinoModel treino,
+  ) async {
+    try {
+      _showInfoSnackBar(context, 'Iniciando treino...');
+      
+      // 1. Preparação
+      await goToTreinoPreparacaoWithSlide(context, treino);
+      
+      // 2. Se chegou aqui, o usuário passou pela preparação
+      // A tela de preparação já navega para execução
+      
+    } catch (e) {
+      _showErrorSnackBar(context, 'Erro ao iniciar treino: $e');
+    }
   }
 }

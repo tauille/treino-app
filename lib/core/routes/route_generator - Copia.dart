@@ -1,18 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../screens/auth/auth_wrapper.dart';
 import '../../screens/auth/google_login_screen.dart';
-import '../../screens/home/home_screen.dart'; // Manter para compatibilidade
-import '../../screens/treino/meus_treinos_screen.dart'; // Manter para compatibilidade
+import '../../screens/home/home_screen.dart';
+import '../../screens/treino/meus_treinos_screen.dart';
 import '../../screens/treino/criar_treino_screen.dart';
 import '../../screens/treino/detalhes_treino_screen.dart';
 import '../../screens/treino/treino_preparacao_screen.dart';
 import '../../screens/treino/execucao_treino_screen.dart';
-// 🆕 IMPORTS DAS NOVAS TELAS
-import '../../screens/main_navigation_screen.dart';
-import '../../screens/home/home_dashboard_screen.dart';
-import '../../screens/treino/treinos_library_screen.dart';
-import '../../screens/stats_screen.dart';
-import '../../screens/profile_screen.dart';
 import '../../models/treino_model.dart';
 import 'app_routes.dart';
 
@@ -44,55 +38,18 @@ class RouteGenerator {
           settings,
           transitionType: RouteTransition.slide,
         );
-
-      // ===== 🆕 NOVA ARQUITETURA =====
-      case AppRoutes.main:
-        return _buildRoute(
-          const MainNavigationScreen(),
-          settings,
-          transitionType: RouteTransition.fade,
-          requiresAuth: true,
-        );
         
-      case AppRoutes.dashboard:
-        return _buildRoute(
-          const HomeDashboardScreen(),
-          settings,
-          transitionType: RouteTransition.fade,
-          requiresAuth: true,
-        );
-        
-      case AppRoutes.biblioteca:
-        return _buildRoute(
-          const TreinosLibraryScreen(),
-          settings,
-          transitionType: RouteTransition.slideFromRight,
-          requiresAuth: true,
-        );
-        
-      case AppRoutes.stats:
-        return _buildRoute(
-          const StatsScreen(),
-          settings,
-          transitionType: RouteTransition.slideFromRight,
-          requiresAuth: true,
-        );
-        
-      // ===== ROTAS DE COMPATIBILIDADE =====
       case AppRoutes.home:
-        // Redirecionar para nova arquitetura
         return _buildRoute(
-          const MainNavigationScreen(),
+          const HomeScreen(),
           settings,
           transitionType: RouteTransition.fade,
-          requiresAuth: true,
         );
 
       // ===== TREINOS =====
       case AppRoutes.meusTreinos:
-        // Redirecionar para nova biblioteca ou manter a antiga
         return _buildRoute(
-          const TreinosLibraryScreen(), // Usar nova biblioteca
+          const MeusTreinosScreen(),
           settings,
           transitionType: RouteTransition.slideFromRight,
           requiresAuth: true,
@@ -150,11 +107,9 @@ class RouteGenerator {
         );
         
       case AppRoutes.profile:
-        // Usar nova tela de perfil
         return _buildRoute(
-          const ProfileScreen(),
+          _buildPlaceholderScreen('Perfil', Icons.person),
           settings,
-          transitionType: RouteTransition.slideFromRight,
           requiresAuth: true,
         );
 
@@ -260,7 +215,7 @@ class RouteGenerator {
     
     print('✅ Criando ExecucaoTreinoScreen para: ${treino.nomeTreino}');
     return _buildRoute(
-      ModernExecucaoTreinoScreen(treino: treino), // ✅ NOME CORRETO
+      ModernExecucaoTreinoScreen(treino: treino),
       settings,
       transitionType: RouteTransition.fade,
       requiresAuth: true,
@@ -469,23 +424,11 @@ class RouteGenerator {
                 ),
               const SizedBox(height: 32),
               ElevatedButton(
-                onPressed: () {
-                  // 🆕 Navegar para nova tela principal em caso de erro
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    AppRoutes.main,
-                    (route) => false,
-                  );
-                },
+                onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('Ir para Início'),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
                 child: const Text('Voltar'),
               ),
             ],
@@ -496,7 +439,7 @@ class RouteGenerator {
     );
   }
 
-  // ===== TRANSIÇÕES CUSTOMIZADAS (MANTIDAS IGUAIS) =====
+  // ===== TRANSIÇÕES CUSTOMIZADAS =====
 
   static Route<T> _fadeRoute<T>(Widget page, RouteSettings settings) {
     return PageRouteBuilder<T>(

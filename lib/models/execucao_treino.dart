@@ -1,3 +1,6 @@
+
+import 'execucao_exercicio.dart';
+
 class ExecucaoTreino {
   final int id;
   final String status;

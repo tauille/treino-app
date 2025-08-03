@@ -3,49 +3,31 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider_google.dart';
 import 'providers/treino_provider.dart';
-import 'providers/simple_theme_controller.dart';
 import 'core/services/google_auth_service.dart';
 import 'core/services/treino_service.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/network_detector.dart';
-import 'core/services/wakelock_service.dart';
+import 'core/services/wakelock_service.dart'; // 🆕 IMPORT DO WAKELOCK SERVICE EXPANDIDO
 import 'core/constants/api_constants.dart';
 import 'screens/auth/auth_wrapper.dart';
 
-// 🆕 IMPORTS DA NOVA ARQUITETURA
-import 'screens/main_navigation_screen.dart';
-import 'screens/home/home_dashboard_screen.dart';
-import 'screens/treino/treinos_library_screen.dart';
-import 'screens/stats_screen.dart';
-import 'screens/profile_screen.dart';
-
-// 🆕 IMPORT DO NOVO TEMA MODERNO
-import 'core/theme/sport_theme.dart';
-
-// 🆕 IMPORT DO CONTROLADOR DE TEMA - ADICIONADO
-import 'providers/simple_theme_controller.dart';
-
-// IMPORTS EXISTENTES MANTIDOS
+// 🆕 IMPORT DO ROUTE GENERATOR - PRINCIPAL MUDANÇA!
 import 'core/routes/route_generator.dart';
 import 'core/routes/app_routes.dart';
+
+// ✅ IMPORT - Tela Criar Treino (mantido para compatibilidade)
 import 'screens/treino/criar_treino_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // 🆕 INICIALIZAR CONTROLADOR DE TEMA - ADICIONADO
-  print('🎨 === INICIALIZANDO TEMA ===');
-  final themeController = SimpleThemeController();
-  await themeController.loadTheme();
-  print('✅ Tema carregado: ${themeController.isDarkMode ? "Escuro" : "Claro"}');
   
   // 🔒 INICIALIZAR WAKELOCK GLOBAL - PRIMEIRA COISA!
   print('🔒 === INICIALIZANDO WAKELOCK GLOBAL ===');
   try {
     final wakelockService = WakelockService();
     await wakelockService.initialize();
-    await wakelockService.initializeGlobal();
-    wakelockService.logServiceInfo();
+    await wakelockService.initializeGlobal(); // 🆕 NOVO MÉTODO
+    wakelockService.logServiceInfo(); // 🆕 LOG DETALHADO
     print('✅ WakelockService global inicializado');
   } catch (e) {
     print('❌ Erro ao inicializar WakelockService global: $e');
@@ -56,7 +38,7 @@ void main() async {
   try {
     final storage = StorageService();
     await storage.init();
-    await storage.clearAllData();
+    await storage.clearAllData(); // 🔥 LIMPAR TUDO
     print('✅ Todos os dados limpos');
   } catch (e) {
     print('⚠️ Erro ao limpar dados: $e');
@@ -84,7 +66,7 @@ void main() async {
   } catch (e) {
     print('❌ ERRO CRÍTICO na detecção: $e');
     print('🛑 Parando execução para investigar...');
-    return;
+    return; // Parar aqui para debug
   }
   
   // 🔍 VERIFICAR API CONSTANTS
@@ -99,6 +81,7 @@ void main() async {
     final networkInfo = ApiConstants.getNetworkInfo();
     print('📋 ApiConstants.getNetworkInfo(): $networkInfo');
     
+    // Testar status endpoint
     final statusUrl = await ApiConstants.getUrl(ApiConstants.apiStatus);
     print('🧪 Status URL: $statusUrl');
     
@@ -122,38 +105,32 @@ void main() async {
   print('🔐 === INICIALIZANDO GOOGLE AUTH (DEBUG) ===');
   try {
     final googleAuthService = GoogleAuthService();
+    
+    // ADICIONAR LOG ANTES DE INICIALIZAR
     print('📡 URL que será usada pelo GoogleAuth: ${await ApiConstants.getBaseUrl()}');
+    
     await googleAuthService.initialize();
     print('✅ Google Auth Service inicializado');
     
+    // TESTAR CONECTIVIDADE DO GOOGLE AUTH
     print('🧪 Testando conectividade do GoogleAuth...');
+    // Se houver método de teste, chamar aqui
     
   } catch (e) {
     print('❌ ERRO no Google Auth Service: $e');
     print('📚 Stack trace: ${StackTrace.current}');
   }
   
-  print('🚀 === INICIANDO APP COM NOVA ARQUITETURA ===');
+  print('🚀 === INICIANDO APP ===');
   print('📡 URL final configurada: ${await ApiConstants.getBaseUrl()}');
   print('🛣️ Usando RouteGenerator para navegação avançada');
   print('🔒 WakelockService global está ativo');
-  print('🎨 Novo tema moderno SportTheme aplicado');
-  print('🌙 Tema escuro disponível'); // ADICIONADO
-  print('📱 Nova navegação por abas implementada');
-  print('🏠 MainNavigationScreen como tela principal');
   
-  // 🆕 PASSAR CONTROLADOR DE TEMA - MODIFICADO
-  runApp(TreinoApp(themeController: themeController));
+  runApp(const TreinoApp());
 }
 
-// 🆕 CLASSE MODIFICADA PARA ACEITAR TEMA
 class TreinoApp extends StatelessWidget {
-  final SimpleThemeController themeController; // ADICIONADO
-  
-  const TreinoApp({
-    super.key,
-    required this.themeController, // ADICIONADO
-  });
+  const TreinoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -174,69 +151,136 @@ class TreinoApp extends StatelessWidget {
             return TreinoProvider();
           }
         ),
+        // 🆕 PROVIDER PARA WAKELOCK SERVICE (opcional)
         Provider<WakelockService>(
           create: (_) => WakelockService(),
         ),
-        
-        // 🆕 PROVIDER DE TEMA - ADICIONADO
-        ChangeNotifierProvider.value(value: themeController),
       ],
-      
-      // 🆕 CONSUMER PARA REAGIR A MUDANÇAS DE TEMA - ADICIONADO
-      child: Consumer<SimpleThemeController>(
-        builder: (context, themeController, _) {
-          return MaterialApp(
-            title: 'Treino App',
-            debugShowCheckedModeBanner: false,
-            
-            // 🎨 NOVO TEMA MODERNO APLICADO
-            theme: SportTheme.lightTheme,
-            darkTheme: SportTheme.darkTheme,          // ADICIONADO
-            themeMode: themeController.themeMode,     // ADICIONADO
-            
-            // 🆕 USAR RouteGenerator ATUALIZADO
-            initialRoute: AppRoutes.splash,
-            onGenerateRoute: RouteGenerator.generateRoute,
-            
-            // Fallback para rota não encontrada
-            onUnknownRoute: (settings) {
-              print('❌ Rota desconhecida: ${settings.name}');
-              return MaterialPageRoute(
-                builder: (context) => Scaffold(
-                  appBar: AppBar(title: const Text('Erro')),
-                  body: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text('Rota não encontrada: ${settings.name}'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => Navigator.pushReplacementNamed(
-                            context, 
-                            AppRoutes.main, // 🆕 Redirecionar para nova tela principal
-                          ),
-                          child: const Text('Voltar ao Início'),
-                        ),
-                      ],
+      child: MaterialApp(
+        title: 'Treino App',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          primaryColor: const Color(0xFF667eea),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF667eea),
+            brightness: Brightness.light,
+          ),
+          fontFamily: 'Poppins',
+          useMaterial3: true,
+          
+          // ===== TEMA PERSONALIZADO =====
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            systemOverlayStyle: SystemUiOverlayStyle.dark,
+            titleTextStyle: TextStyle(
+              color: Color(0xFF2D3748),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+            iconTheme: IconThemeData(
+              color: Color(0xFF667eea),
+            ),
+          ),
+          
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              elevation: 2,
+              shadowColor: Colors.black12,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 12,
+              ),
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          
+          inputDecorationTheme: InputDecorationTheme(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
+          
+          cardTheme: CardThemeData(
+            elevation: 2,
+            shadowColor: Colors.black12,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          
+          // ===== CORES PERSONALIZADAS =====
+          scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        ),
+        
+        // 🆕 USAR RouteGenerator EM VEZ DE ROTAS ESTÁTICAS!
+        initialRoute: AppRoutes.splash, // Rota inicial usando AppRoutes
+        onGenerateRoute: RouteGenerator.generateRoute, // PRINCIPAL MUDANÇA!
+        
+        // ❌ REMOVIDO: rotas estáticas que causavam o problema
+        // routes: {
+        //   '/criar-treino': (context) => const CriarTreinoScreen(),
+        // },
+        
+        // Fallback para rota não encontrada
+        onUnknownRoute: (settings) {
+          print('❌ Rota desconhecida: ${settings.name}');
+          return MaterialPageRoute(
+            builder: (context) => Scaffold(
+              appBar: AppBar(title: const Text('Erro')),
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Rota não encontrada: ${settings.name}'),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pushReplacementNamed(
+                        context, 
+                        AppRoutes.home,
+                      ),
+                      child: const Text('Voltar ao Início'),
                     ),
-                  ),
+                  ],
                 ),
-              );
-            },
-            
-            // 🆕 BUILDER COM WAKELOCK WRAPPER
-            builder: (context, child) {
-              return WakelockAppWrapper(
-                child: MediaQuery(
-                  data: MediaQuery.of(context).copyWith(
-                    textScaleFactor: 1.0,
-                  ),
-                  child: child!,
-                ),
-              );
-            },
+              ),
+            ),
+          );
+        },
+        
+        // 🆕 BUILDER COM WAKELOCK WRAPPER
+        builder: (context, child) {
+          return WakelockAppWrapper(
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaleFactor: 1.0, // Evitar zoom de texto do sistema
+              ),
+              child: child!,
+            ),
           );
         },
       ),
@@ -273,6 +317,7 @@ class _WakelockAppWrapperState extends State<WakelockAppWrapper>
   }
 
   Future<void> _initializeWakelock() async {
+    // Garantir que wakelock está ativo se o usuário preferir
     await _wakelockService.ensureActive();
   }
 
@@ -303,17 +348,8 @@ class _WakelockAppWrapperState extends State<WakelockAppWrapper>
   }
 }
 
-// ✅ CLASSE HELPER PARA NAVEGAÇÃO - EXPANDIDA COM NOVA ARQUITETURA
+// ✅ CLASSE HELPER PARA NAVEGAÇÃO - EXPANDIDA
 class TreinoNavigation {
-  /// 🆕 Navegar para a tela principal com abas
-  static Future<dynamic> irParaPrincipal(BuildContext context) async {
-    return await Navigator.pushNamedAndRemoveUntil(
-      context, 
-      AppRoutes.main,
-      (route) => false,
-    );
-  }
-
   /// Navegar para a tela de criar treino usando RouteGenerator
   static Future<dynamic> irParaCriarTreino(BuildContext context) async {
     return await Navigator.pushNamed(context, AppRoutes.criarTreino);
@@ -360,11 +396,6 @@ class TreinoNavigation {
     );
   }
 
-  /// 🆕 Navegar para aba específica (Home, Treinos, Stats, Perfil)
-  static void irParaAba(BuildContext context, int index) {
-    // Esta função será implementada no MainNavigationScreen
-  }
-
   /// Navegar e mostrar resultado
   static Future<void> criarTreinoComFeedback(BuildContext context) async {
     final treinoCriado = await irParaCriarTreino(context);
@@ -373,15 +404,13 @@ class TreinoNavigation {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Treino "${treinoCriado.nomeTreino}" criado com sucesso!'),
-          backgroundColor: SportColors.success, // 🆕 Usando nova cor do tema
+          backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
           action: SnackBarAction(
             label: 'Ver',
             textColor: Colors.white,
             onPressed: () {
+              // Navegar para detalhes do treino
               irParaDetalhesTreino(context, treinoCriado);
             },
           ),
@@ -395,17 +424,16 @@ class TreinoNavigation {
     BuildContext context,
     dynamic treino,
   ) async {
+    // Mostrar feedback
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Iniciando treino "${treino.nomeTreino}"...'),
-        backgroundColor: SportColors.primary, // 🆕 Usando nova cor do tema
+        backgroundColor: const Color(0xFF667eea),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
       ),
     );
     
+    // Navegar para preparação
     await irParaPreparacaoTreino(context, treino);
   }
 
@@ -422,88 +450,5 @@ class TreinoNavigation {
   /// 🆕 GARANTIR WAKELOCK ATIVO
   static Future<void> garantirWakelockAtivo() async {
     await WakelockHelper.ensureActive();
-  }
-  
-  /// 🆕 ALTERNAR TEMA - ADICIONADO
-  static void alternarTema(BuildContext context) {
-    final themeController = Provider.of<SimpleThemeController>(
-      context, 
-      listen: false,
-    );
-    themeController.toggleTheme();
-    
-    // Mostrar feedback
-    ModernFeedback.showThemeChanged(context, themeController.isDarkMode);
-  }
-
-  /// 🆕 VERIFICAR SE ESTÁ ESCURO - ADICIONADO
-  static bool isThemeEscuro(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark;
-  }
-}
-
-/// 🆕 HELPER PARA FEEDBACK VISUAL MODERNO
-class ModernFeedback {
-  /// Mostrar snackbar com tema moderno
-  static void showSuccess(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: SportColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
-  /// Mostrar erro com tema moderno
-  static void showError(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: SportColors.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
-  /// Mostrar informação com tema moderno
-  static void showInfo(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: SportColors.info,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-  
-  /// 🆕 MOSTRAR MUDANÇA DE TEMA - ADICIONADO
-  static void showThemeChanged(BuildContext context, bool isDark) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isDark ? 'Tema escuro ativado 🌙' : 'Tema claro ativado ☀️',
-        ),
-        backgroundColor: SportColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 }

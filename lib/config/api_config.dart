@@ -13,7 +13,7 @@ class ApiConfig {
   static const String _devBaseUrl = 'http://10.0.2.2:8000/api'; // Android Emulator ✅
   static const String _devBaseUrlIOS = 'http://127.0.0.1:8000/api'; // iOS Simulator ✅
   //static const String _devBaseUrlDevice = 'http://10.125.135.38:8000/api'; // IP da máquina
-  static const String _devBaseUrlDevice = 'http://192.168.18.48:8000/api'; // IP da máquina
+  static const String _devBaseUrlDevice = 'http://192.168.18.16:8000/api'; // 🔧 IP ATUALIZADO
   
   // Homologação
   static const String _stagingBaseUrl = 'https://api-staging.treinoapp.com/api';
