@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/treino_model.dart';
 import '../../core/services/treino_service.dart';
+import '../../core/theme/sport_theme.dart'; // 🔥 Import do tema
 
 class CriarTreinoScreen extends StatefulWidget {
   final TreinoModel? treinoParaEditar;
@@ -46,16 +47,16 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
   ];
 
   final List<Map<String, dynamic>> _dificuldades = [
-    {'value': 'iniciante', 'label': 'Iniciante', 'color': Colors.green},
-    {'value': 'intermediario', 'label': 'Intermediário', 'color': Colors.orange},
-    {'value': 'avancado', 'label': 'Avançado', 'color': Colors.red},
+    {'value': 'iniciante', 'label': 'Iniciante', 'color': SportColors.beginnerColor},
+    {'value': 'intermediario', 'label': 'Intermediário', 'color': SportColors.intermediateColor},
+    {'value': 'avancado', 'label': 'Avançado', 'color': SportColors.advancedColor},
   ];
 
   @override
   void initState() {
     super.initState();
     
-    // Configurar status bar
+    // Configurar status bar para tema escuro
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -195,12 +196,22 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remover Exercício'),
-        content: Text('Tem certeza que deseja remover "${_exercicios[index].nomeExercicio}"?'),
+        backgroundColor: SportColors.dashboardCard,
+        title: Text(
+          'Remover Exercício',
+          style: TextStyle(color: SportColors.textPrimary),
+        ),
+        content: Text(
+          'Tem certeza que deseja remover "${_exercicios[index].nomeExercicio}"?',
+          style: TextStyle(color: SportColors.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: SportColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -213,7 +224,7 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
               });
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: SportColors.error),
             child: const Text('Remover'),
           ),
         ],
@@ -226,7 +237,7 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.red : const Color(0xFF667eea),
+        backgroundColor: isError ? SportColors.error : SportColors.primary,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -242,15 +253,16 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           // Nome do treino
           TextFormField(
             controller: _nomeController,
+            style: TextStyle(color: SportColors.textPrimary),
             decoration: InputDecoration(
               labelText: 'Nome do Treino *',
               hintText: 'Ex: Treino Push, Cardio Intenso...',
-              prefixIcon: const Icon(Icons.fitness_center),
+              prefixIcon: Icon(Icons.fitness_center, color: SportColors.primary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               filled: true,
-              fillColor: Colors.grey[50],
+              fillColor: SportColors.grey50,
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
@@ -269,19 +281,24 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           // Tipo de treino
           DropdownButtonFormField<String>(
             value: _tipoTreino,
+            style: TextStyle(color: SportColors.textPrimary),
+            dropdownColor: SportColors.dashboardCard,
             decoration: InputDecoration(
               labelText: 'Tipo de Treino',
-              prefixIcon: const Icon(Icons.category),
+              prefixIcon: Icon(Icons.category, color: SportColors.primary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               filled: true,
-              fillColor: Colors.grey[50],
+              fillColor: SportColors.grey50,
             ),
             items: _tiposTreino.map<DropdownMenuItem<String>>((String tipo) {
               return DropdownMenuItem<String>(
                 value: tipo,
-                child: Text(tipo),
+                child: Text(
+                  tipo,
+                  style: TextStyle(color: SportColors.textPrimary),
+                ),
               );
             }).toList(),
             onChanged: (String? value) {
@@ -296,14 +313,16 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           // Dificuldade
           DropdownButtonFormField<String>(
             value: _dificuldade,
+            style: TextStyle(color: SportColors.textPrimary),
+            dropdownColor: SportColors.dashboardCard,
             decoration: InputDecoration(
               labelText: 'Dificuldade',
-              prefixIcon: const Icon(Icons.trending_up),
+              prefixIcon: Icon(Icons.trending_up, color: SportColors.primary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               filled: true,
-              fillColor: Colors.grey[50],
+              fillColor: SportColors.grey50,
             ),
             items: _dificuldades.map<DropdownMenuItem<String>>((dif) {
               return DropdownMenuItem<String>(
@@ -319,7 +338,10 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(dif['label'] as String),
+                    Text(
+                      dif['label'] as String,
+                      style: TextStyle(color: SportColors.textPrimary),
+                    ),
                   ],
                 ),
               );
@@ -336,15 +358,16 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           // Descrição
           TextFormField(
             controller: _descricaoController,
+            style: TextStyle(color: SportColors.textPrimary),
             decoration: InputDecoration(
               labelText: 'Descrição (Opcional)',
               hintText: 'Descreva os objetivos do treino...',
-              prefixIcon: const Icon(Icons.description),
+              prefixIcon: Icon(Icons.description, color: SportColors.primary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               filled: true,
-              fillColor: Colors.grey[50],
+              fillColor: SportColors.grey50,
             ),
             maxLines: 3,
             textCapitalization: TextCapitalization.sentences,
@@ -361,14 +384,14 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
       children: [
         Row(
           children: [
-            const Icon(Icons.list, color: Color(0xFF667eea)),
+            Icon(Icons.list, color: SportColors.primary),
             const SizedBox(width: 8),
             Text(
               'Exercícios (${_exercicios.length})',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3748),
+                color: SportColors.textPrimary,
               ),
             ),
             const Spacer(),
@@ -377,7 +400,7 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
               icon: const Icon(Icons.add),
               label: const Text('Adicionar'),
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF667eea),
+                foregroundColor: SportColors.primary,
               ),
             ),
           ],
@@ -390,16 +413,16 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: SportColors.grey50,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: SportColors.grey300),
             ),
             child: Column(
               children: [
                 Icon(
                   Icons.fitness_center,
                   size: 48,
-                  color: Colors.grey[400],
+                  color: SportColors.grey400,
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -407,7 +430,7 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey[600],
+                    color: SportColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -415,7 +438,7 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
                   'Toque em "Adicionar" para incluir exercícios',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[500],
+                    color: SportColors.textTertiary,
                   ),
                 ),
               ],
@@ -427,12 +450,12 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: SportColors.dashboardCard,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
+                border: Border.all(color: SportColors.grey300),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: SportColors.primary.withOpacity(0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -441,20 +464,21 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
               child: ListTile(
                 contentPadding: const EdgeInsets.all(16),
                 leading: CircleAvatar(
-                  backgroundColor: const Color(0xFF667eea).withOpacity(0.1),
+                  backgroundColor: SportColors.primary.withOpacity(0.2),
                   child: Text(
                     '${index + 1}',
-                    style: const TextStyle(
-                      color: Color(0xFF667eea),
+                    style: TextStyle(
+                      color: SportColors.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
                 title: Text(
                   exercicio.nomeExercicio,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 16,
+                    color: SportColors.textPrimary,
                   ),
                 ),
                 subtitle: Column(
@@ -465,7 +489,7 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
                       Text(
                         exercicio.grupoMuscular!,
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: SportColors.textTertiary,
                           fontSize: 12,
                         ),
                       ),
@@ -473,8 +497,8 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
                     const SizedBox(height: 4),
                     Text(
                       exercicio.textoExecucaoCalculado,
-                      style: const TextStyle(
-                        color: Color(0xFF667eea),
+                      style: TextStyle(
+                        color: SportColors.primary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -484,7 +508,7 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
                 trailing: IconButton(
                   onPressed: () => _removerExercicio(index),
                   icon: const Icon(Icons.delete_outline),
-                  color: Colors.red,
+                  color: SportColors.error,
                 ),
               ),
             );
@@ -498,26 +522,25 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     final isEdicao = widget.treinoParaEditar != null;
     
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      // 🔥 REMOVIDO backgroundColor - usa o do tema escuro
       appBar: AppBar(
         title: Text(
           isEdicao ? 'Editar Treino' : 'Criar Treino',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.white,
           ),
         ),
-        backgroundColor: const Color(0xFF667eea),
-        foregroundColor: Colors.white,
+        backgroundColor: SportColors.dashboardCard,
+        foregroundColor: SportColors.textPrimary,
         elevation: 0,
         actions: [
           if (!_isSaving)
             TextButton(
               onPressed: _salvarTreino,
-              child: const Text(
+              child: Text(
                 'Salvar',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: SportColors.primary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -528,14 +551,12 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
         opacity: _fadeAnimation,
         child: Column(
           children: [
-            // Header colorido
+            // Header laranja
             Container(
               width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                ),
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                gradient: SportColors.primaryGradient,
+                borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(24),
                   bottomRight: Radius.circular(24),
                 ),
@@ -592,7 +613,7 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
       floatingActionButton: _exercicios.isNotEmpty
           ? FloatingActionButton.extended(
               onPressed: _isSaving ? null : _salvarTreino,
-              backgroundColor: const Color(0xFF667eea),
+              backgroundColor: SportColors.primary,
               icon: _isSaving
                   ? const SizedBox(
                       width: 20,
@@ -607,14 +628,14 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
             )
           : FloatingActionButton(
               onPressed: _adicionarExercicio,
-              backgroundColor: const Color(0xFF667eea),
+              backgroundColor: SportColors.primary,
               child: const Icon(Icons.add),
             ),
     );
   }
 }
 
-/// Sheet para adicionar exercício
+/// Sheet para adicionar exercício - TEMA ESCURO
 class _AdicionarExercicioSheet extends StatefulWidget {
   final Function(ExercicioModel) onExercicioAdicionado;
 
@@ -694,20 +715,20 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
       minChildSize: 0.5,
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
+          decoration: BoxDecoration(
+            color: SportColors.dashboardCard, // 🔥 Fundo escuro
+            borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(20),
               topRight: Radius.circular(20),
             ),
           ),
           child: Column(
             children: [
-              // Header
+              // Header laranja
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF667eea),
+                  gradient: SportColors.primaryGradient, // 🔥 Gradiente laranja
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(20),
                     topRight: Radius.circular(20),
@@ -747,12 +768,15 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         // Nome do exercício
                         TextFormField(
                           controller: _nomeController,
+                          style: TextStyle(color: SportColors.textPrimary),
                           decoration: InputDecoration(
                             labelText: 'Nome do Exercício *',
                             hintText: 'Ex: Supino Reto, Agachamento...',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
+                            filled: true,
+                            fillColor: SportColors.grey50,
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
@@ -768,16 +792,23 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         // Grupo muscular
                         DropdownButtonFormField<String>(
                           value: _grupoMuscular,
+                          style: TextStyle(color: SportColors.textPrimary),
+                          dropdownColor: SportColors.dashboardCard,
                           decoration: InputDecoration(
                             labelText: 'Grupo Muscular',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
+                            filled: true,
+                            fillColor: SportColors.grey50,
                           ),
                           items: _gruposMusculares.map<DropdownMenuItem<String>>((String grupo) {
                             return DropdownMenuItem<String>(
                               value: grupo,
-                              child: Text(grupo),
+                              child: Text(
+                                grupo,
+                                style: TextStyle(color: SportColors.textPrimary),
+                              ),
                             );
                           }).toList(),
                           onChanged: (String? value) {
@@ -794,9 +825,13 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                           children: [
                             Expanded(
                               child: RadioListTile<String>(
-                                title: const Text('Repetições'),
+                                title: Text(
+                                  'Repetições',
+                                  style: TextStyle(color: SportColors.textPrimary),
+                                ),
                                 value: 'repeticao',
                                 groupValue: _tipoExecucao,
+                                activeColor: SportColors.primary,
                                 onChanged: (value) {
                                   setState(() {
                                     _tipoExecucao = value!;
@@ -806,9 +841,13 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                             ),
                             Expanded(
                               child: RadioListTile<String>(
-                                title: const Text('Tempo'),
+                                title: Text(
+                                  'Tempo',
+                                  style: TextStyle(color: SportColors.textPrimary),
+                                ),
                                 value: 'tempo',
                                 groupValue: _tipoExecucao,
+                                activeColor: SportColors.primary,
                                 onChanged: (value) {
                                   setState(() {
                                     _tipoExecucao = value!;
@@ -828,11 +867,14 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                               Expanded(
                                 child: TextFormField(
                                   initialValue: _series.toString(),
+                                  style: TextStyle(color: SportColors.textPrimary),
                                   decoration: InputDecoration(
                                     labelText: 'Séries',
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
+                                    filled: true,
+                                    fillColor: SportColors.grey50,
                                   ),
                                   keyboardType: TextInputType.number,
                                   onChanged: (value) {
@@ -844,11 +886,14 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                               Expanded(
                                 child: TextFormField(
                                   initialValue: _repeticoes.toString(),
+                                  style: TextStyle(color: SportColors.textPrimary),
                                   decoration: InputDecoration(
                                     labelText: 'Repetições',
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
+                                    filled: true,
+                                    fillColor: SportColors.grey50,
                                   ),
                                   keyboardType: TextInputType.number,
                                   onChanged: (value) {
@@ -861,11 +906,14 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         ] else ...[
                           TextFormField(
                             initialValue: _tempoExecucao.toString(),
+                            style: TextStyle(color: SportColors.textPrimary),
                             decoration: InputDecoration(
                               labelText: 'Tempo de Execução (segundos)',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
+                              filled: true,
+                              fillColor: SportColors.grey50,
                             ),
                             keyboardType: TextInputType.number,
                             onChanged: (value) {
@@ -879,11 +927,14 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         // Tempo de descanso
                         TextFormField(
                           initialValue: _tempoDescanso.toString(),
+                          style: TextStyle(color: SportColors.textPrimary),
                           decoration: InputDecoration(
                             labelText: 'Descanso (segundos)',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
+                            filled: true,
+                            fillColor: SportColors.grey50,
                           ),
                           keyboardType: TextInputType.number,
                           onChanged: (value) {
@@ -900,11 +951,14 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                               flex: 2,
                               child: TextFormField(
                                 initialValue: _peso.toString(),
+                                style: TextStyle(color: SportColors.textPrimary),
                                 decoration: InputDecoration(
                                   labelText: 'Peso (opcional)',
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
+                                  filled: true,
+                                  fillColor: SportColors.grey50,
                                 ),
                                 keyboardType: TextInputType.numberWithOptions(decimal: true),
                                 onChanged: (value) {
@@ -916,16 +970,23 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                             Expanded(
                               child: DropdownButtonFormField<String>(
                                 value: _unidadePeso,
+                                style: TextStyle(color: SportColors.textPrimary),
+                                dropdownColor: SportColors.dashboardCard,
                                 decoration: InputDecoration(
                                   labelText: 'Unidade',
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
+                                  filled: true,
+                                  fillColor: SportColors.grey50,
                                 ),
                                 items: ['kg', 'lbs'].map((unidade) {
                                   return DropdownMenuItem(
                                     value: unidade,
-                                    child: Text(unidade),
+                                    child: Text(
+                                      unidade,
+                                      style: TextStyle(color: SportColors.textPrimary),
+                                    ),
                                   );
                                 }).toList(),
                                 onChanged: (value) {
@@ -943,12 +1004,15 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         // Observações
                         TextFormField(
                           controller: _observacoesController,
+                          style: TextStyle(color: SportColors.textPrimary),
                           decoration: InputDecoration(
                             labelText: 'Observações (opcional)',
                             hintText: 'Dicas de execução, variações...',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
+                            filled: true,
+                            fillColor: SportColors.grey50,
                           ),
                           maxLines: 3,
                           textCapitalization: TextCapitalization.sentences,
@@ -959,23 +1023,11 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         // Botão adicionar
                         SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton(
+                          child: SportWidgets.gradientButton(
+                            text: 'Adicionar Exercício',
                             onPressed: _adicionarExercicio,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF667eea),
-                              padding: const EdgeInsets.all(16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              'Adicionar Exercício',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
+                            gradient: SportColors.primaryGradient,
+                            height: 56,
                           ),
                         ),
                       ],
