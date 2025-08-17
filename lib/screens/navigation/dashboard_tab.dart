@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/theme/sport_theme.dart';
 
 class DashboardTab extends StatefulWidget {
   const DashboardTab({super.key});
@@ -38,7 +39,6 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
     super.dispose();
   }
 
-  /// Configurar animações
   void _setupAnimations() {
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 600),
@@ -56,17 +56,14 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
     _fadeController.forward();
   }
 
-  /// Carregar dados do dashboard
   Future<void> _carregarDados() async {
     setState(() {
       _isLoading = true;
     });
 
-    // Simular carregamento
     await Future.delayed(const Duration(milliseconds: 800));
 
     try {
-      // Dados vazios - banco limpo
       setState(() {
         _stats = {
           'treinosCompletos': 0,
@@ -76,11 +73,10 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
         };
         
         _treinosRecentes = [];
-        
         _proximosTreinos = [];
       });
     } catch (e) {
-      // Handle error
+      // Log silencioso
     } finally {
       setState(() {
         _isLoading = false;
@@ -91,38 +87,27 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1D29),
+      backgroundColor: SportColors.background, // Padronizado
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: RefreshIndicator(
             onRefresh: _carregarDados,
-            color: const Color(0xFF4ECDC4),
-            backgroundColor: const Color(0xFF2A2D3A),
+            color: SportColors.iconGreen, // Padronizado
+            backgroundColor: SportColors.backgroundCard, // Padronizado
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header com saudação
                   _buildHeader(),
-                  
                   const SizedBox(height: 24),
-                  
-                  // Cards de estatísticas
                   _buildStatsCards(),
-                  
                   const SizedBox(height: 32),
-                  
-                  // Treinos recentes
                   _buildTreinosRecentes(),
-                  
                   const SizedBox(height: 32),
-                  
-                  // Próximos treinos
                   _buildProximosTreinos(),
-                  
                   const SizedBox(height: 24),
                 ],
               ),
@@ -133,7 +118,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
     );
   }
 
-  /// Header com saudação
+  /// Header padronizado
   Widget _buildHeader() {
     final agora = DateTime.now();
     String saudacao = 'Bom dia';
@@ -153,7 +138,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
               width: 4,
               height: 32,
               decoration: BoxDecoration(
-                color: const Color(0xFF4ECDC4),
+                color: SportColors.iconGreen, // Padronizado
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -164,8 +149,8 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
                 children: [
                   Text(
                     saudacao,
-                    style: const TextStyle(
-                      color: Color(0xFF9CA3AF),
+                    style: TextStyle(
+                      color: SportColors.textTertiary, // Padronizado
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
@@ -174,7 +159,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
                   const Text(
                     'Pronto para começar?',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: SportColors.textPrimary, // Padronizado
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       letterSpacing: -0.5,
@@ -184,12 +169,12 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
               ),
             ),
             if (_isLoading)
-              const SizedBox(
+              SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4ECDC4)),
+                  valueColor: AlwaysStoppedAnimation<Color>(SportColors.iconGreen), // Padronizado
                 ),
               ),
           ],
@@ -198,7 +183,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
     );
   }
 
-  /// Cards de estatísticas
+  /// Cards de estatísticas padronizados
   Widget _buildStatsCards() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,7 +191,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
         const Text(
           'Seus números',
           style: TextStyle(
-            color: Colors.white,
+            color: SportColors.textPrimary, // Padronizado
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -219,7 +204,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
                 'Treinos\nCompletos',
                 _stats['treinosCompletos'].toString(),
                 Icons.check_circle,
-                const Color(0xFF22C55E),
+                SportColors.success, // Padronizado
               ),
             ),
             const SizedBox(width: 12),
@@ -228,7 +213,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
                 'Tempo\nTotal',
                 _stats['tempoTotal'],
                 Icons.schedule,
-                const Color(0xFF4ECDC4),
+                SportColors.iconGreen, // Padronizado
               ),
             ),
           ],
@@ -241,7 +226,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
                 'Esta\nSemana',
                 '${_stats['semanaAtual']} treinos',
                 Icons.calendar_today,
-                const Color(0xFFFBBF24),
+                SportColors.warning, // Padronizado
               ),
             ),
             const SizedBox(width: 12),
@@ -250,7 +235,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
                 'Sequência\nAtual',
                 '${_stats['sequencia']} dias',
                 Icons.local_fire_department,
-                const Color(0xFFFF6B6B),
+                SportColors.secondary, // Padronizado
               ),
             ),
           ],
@@ -259,15 +244,15 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
     );
   }
 
-  /// Card individual de estatística
+  /// Card individual de estatística padronizado
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF2A2D3A),
+        color: SportColors.backgroundCard, // Padronizado
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF374151),
+          color: SportColors.border, // Padronizado
           width: 1,
         ),
       ),
@@ -295,7 +280,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
           Text(
             value,
             style: const TextStyle(
-              color: Colors.white,
+              color: SportColors.textPrimary, // Padronizado
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
@@ -303,8 +288,8 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF9CA3AF),
+            style: TextStyle(
+              color: SportColors.textTertiary, // Padronizado
               fontSize: 12,
               fontWeight: FontWeight.w500,
               height: 1.2,
@@ -315,7 +300,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
     );
   }
 
-  /// Seção de treinos recentes
+  /// Seção de treinos recentes padronizada
   Widget _buildTreinosRecentes() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,7 +310,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
             const Text(
               'Treinos recentes',
               style: TextStyle(
-                color: Colors.white,
+                color: SportColors.textPrimary, // Padronizado
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -335,10 +320,10 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
               onPressed: () {
                 // TODO: ver todos os treinos
               },
-              child: const Text(
+              child: Text(
                 'Ver todos',
                 style: TextStyle(
-                  color: Color(0xFF4ECDC4),
+                  color: SportColors.iconGreen, // Padronizado
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -367,16 +352,16 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
     );
   }
 
-  /// Card de treino recente
+  /// Card de treino recente padronizado
   Widget _buildTreinoRecenteCard(Map<String, dynamic> treino) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF2A2D3A),
+        color: SportColors.backgroundCard, // Padronizado
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF374151),
+          color: SportColors.border, // Padronizado
           width: 1,
         ),
       ),
@@ -386,12 +371,12 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFF22C55E).withOpacity(0.1),
+              color: SportColors.success.withOpacity(0.1), // Padronizado
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.check_circle,
-              color: Color(0xFF22C55E),
+              color: SportColors.success, // Padronizado
               size: 20,
             ),
           ),
@@ -403,7 +388,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
                 Text(
                   treino['nome'],
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: SportColors.textPrimary, // Padronizado
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -411,8 +396,8 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
                 const SizedBox(height: 4),
                 Text(
                   '${treino['data']} • ${treino['duracao']}',
-                  style: const TextStyle(
-                    color: Color(0xFF9CA3AF),
+                  style: TextStyle(
+                    color: SportColors.textTertiary, // Padronizado
                     fontSize: 14,
                   ),
                 ),
@@ -422,13 +407,13 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF22C55E).withOpacity(0.1),
+              color: SportColors.success.withOpacity(0.1), // Padronizado
               borderRadius: BorderRadius.circular(6),
             ),
-            child: const Text(
+            child: Text(
               'Completo',
               style: TextStyle(
-                color: Color(0xFF22C55E),
+                color: SportColors.success, // Padronizado
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -439,7 +424,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
     );
   }
 
-  /// Seção de próximos treinos
+  /// Seção de próximos treinos padronizada
   Widget _buildProximosTreinos() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -447,7 +432,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
         const Text(
           'Próximos treinos',
           style: TextStyle(
-            color: Colors.white,
+            color: SportColors.textPrimary, // Padronizado
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -473,16 +458,16 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
     );
   }
 
-  /// Card de próximo treino
+  /// Card de próximo treino padronizado
   Widget _buildProximoTreinoCard(Map<String, dynamic> treino) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF2A2D3A),
+        color: SportColors.backgroundCard, // Padronizado
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF374151),
+          color: SportColors.border, // Padronizado
           width: 1,
         ),
       ),
@@ -492,12 +477,12 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFF4ECDC4).withOpacity(0.1),
+              color: SportColors.iconGreen.withOpacity(0.1), // Padronizado
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.schedule,
-              color: Color(0xFF4ECDC4),
+              color: SportColors.iconGreen, // Padronizado
               size: 20,
             ),
           ),
@@ -509,7 +494,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
                 Text(
                   treino['nome'],
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: SportColors.textPrimary, // Padronizado
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -517,8 +502,8 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
                 const SizedBox(height: 4),
                 Text(
                   treino['horario'],
-                  style: const TextStyle(
-                    color: Color(0xFF9CA3AF),
+                  style: TextStyle(
+                    color: SportColors.textTertiary, // Padronizado
                     fontSize: 14,
                   ),
                 ),
@@ -528,7 +513,7 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFF4ECDC4),
+              color: SportColors.iconGreen, // Padronizado
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Text(
@@ -545,15 +530,15 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
     );
   }
 
-  /// Estado vazio
+  /// Estado vazio padronizado
   Widget _buildEmptyState(String title, String subtitle, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF2A2D3A),
+        color: SportColors.backgroundCard, // Padronizado
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF374151),
+          color: SportColors.border, // Padronizado
           width: 1,
         ),
       ),
@@ -561,14 +546,14 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
         children: [
           Icon(
             icon,
-            color: const Color(0xFF9CA3AF),
+            color: SportColors.textTertiary, // Padronizado
             size: 48,
           ),
           const SizedBox(height: 16),
           Text(
             title,
             style: const TextStyle(
-              color: Colors.white,
+              color: SportColors.textPrimary, // Padronizado
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -576,8 +561,8 @@ class _DashboardTabState extends State<DashboardTab> with TickerProviderStateMix
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: Color(0xFF9CA3AF),
+            style: TextStyle(
+              color: SportColors.textTertiary, // Padronizado
               fontSize: 14,
             ),
           ),

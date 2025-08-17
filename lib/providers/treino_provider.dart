@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import '../models/treino_model.dart';
 import '../models/api_response_model.dart';
 import '../core/services/treino_service.dart';
@@ -16,6 +17,9 @@ class TreinoProvider with ChangeNotifier {
   // ===== ESTADO DE CRIAÇÃO/EDIÇÃO =====
   bool _isSaving = false;
 
+  // ===== CONTROLE DE NOTIFICAÇÕES =====
+  bool _isNotifying = false;
+
   // ===== GETTERS =====
   List<TreinoModel> get treinos => _treinos;
   bool get isLoading => _isLoading;
@@ -30,9 +34,9 @@ class TreinoProvider with ChangeNotifier {
   int get totalTreinosAtivos => treinosAtivos.length;
   bool get hasError => _error != null;
 
-  // ===== MÉTODO PRINCIPAL QUE ESTAVA FALTANDO =====
+  // ===== MÉTODO PRINCIPAL CORRIGIDO COM FORCE REFRESH =====
   
-  /// Listar treinos com filtros opcionais
+  /// Listar treinos com filtros opcionais - CORRIGIDO COM forceRefresh
   Future<ApiResponse<List<TreinoModel>>> listarTreinos({
     String? busca,
     String? dificuldade,
@@ -40,15 +44,17 @@ class TreinoProvider with ChangeNotifier {
     String? orderBy,
     String? orderDirection,
     int? perPage,
+    bool forceRefresh = false,
   }) async {
     _setLoading(true);
     _clearError();
 
     try {
-      print('🔍 Carregando treinos...');
-      print('📋 Filtros: busca=$busca, dificuldade=$dificuldade, tipo=$tipoTreino');
+      print('🔍 PROVIDER: Carregando treinos...');
+      print('📋 PROVIDER: Filtros: busca=$busca, dificuldade=$dificuldade, tipo=$tipoTreino');
+      print('🔄 PROVIDER: ForceRefresh: $forceRefresh');
 
-      // ===== CORREÇÃO: USAR MÉTODO ESTÁTICO =====
+      // ===== CORREÇÃO: USAR MÉTODO ESTÁTICO COM FORCE REFRESH =====
       final response = await TreinoService.listarTreinos(
         busca: busca,
         dificuldade: dificuldade,
@@ -56,15 +62,18 @@ class TreinoProvider with ChangeNotifier {
         orderBy: orderBy,
         orderDirection: orderDirection,
         perPage: perPage,
+        forceRefresh: forceRefresh,
       );
 
-      print('📊 Resposta da API: success=${response.success}');
-      print('📦 Total de treinos: ${response.data?.length ?? 0}');
+      print('📊 PROVIDER: Resposta da API: success=${response.success}');
+      print('📦 PROVIDER: Total de treinos: ${response.data?.length ?? 0}');
 
       if (response.success && response.data != null) {
         // Atualizar lista local
         _treinos = response.data!;
-        notifyListeners();
+        _safeNotifyListeners();
+        
+        print('✅ PROVIDER: Lista atualizada com ${_treinos.length} treinos');
         
         return ApiResponse.success(
           data: response.data!,
@@ -90,22 +99,22 @@ class TreinoProvider with ChangeNotifier {
     }
   }
 
-  /// Buscar treino por ID
+  /// Buscar treino por ID - CORRIGIDO COM SAFE NOTIFY
   Future<ApiResponse<TreinoModel>> buscarTreino(int id) async {
     _setLoadingTreino(true);
     _clearError();
 
     try {
-      print('🔍 Buscando treino ID: $id');
+      print('🔍 PROVIDER: Buscando treino ID: $id');
 
       // ===== CORREÇÃO: USAR MÉTODO ESTÁTICO =====
       final response = await TreinoService.buscarTreino(id);
 
       if (response.success && response.data != null) {
         _treinoAtual = response.data!;
-        notifyListeners();
+        _safeNotifyListeners();
         
-        print('✅ Treino encontrado: ${response.data!.nomeTreino}');
+        print('✅ PROVIDER: Treino encontrado: ${response.data!.nomeTreino}');
         
         return ApiResponse.success(
           data: response.data!,
@@ -137,7 +146,7 @@ class TreinoProvider with ChangeNotifier {
     _clearError();
 
     try {
-      print('🚀 Criando treino: ${treino.nomeTreino}');
+      print('🚀 PROVIDER: Criando treino: ${treino.nomeTreino}');
 
       // ===== CORREÇÃO: USAR MÉTODO ESTÁTICO =====
       final response = await TreinoService.criarTreino(treino);
@@ -146,9 +155,9 @@ class TreinoProvider with ChangeNotifier {
         // Adicionar à lista local
         _treinos.add(response.data!);
         _treinoAtual = response.data!;
-        notifyListeners();
+        _safeNotifyListeners();
         
-        print('✅ Treino criado com sucesso: ${response.data!.nomeTreino}');
+        print('✅ PROVIDER: Treino criado com sucesso: ${response.data!.nomeTreino}');
         
         return ApiResponse.success(
           data: response.data!,
@@ -174,31 +183,61 @@ class TreinoProvider with ChangeNotifier {
     }
   }
 
-  /// Atualizar treino existente
+  /// ATUALIZAR TREINO - VERSÃO CORRIGIDA COM DEBUG COMPLETO
   Future<ApiResponse<TreinoModel>> atualizarTreino(TreinoModel treino) async {
     if (treino.id == null) {
+      print('❌ PROVIDER: ID do treino é null');
       return ApiResponse.error(message: 'ID do treino é obrigatório para atualização');
     }
+
+    print('🔄 PROVIDER: INICIANDO atualização do treino:');
+    print('   • ID: ${treino.id}');
+    print('   • Nome: ${treino.nomeTreino}');
+    print('   • Tipo: ${treino.tipoTreino}');
+    print('   • Dificuldade: ${treino.dificuldade}');
 
     _setSaving(true);
     _clearError();
 
     try {
-      print('🔄 Atualizando treino: ${treino.nomeTreino}');
-
-      // ===== CORREÇÃO: USAR MÉTODO ESTÁTICO =====
+      // ✅ CHAMAR O SERVICE
       final response = await TreinoService.atualizarTreino(treino);
 
+      print('🔥 PROVIDER: RESPOSTA do service:');
+      print('   • Success: ${response.success}');
+      print('   • Data: ${response.data?.nomeTreino ?? 'null'}');
+      print('   • Message: ${response.message}');
+
       if (response.success && response.data != null) {
-        // Atualizar na lista local
-        final index = _treinos.indexWhere((t) => t.id == treino.id);
-        if (index != -1) {
-          _treinos[index] = response.data!;
-        }
-        _treinoAtual = response.data!;
-        notifyListeners();
+        print('✅ PROVIDER: Atualizando lista local...');
         
-        print('✅ Treino atualizado com sucesso');
+        // ✅ ATUALIZAR NA LISTA LOCAL
+        final index = _treinos.indexWhere((t) => t.id == treino.id);
+        print('🔍 PROVIDER: Índice na lista: $index (de ${_treinos.length} treinos)');
+        
+        if (index != -1) {
+          // ✅ SUBSTITUIR O TREINO NA LISTA
+          final treinoAntigo = _treinos[index];
+          _treinos[index] = response.data!;
+          
+          print('🔄 PROVIDER: Treino substituído:');
+          print('   • Antigo: ${treinoAntigo.nomeTreino}');
+          print('   • Novo: ${response.data!.nomeTreino}');
+        } else {
+          print('⚠️ PROVIDER: AVISO: Treino com ID ${treino.id} não encontrado na lista local');
+          // ✅ SE NÃO ENCONTRAR, ADICIONAR (não deveria acontecer, mas é uma proteção)
+          _treinos.add(response.data!);
+        }
+        
+        // ✅ ATUALIZAR TREINO ATUAL SE FOR O MESMO
+        if (_treinoAtual?.id == treino.id) {
+          _treinoAtual = response.data!;
+          print('🔄 PROVIDER: Treino atual também atualizado');
+        }
+        
+        // ✅ NOTIFICAR LISTENERS COM PROTEÇÃO
+        _safeNotifyListeners();
+        print('📢 PROVIDER: Listeners notificados');
         
         return ApiResponse.success(
           data: response.data!,
@@ -206,6 +245,7 @@ class TreinoProvider with ChangeNotifier {
         );
       } else {
         final errorMsg = response.message ?? 'Erro ao atualizar treino';
+        print('❌ PROVIDER: ERRO na resposta: $errorMsg');
         _setError(errorMsg);
         
         return ApiResponse.error(
@@ -215,38 +255,47 @@ class TreinoProvider with ChangeNotifier {
       }
     } catch (e) {
       final errorMessage = 'Erro inesperado ao atualizar treino: $e';
+      print('❌ PROVIDER: EXCEÇÃO: $errorMessage');
       _setError(errorMessage);
       debugPrint('❌ Erro em atualizarTreino: $e');
       
       return ApiResponse.error(message: errorMessage);
     } finally {
       _setSaving(false);
+      print('🏁 PROVIDER: Finalizado atualizarTreino');
     }
   }
 
-  /// Remover treino (soft delete)
+  /// Remover treino (soft delete) - CORRIGIDO COM INVALIDAÇÃO DE CACHE
   Future<ApiResponse<bool>> removerTreino(int id) async {
     _setSaving(true);
     _clearError();
 
     try {
-      print('🗑️ Removendo treino ID: $id');
+      print('🗑️ PROVIDER: Removendo treino ID: $id');
 
       // ===== CORREÇÃO: USAR deletarTreino (MÉTODO CORRETO NO SERVICE) =====
       final response = await TreinoService.deletarTreino(id);
 
+      print('📱 PROVIDER: Resultado da exclusão: success=${response.success}, message=${response.message}');
+
       if (response.success) {
-        // Remover da lista local
+        // REMOVER DA LISTA LOCAL IMEDIATAMENTE
+        final treinoRemovido = _treinos.firstWhere((t) => t.id == id, orElse: () => throw StateError('Treino não encontrado'));
         _treinos.removeWhere((t) => t.id == id);
+        print('✅ PROVIDER: Treino "${treinoRemovido.nomeTreino}" removido da lista local');
         
         // Se era o treino atual, limpar
         if (_treinoAtual?.id == id) {
           _treinoAtual = null;
+          print('🧹 PROVIDER: Treino atual limpo');
         }
         
-        notifyListeners();
+        // NOTIFICAR COM PROTEÇÃO - CRÍTICO!
+        _safeNotifyListeners();
+        print('📢 PROVIDER: Listeners notificados - UI deve atualizar');
         
-        print('✅ Treino removido com sucesso');
+        print('✅ PROVIDER: Treino removido com sucesso');
         
         return ApiResponse.success(
           data: true,
@@ -254,6 +303,7 @@ class TreinoProvider with ChangeNotifier {
         );
       } else {
         final errorMsg = response.message ?? 'Erro ao remover treino';
+        print('❌ PROVIDER: Erro na exclusão: $errorMsg');
         _setError(errorMsg);
         
         return ApiResponse.error(
@@ -263,6 +313,7 @@ class TreinoProvider with ChangeNotifier {
       }
     } catch (e) {
       final errorMessage = 'Erro inesperado ao remover treino: $e';
+      print('❌ PROVIDER: Exceção na exclusão: $errorMessage');
       _setError(errorMessage);
       debugPrint('❌ Erro em removerTreino: $e');
       
@@ -281,7 +332,7 @@ class TreinoProvider with ChangeNotifier {
       if (response.success && response.data != null) {
         // Opcionalmente atualizar lista local com filtro
         // _treinos = response.data!;
-        // notifyListeners();
+        // _safeNotifyListeners();
       }
       
       return response;
@@ -313,15 +364,16 @@ class TreinoProvider with ChangeNotifier {
     return _treinos.where((treino) => treino.tipoTreino == tipo).toList();
   }
 
-  /// Recarregar lista de treinos
-  Future<void> recarregar() async {
-    await listarTreinos();
+  /// Recarregar lista de treinos - CORRIGIDO COM FORCE REFRESH
+  Future<void> recarregar({bool forceRefresh = true}) async {
+    print('🔄 PROVIDER: Recarregando lista...');
+    await listarTreinos(forceRefresh: forceRefresh);
   }
 
   /// Limpar treino atual
   void limparTreinoAtual() {
     _treinoAtual = null;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Limpar lista de treinos
@@ -329,7 +381,7 @@ class TreinoProvider with ChangeNotifier {
     _treinos.clear();
     _treinoAtual = null;
     _clearError();
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Inicializar provider (chamar no app startup)
@@ -352,40 +404,76 @@ class TreinoProvider with ChangeNotifier {
     }
   }
 
-  // ===== MÉTODOS AUXILIARES PARA CONTROLE DE ESTADO =====
+  // ===== MÉTODOS AUXILIARES PARA CONTROLE DE ESTADO - CORRIGIDOS =====
 
   void _setLoading(bool loading) {
     if (_isLoading != loading) {
       _isLoading = loading;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   void _setLoadingTreino(bool loading) {
     if (_isLoadingTreino != loading) {
       _isLoadingTreino = loading;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   void _setSaving(bool saving) {
     if (_isSaving != saving) {
       _isSaving = saving;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   void _setError(String? error) {
     if (_error != error) {
       _error = error;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   void _clearError() {
     if (_error != null) {
       _error = null;
-      notifyListeners();
+      _safeNotifyListeners();
+    }
+  }
+
+  /// ✅ MÉTODO SEGURO PARA NOTIFICAR LISTENERS - SOLUÇÃO DO ERRO BUILD
+  void _safeNotifyListeners() {
+    if (_isNotifying) {
+      print('⚠️ PROVIDER: Já notificando, ignorando duplicata');
+      return;
+    }
+    
+    try {
+      // Se estamos numa fase de build, agendar para depois
+      if (SchedulerBinding.instance.schedulerPhase != SchedulerPhase.idle) {
+        print('🔄 PROVIDER: Agendando notificação para pós-build...');
+        _isNotifying = true;
+        
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (!_isNotifying) return; // Evitar dupla notificação
+          
+          try {
+            print('📢 PROVIDER: Notificando listeners pós-build');
+            notifyListeners();
+          } catch (e) {
+            print('❌ PROVIDER: Erro ao notificar pós-build: $e');
+          } finally {
+            _isNotifying = false;
+          }
+        });
+      } else {
+        // Estamos em idle, pode notificar diretamente
+        print('📢 PROVIDER: Notificando listeners diretamente');
+        notifyListeners();
+      }
+    } catch (e) {
+      print('❌ PROVIDER: Erro em _safeNotifyListeners: $e');
+      _isNotifying = false;
     }
   }
 
@@ -473,6 +561,7 @@ class TreinoProvider with ChangeNotifier {
     _treinos.clear();
     _treinoAtual = null;
     _error = null;
+    _isNotifying = false;
     super.dispose();
   }
 
@@ -488,48 +577,253 @@ class TreinoProvider with ChangeNotifier {
     }
   }
 
-  // ===== MÉTODOS PARA EXERCÍCIOS =====
+  // ========================================================================
+  // MÉTODOS PARA EXERCÍCIOS - VERSÃO CORRIGIDA COM SAFE NOTIFY
+  // ========================================================================
 
-  /// Listar exercícios de um treino
+  /// LISTAR EXERCÍCIOS DE UM TREINO
   Future<ApiResponse<List<ExercicioModel>>> listarExercicios(int treinoId) async {
     try {
-      return await TreinoService.listarExercicios(treinoId);
+      print('📋 PROVIDER: Listando exercícios do treino $treinoId');
+      
+      final response = await TreinoService.listarExercicios(treinoId);
+      
+      if (response.success) {
+        print('✅ PROVIDER: ${response.data?.length ?? 0} exercícios carregados');
+      } else {
+        print('❌ PROVIDER: Erro ao listar exercícios: ${response.message}');
+      }
+      
+      return response;
     } catch (e) {
-      debugPrint('❌ Erro em listarExercicios: $e');
+      print('❌ PROVIDER: Exceção em listarExercicios: $e');
       return ApiResponse.error(message: 'Erro inesperado: $e');
     }
   }
 
-  /// Criar exercício em um treino
+  /// CRIAR EXERCÍCIO - VERSÃO CORRIGIDA COM ATUALIZAÇÃO DE ESTADO
   Future<ApiResponse<ExercicioModel>> criarExercicio(int treinoId, ExercicioModel exercicio) async {
+    _setSaving(true);
+    _clearError();
+    
     try {
-      return await TreinoService.criarExercicio(treinoId, exercicio);
+      print('➕ PROVIDER: Criando exercício "${exercicio.nomeExercicio}" no treino $treinoId');
+      
+      // 1️⃣ CHAMAR O SERVICE
+      final response = await TreinoService.criarExercicio(treinoId, exercicio);
+      
+      print('📡 PROVIDER: Resposta da criação: success=${response.success}');
+      
+      if (response.success && response.data != null) {
+        print('✅ PROVIDER: Exercício criado com sucesso');
+        
+        // 2️⃣ CRÍTICO: RECARREGAR O TREINO ATUAL SE FOR O MESMO
+        if (_treinoAtual?.id == treinoId) {
+          print('🔄 PROVIDER: Recarregando treino atual para incluir novo exercício...');
+          
+          final treinoAtualizado = await TreinoService.buscarTreino(treinoId);
+          if (treinoAtualizado.success && treinoAtualizado.data != null) {
+            _treinoAtual = treinoAtualizado.data!;
+            print('✅ PROVIDER: Treino atual atualizado com ${_treinoAtual!.exercicios.length} exercícios');
+          }
+        }
+        
+        // 3️⃣ TAMBÉM ATUALIZAR NA LISTA GERAL SE ESTIVER CARREGADA
+        final index = _treinos.indexWhere((t) => t.id == treinoId);
+        if (index != -1) {
+          print('🔄 PROVIDER: Atualizando treino na lista geral...');
+          final treinoAtualizado = await TreinoService.buscarTreino(treinoId);
+          if (treinoAtualizado.success && treinoAtualizado.data != null) {
+            _treinos[index] = treinoAtualizado.data!;
+            print('✅ PROVIDER: Treino na lista geral atualizado');
+          }
+        }
+        
+        // 4️⃣ NOTIFICAR COM PROTEÇÃO - CRÍTICO!
+        _safeNotifyListeners();
+        print('📢 PROVIDER: Listeners notificados - UI deve atualizar');
+        
+        return response;
+      } else {
+        final errorMsg = response.message ?? 'Erro ao criar exercício';
+        print('❌ PROVIDER: Erro na criação: $errorMsg');
+        _setError(errorMsg);
+        return response;
+      }
     } catch (e) {
-      debugPrint('❌ Erro em criarExercicio: $e');
-      return ApiResponse.error(message: 'Erro inesperado: $e');
+      final errorMessage = 'Erro inesperado ao criar exercício: $e';
+      print('❌ PROVIDER: Exceção: $errorMessage');
+      _setError(errorMessage);
+      return ApiResponse.error(message: errorMessage);
+    } finally {
+      _setSaving(false);
     }
   }
 
-  /// Deletar exercício
+  /// ATUALIZAR EXERCÍCIO - VERSÃO CORRIGIDA
+  Future<ApiResponse<ExercicioModel>> atualizarExercicio(
+    int treinoId, 
+    int exercicioId, 
+    ExercicioModel exercicio
+  ) async {
+    _setSaving(true);
+    _clearError();
+    
+    try {
+      print('📝 PROVIDER: Atualizando exercício $exercicioId do treino $treinoId');
+      
+      // 1️⃣ CHAMAR O SERVICE
+      final response = await TreinoService.atualizarExercicio(treinoId, exercicioId, exercicio);
+      
+      if (response.success && response.data != null) {
+        print('✅ PROVIDER: Exercício atualizado com sucesso');
+        
+        // 2️⃣ RECARREGAR O TREINO ATUAL
+        if (_treinoAtual?.id == treinoId) {
+          print('🔄 PROVIDER: Recarregando treino atual...');
+          final treinoAtualizado = await TreinoService.buscarTreino(treinoId);
+          if (treinoAtualizado.success && treinoAtualizado.data != null) {
+            _treinoAtual = treinoAtualizado.data!;
+          }
+        }
+        
+        // 3️⃣ ATUALIZAR NA LISTA GERAL
+        final index = _treinos.indexWhere((t) => t.id == treinoId);
+        if (index != -1) {
+          final treinoAtualizado = await TreinoService.buscarTreino(treinoId);
+          if (treinoAtualizado.success && treinoAtualizado.data != null) {
+            _treinos[index] = treinoAtualizado.data!;
+          }
+        }
+        
+        // 4️⃣ NOTIFICAR COM PROTEÇÃO
+        _safeNotifyListeners();
+        print('📢 PROVIDER: Listeners notificados após atualização');
+        
+        return response;
+      } else {
+        final errorMsg = response.message ?? 'Erro ao atualizar exercício';
+        _setError(errorMsg);
+        return response;
+      }
+    } catch (e) {
+      final errorMessage = 'Erro inesperado ao atualizar exercício: $e';
+      _setError(errorMessage);
+      return ApiResponse.error(message: errorMessage);
+    } finally {
+      _setSaving(false);
+    }
+  }
+
+  /// DELETAR EXERCÍCIO - VERSÃO CORRIGIDA COM ATUALIZAÇÃO DE ESTADO
   Future<ApiResponse<bool>> deletarExercicio(int treinoId, int exercicioId) async {
+    _setSaving(true);
+    _clearError();
+    
     try {
-      return await TreinoService.deletarExercicio(treinoId, exercicioId);
+      print('🗑️ PROVIDER: Deletando exercício $exercicioId do treino $treinoId');
+      
+      // 1️⃣ CHAMAR O SERVICE
+      final response = await TreinoService.deletarExercicio(treinoId, exercicioId);
+      
+      print('📡 PROVIDER: Resposta da exclusão: success=${response.success}');
+      
+      if (response.success) {
+        print('✅ PROVIDER: Exercício deletado com sucesso');
+        
+        // 2️⃣ CRÍTICO: RECARREGAR O TREINO ATUAL
+        if (_treinoAtual?.id == treinoId) {
+          print('🔄 PROVIDER: Recarregando treino atual após exclusão...');
+          
+          final treinoAtualizado = await TreinoService.buscarTreino(treinoId);
+          if (treinoAtualizado.success && treinoAtualizado.data != null) {
+            _treinoAtual = treinoAtualizado.data!;
+            print('✅ PROVIDER: Treino atual atualizado - ${_treinoAtual!.exercicios.length} exercícios restantes');
+          }
+        }
+        
+        // 3️⃣ TAMBÉM ATUALIZAR NA LISTA GERAL
+        final index = _treinos.indexWhere((t) => t.id == treinoId);
+        if (index != -1) {
+          print('🔄 PROVIDER: Atualizando treino na lista geral...');
+          final treinoAtualizado = await TreinoService.buscarTreino(treinoId);
+          if (treinoAtualizado.success && treinoAtualizado.data != null) {
+            _treinos[index] = treinoAtualizado.data!;
+            print('✅ PROVIDER: Treino na lista geral atualizado');
+          }
+        }
+        
+        // 4️⃣ NOTIFICAR COM PROTEÇÃO - CRÍTICO!
+        _safeNotifyListeners();
+        print('📢 PROVIDER: Listeners notificados - exercício deve sumir da UI');
+        
+        return response;
+      } else {
+        final errorMsg = response.message ?? 'Erro ao deletar exercício';
+        print('❌ PROVIDER: Erro na exclusão: $errorMsg');
+        _setError(errorMsg);
+        return response;
+      }
     } catch (e) {
-      debugPrint('❌ Erro em deletarExercicio: $e');
-      return ApiResponse.error(message: 'Erro inesperado: $e');
+      final errorMessage = 'Erro inesperado ao deletar exercício: $e';
+      print('❌ PROVIDER: Exceção: $errorMessage');
+      _setError(errorMessage);
+      return ApiResponse.error(message: errorMessage);
+    } finally {
+      _setSaving(false);
     }
   }
 
-  /// Reordenar exercícios
+  /// REORDENAR EXERCÍCIOS - VERSÃO CORRIGIDA
   Future<ApiResponse<bool>> reordenarExercicios(
     int treinoId,
     List<Map<String, dynamic>> exerciciosOrdenados,
   ) async {
+    _setSaving(true);
+    _clearError();
+    
     try {
-      return await TreinoService.reordenarExercicios(treinoId, exerciciosOrdenados);
+      print('🔄 PROVIDER: Reordenando exercícios do treino $treinoId');
+      
+      // 1️⃣ CHAMAR O SERVICE
+      final response = await TreinoService.reordenarExercicios(treinoId, exerciciosOrdenados);
+      
+      if (response.success) {
+        print('✅ PROVIDER: Exercícios reordenados com sucesso');
+        
+        // 2️⃣ RECARREGAR O TREINO ATUAL
+        if (_treinoAtual?.id == treinoId) {
+          final treinoAtualizado = await TreinoService.buscarTreino(treinoId);
+          if (treinoAtualizado.success && treinoAtualizado.data != null) {
+            _treinoAtual = treinoAtualizado.data!;
+          }
+        }
+        
+        // 3️⃣ ATUALIZAR NA LISTA GERAL
+        final index = _treinos.indexWhere((t) => t.id == treinoId);
+        if (index != -1) {
+          final treinoAtualizado = await TreinoService.buscarTreino(treinoId);
+          if (treinoAtualizado.success && treinoAtualizado.data != null) {
+            _treinos[index] = treinoAtualizado.data!;
+          }
+        }
+        
+        // 4️⃣ NOTIFICAR COM PROTEÇÃO
+        _safeNotifyListeners();
+        print('📢 PROVIDER: Listeners notificados após reordenação');
+        
+        return response;
+      } else {
+        final errorMsg = response.message ?? 'Erro ao reordenar exercícios';
+        _setError(errorMsg);
+        return response;
+      }
     } catch (e) {
-      debugPrint('❌ Erro em reordenarExercicios: $e');
-      return ApiResponse.error(message: 'Erro inesperado: $e');
+      final errorMessage = 'Erro inesperado ao reordenar exercícios: $e';
+      _setError(errorMessage);
+      return ApiResponse.error(message: errorMessage);
+    } finally {
+      _setSaving(false);
     }
   }
 }

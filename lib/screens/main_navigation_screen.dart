@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart'; // ✅ ADICIONADO: Para kDebugMode
 import 'package:provider/provider.dart';
 import '../providers/auth_provider_google.dart';
+import '../providers/treino_provider.dart'; // ✅ NOVO: Import do provider
 import '../core/theme/sport_theme.dart';
 import 'home/home_dashboard_screen.dart';
 import 'treino/treinos_library_screen.dart';
 import 'stats_screen.dart';
 import 'profile_screen.dart';
 
-/// 🏗️ Tela principal com navegação por abas (SEM SCROLL LATERAL)
+/// 🗂️ Tela principal com navegação por abas - VERSÃO SEM OVERFLOW
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+  /// 🔧 Parâmetro para definir tab inicial
+  final int initialTab;
+  
+  const MainNavigationScreen({
+    super.key,
+    this.initialTab = 0, // Home por padrão
+  });
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -19,10 +27,14 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> 
     with TickerProviderStateMixin {
   
-  int _currentIndex = 0;
+  late int _currentIndex;
   late AnimationController _animationController;
+  late PageController _pageController; // ✅ NOVO: PageController para controle manual
   
-  // Lista de telas
+  // ✅ NOVO: Controle de refresh por aba
+  final Map<int, DateTime> _lastTabRefresh = {};
+  
+  // Lista de telas - ✅ MUDANÇA: Não usar IndexedStack
   late final List<Widget> _screens;
   
   // Dados das abas
@@ -57,6 +69,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   void initState() {
     super.initState();
     
+    // ✅ Usar initialTab do widget
+    _currentIndex = widget.initialTab;
+    
+    // ✅ NOVO: Configurar PageController
+    _pageController = PageController(initialPage: _currentIndex);
+    
     // Configurar status bar
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
@@ -73,31 +91,99 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
       vsync: this,
     );
     
-    // Inicializar telas
+    // ✅ MUDANÇA: Usar widgets que podem ser recriados
     _screens = [
       const HomeDashboardScreen(),
       const TreinosLibraryScreen(),
       const StatsScreen(),
       const ProfileScreen(),
     ];
+    
+    // ✅ NOVO: Marcar refresh inicial
+    _lastTabRefresh[_currentIndex] = DateTime.now();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _pageController.dispose(); // ✅ NOVO: Dispose do PageController
     super.dispose();
   }
 
-  /// Navegar para aba específica (SEM SCROLL)
-  void _onTabTapped(int index) {
+  /// ✅ NOVO: Verificar se precisa refresh automático na aba
+  Future<void> _verificarRefreshAba(int index) async {
+    final agora = DateTime.now();
+    final ultimoRefresh = _lastTabRefresh[index];
+    
+    // Se nunca foi refreshado ou passou mais de 10 segundos
+    if (ultimoRefresh == null || agora.difference(ultimoRefresh).inSeconds > 10) {
+      print('🔄 NAV: Aba $index precisa refresh (${ultimoRefresh != null ? agora.difference(ultimoRefresh).inSeconds : 'nunca'} segundos)');
+      
+      // ✅ Refresh específico por tipo de aba
+      await _refreshAbaEspecifica(index);
+      
+      // Marcar como refreshado
+      _lastTabRefresh[index] = agora;
+    } else {
+      print('✅ NAV: Aba $index não precisa refresh (${agora.difference(ultimoRefresh).inSeconds} segundos)');
+    }
+  }
+
+  /// ✅ NOVO: Refresh específico por aba
+  Future<void> _refreshAbaEspecifica(int index) async {
+    if (!mounted) return;
+    
+    switch (index) {
+      case 0: // Home
+        print('🏠 NAV: Refreshing Home...');
+        // Home normalmente se atualiza sozinho
+        break;
+        
+      case 1: // Treinos (CRÍTICO!)
+        print('🏋️ NAV: Refreshing Treinos...');
+        try {
+          final treinoProvider = context.read<TreinoProvider>();
+          await treinoProvider.recarregar(); // Força refresh no provider
+          print('✅ NAV: Treinos refreshed via provider');
+        } catch (e) {
+          print('❌ NAV: Erro ao refresh treinos: $e');
+        }
+        break;
+        
+      case 2: // Stats
+        print('📊 NAV: Refreshing Stats...');
+        // Stats podem precisar de refresh específico
+        break;
+        
+      case 3: // Perfil
+        print('👤 NAV: Refreshing Profile...');
+        // Perfil normalmente não precisa refresh frequente
+        break;
+    }
+  }
+
+  /// ✅ MUDANÇA: Navegar para aba com refresh automático
+  Future<void> _onTabTapped(int index) async {
     if (index == _currentIndex) return;
     
     // Feedback háptico suave
     HapticFeedback.lightImpact();
     
+    print('🔄 NAV: Navegando para aba $index (vinha da $_currentIndex)');
+    
+    // ✅ NOVO: Verificar se a aba destino precisa refresh
+    await _verificarRefreshAba(index);
+    
     setState(() {
       _currentIndex = index;
     });
+    
+    // ✅ NOVO: Navegar via PageController (suave)
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
     
     // Animar indicador
     _animationController.forward().then((_) {
@@ -186,8 +272,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
         return Scaffold(
           backgroundColor: SportColors.background,
-          body: IndexedStack( // ✅ MUDANÇA: IndexedStack em vez de PageView
-            index: _currentIndex,
+          // 🔥 REMOVIDO: appBar que causava overflow
+          body: PageView( // ✅ MUDANÇA: PageView em vez de IndexedStack
+            controller: _pageController,
+            onPageChanged: (index) {
+              // Sincronizar com a navegação por tab
+              if (index != _currentIndex) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              }
+            },
             children: _screens,
           ),
           bottomNavigationBar: _buildBottomNavigation(),
@@ -252,14 +347,12 @@ class NavigationTab {
 extension MainNavigationExtension on BuildContext {
   /// Navegar para tab específica
   void navigateToTab(int index) {
-    final navigator = Navigator.of(this);
-    if (navigator.canPop()) {
-      navigator.pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const MainNavigationScreen(),
-        ),
-      );
-    }
+    Navigator.pushReplacement(
+      this,
+      MaterialPageRoute(
+        builder: (context) => MainNavigationScreen(initialTab: index),
+      ),
+    );
   }
   
   /// Navegar para Home

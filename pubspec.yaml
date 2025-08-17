@@ -10,6 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  visibility_detector: ^0.4.0+2
 
   # ===== AUTENTICAÇÃO GOOGLE =====
   google_sign_in: ^6.2.1              # Google Sign In oficial

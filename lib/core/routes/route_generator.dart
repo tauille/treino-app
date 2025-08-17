@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../../screens/auth/auth_wrapper.dart';
 import '../../screens/auth/google_login_screen.dart';
 import '../../screens/home/home_screen.dart'; // Manter para compatibilidade
-import '../../screens/treino/meus_treinos_screen.dart'; // Manter para compatibilidade
+//import '../../screens/treino/meus_treinos_screen.dart'; // Manter para compatibilidade
+import '../../screens/treino/treinos_library_screen.dart';
 import '../../screens/treino/criar_treino_screen.dart';
 import '../../screens/treino/detalhes_treino_screen.dart';
 import '../../screens/treino/treino_preparacao_screen.dart';

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/treino_provider.dart';
 import '../../models/treino_model.dart';
+import '../treino/criar_treino_screen.dart';
+import '../treino/detalhes_treino_screen.dart';
 
 class TreinosTab extends StatefulWidget {
   const TreinosTab({super.key});
@@ -11,7 +13,9 @@ class TreinosTab extends StatefulWidget {
   State<TreinosTab> createState() => _TreinosTabState();
 }
 
-class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
+class _TreinosTabState extends State<TreinosTab> 
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   
@@ -23,13 +27,16 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
   bool _isLoading = false;
   String? _errorMessage;
   
+  // 🔧 NOVO: Variável para controlar última atualização
+  String _ultimoHashProvider = '';
+  
   // Filtros
   String? _filtroTipo;
   String? _filtroDificuldade;
   String _textoBusca = '';
   
-  // 🔧 CORREÇÃO: CONTROLE DE DISPOSED PARA EVITAR MEMORY LEAKS
-  bool _isDisposed = false;
+  @override
+  bool get wantKeepAlive => true;
   
   // Opções de filtro
   final List<String> _tiposTreino = [
@@ -53,40 +60,26 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    print('🚀 [DEBUG] TreinosTab initState iniciado');
-    
     _setupAnimations();
-    
-    // Listener para busca em tempo real
     _searchController.addListener(_onSearchChanged);
     
-    // 🔧 CORREÇÃO: Mover carregamento para após build completo
+    // 🔧 CORREÇÃO DEFINITIVA: POST FRAME CALLBACK
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_isDisposed && mounted) {
-        print('🚀 [DEBUG] PostFrameCallback - carregando treinos...');
-        _carregarTreinosSeguro();
+      if (mounted) {
+        _carregarTreinos();
       }
     });
   }
 
   @override
   void dispose() {
-    print('🧹 [DEBUG] TreinosTab dispose iniciado');
-    
-    // 🔧 CORREÇÃO: MARCAR COMO DISPOSED PRIMEIRO
-    _isDisposed = true;
-    
-    // Limpar controladores e animações
     _fadeController.dispose();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
-    
     super.dispose();
-    print('✅ [DEBUG] TreinosTab dispose finalizado');
   }
 
-  /// Configurar animações
   void _setupAnimations() {
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 600),
@@ -104,94 +97,85 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     _fadeController.forward();
   }
 
-  /// 🔧 CORREÇÃO: CARREGAR TREINOS DE FORMA SEGURA
-  Future<void> _carregarTreinosSeguro() async {
-    if (_isDisposed || !mounted) {
-      print('⚠️ [DEBUG] Carregamento cancelado - widget disposed/unmounted');
-      return;
-    }
+  /// 🔧 CORREÇÃO: Carregar treinos sem setState durante build
+  Future<void> _carregarTreinos() async {
+    if (!mounted) return;
     
-    print('🔄 [DEBUG] Iniciando carregamento seguro de treinos...');
-    
-    // 🔧 CORREÇÃO: USAR FUTURE.MICROTASK PARA EVITAR setState DURANTE BUILD
-    Future.microtask(() {
-      if (_isDisposed || !mounted) return;
-      
+    if (mounted) {
       setState(() {
         _isLoading = true;
         _errorMessage = null;
       });
-    });
+    }
 
     try {
-      // 🔧 CORREÇÃO: USAR read() EM VEZ DE watch() PARA EVITAR REBUILD
       final treinoProvider = context.read<TreinoProvider>();
-      
-      print('🔄 [DEBUG] Chamando TreinoProvider.listarTreinos()...');
       final response = await treinoProvider.listarTreinos();
       
-      // 🔧 CORREÇÃO: VERIFICAR SE AINDA ESTÁ MONTADO ANTES DE ATUALIZAR
-      if (_isDisposed || !mounted) {
-        print('⚠️ [DEBUG] Widget foi disposed durante carregamento');
-        return;
-      }
-      
-      print('🔄 [DEBUG] Resposta recebida: success=${response.success}');
-      print('🔄 [DEBUG] Dados: ${response.data?.length ?? 0} treinos');
-      print('🔄 [DEBUG] Mensagem: ${response.message}');
+      if (!mounted) return;
       
       if (response.success && response.data != null) {
-        print('✅ [DEBUG] Atualizando lista local com ${response.data!.length} treinos');
-        
-        // 🔧 CORREÇÃO: USAR FUTURE.MICROTASK PARA ATUALIZAÇÃO SEGURA
-        Future.microtask(() {
-          if (_isDisposed || !mounted) return;
-          
+        if (mounted) {
           setState(() {
             _todosTreinos = response.data!;
             _aplicarFiltros();
           });
-        });
-        
-        print('✅ [DEBUG] Lista atualizada: ${_todosTreinos.length} treinos');
+        }
       } else {
-        print('❌ [DEBUG] Erro na resposta: ${response.message}');
-        
-        Future.microtask(() {
-          if (_isDisposed || !mounted) return;
-          
+        if (mounted) {
           setState(() {
             _errorMessage = response.message ?? 'Erro ao carregar treinos';
           });
-        });
+        }
       }
     } catch (e) {
-      print('❌ [DEBUG] Exceção capturada: $e');
-      
-      Future.microtask(() {
-        if (_isDisposed || !mounted) return;
-        
+      if (mounted) {
         setState(() {
           _errorMessage = 'Erro ao carregar treinos: $e';
         });
-      });
+      }
     } finally {
-      // 🔧 CORREÇÃO: FINALIZAR LOADING DE FORMA SEGURA
-      Future.microtask(() {
-        if (_isDisposed || !mounted) return;
-        
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
-      });
-      
-      print('🏁 [DEBUG] Carregamento finalizado com segurança');
+      }
     }
   }
 
-  /// 🔧 CORREÇÃO: Busca em tempo real com verificação de segurança
+  // 🔧 NOVO: Método para gerar hash dos treinos (detectar mudanças)
+  String _gerarHashTreinos(List<TreinoModel> treinos) {
+    if (treinos.isEmpty) return 'empty';
+    
+    final buffer = StringBuffer();
+    for (final treino in treinos) {
+      buffer.write('${treino.id}:');
+      buffer.write('${treino.nomeTreino}:');
+      buffer.write('${treino.exercicios.length}:');
+      buffer.write('${treino.totalExercicios ?? 0}:');
+      buffer.write('${treino.updatedAt?.millisecondsSinceEpoch ?? 0};');
+    }
+    return buffer.toString();
+  }
+
+  // 🔧 NOVO: Método para detectar se precisa atualizar
+  bool _precisaAtualizar(List<TreinoModel> treinosProvider) {
+    final novoHash = _gerarHashTreinos(treinosProvider);
+    final precisaAtualizar = _ultimoHashProvider != novoHash;
+    
+    if (precisaAtualizar) {
+      print('🔄 TREINOS_TAB: Mudança detectada!');
+      print('   • Hash anterior: ${_ultimoHashProvider.substring(0, 50)}...');
+      print('   • Hash novo: ${novoHash.substring(0, 50)}...');
+      print('   • Treinos provider: ${treinosProvider.length}');
+      print('   • Treinos locais: ${_todosTreinos.length}');
+    }
+    
+    return precisaAtualizar;
+  }
+
   void _onSearchChanged() {
-    if (_isDisposed || !mounted) return;
+    if (!mounted) return;
     
     setState(() {
       _textoBusca = _searchController.text.toLowerCase();
@@ -199,23 +183,19 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     });
   }
 
-  /// Aplicar todos os filtros (sem setState direto)
   void _aplicarFiltros() {
     List<TreinoModel> filtrados = List.from(_todosTreinos);
 
-    // Filtro por tipo
     if (_filtroTipo != null && _filtroTipo != 'Todos') {
       filtrados = filtrados.where((treino) => 
         treino.tipoTreino.toLowerCase() == _filtroTipo!.toLowerCase()).toList();
     }
 
-    // Filtro por dificuldade
     if (_filtroDificuldade != null && _filtroDificuldade != 'Todas') {
       filtrados = filtrados.where((treino) => 
         treino.dificuldade?.toLowerCase() == _filtroDificuldade!.toLowerCase()).toList();
     }
 
-    // Filtro por busca
     if (_textoBusca.isNotEmpty) {
       filtrados = filtrados.where((treino) =>
         treino.nomeTreino.toLowerCase().contains(_textoBusca) ||
@@ -224,13 +204,11 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
       ).toList();
     }
 
-    // 🔧 CORREÇÃO: ATUALIZAR _treinosFiltrados SEM setState (será chamado pelo caller)
     _treinosFiltrados = filtrados;
   }
 
-  /// 🔧 CORREÇÃO: Limpar filtros com verificação de segurança
   void _limparFiltros() {
-    if (_isDisposed || !mounted) return;
+    if (!mounted) return;
     
     setState(() {
       _filtroTipo = null;
@@ -245,67 +223,116 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    // 🔧 CORREÇÃO: VERIFICAÇÃO DE SEGURANÇA NO BUILD
-    if (_isDisposed) {
-      return const SizedBox.shrink();
-    }
+    super.build(context); // Para AutomaticKeepAliveClientMixin
     
-    return Scaffold(
-      backgroundColor: const Color(0xFF1A1D29),
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: Column(
-            children: [
-              // Header e busca
-              _buildHeader(),
+    // 🚀 CORREÇÃO PRINCIPAL: CONSUMER CORRIGIDO COM LÓGICA ROBUSTA
+    return Consumer<TreinoProvider>(
+      builder: (context, treinoProvider, child) {
+        
+        // ✅ LÓGICA CORRIGIDA: Detectar mudanças de forma inteligente
+        if (_precisaAtualizar(treinoProvider.treinos)) {
+          // ✅ ATUALIZAR SEM PostFrameCallback (mais direto)
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _todosTreinos = List.from(treinoProvider.treinos); // Cópia para evitar referência
+                _ultimoHashProvider = _gerarHashTreinos(treinoProvider.treinos); // Atualizar hash
+                _aplicarFiltros();
+              });
+              print('✅ TREINOS_TAB: Lista atualizada - ${_todosTreinos.length} treinos');
               
-              // Filtros
-              _buildFiltros(),
-              
-              // Lista de treinos
-              Expanded(
-                child: _buildConteudo(),
+              // ✅ LOG DETALHADO DOS TREINOS ATUALIZADOS
+              for (int i = 0; i < _todosTreinos.length; i++) {
+                final treino = _todosTreinos[i];
+                final exerciciosCount = treino.exercicios.isNotEmpty 
+                    ? treino.exercicios.length 
+                    : (treino.totalExercicios ?? 0);
+                print('   • Treino ${i + 1}: ${treino.nomeTreino} (${exerciciosCount} exercícios)');
+              }
+            }
+          });
+        }
+        
+        return Scaffold(
+          backgroundColor: const Color(0xFF1A1D29),
+          body: SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  _buildFiltros(),
+                  Expanded(
+                    child: _buildConteudo(),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          if (_isDisposed || !mounted) return;
-          
-          print('🚀 [DEBUG] Navegando para criar treino...');
-          try {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Navegação para criar treino será implementada!'),
-                backgroundColor: Color(0xFFFF8C42),
-              ),
-            );
-          } catch (e) {
-            print('❌ [DEBUG] Erro ao navegar: $e');
-          }
-        },
-        backgroundColor: const Color(0xFFFF8C42),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text(
-          'Novo Treino',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _criarNovoTreino(context),
+            backgroundColor: const Color(0xFFFF8C42),
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.add),
+            label: const Text(
+              'Novo Treino',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  /// Header com busca (sem alterações significativas)
+  /// ✅ CRIAR NOVO TREINO - COM REFRESH AUTOMÁTICO
+  void _criarNovoTreino(BuildContext context) {
+    if (!mounted) return;
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CriarTreinoScreen(),
+      ),
+    ).then((result) async {
+      print('🔄 TREINOS_TAB: Voltou da tela de criar treino');
+      
+      // ✅ CORREÇÃO: FORÇA REFRESH APÓS CRIAR/EDITAR
+      if (mounted) {
+        final treinoProvider = context.read<TreinoProvider>();
+        await treinoProvider.recarregar();
+        print('✅ TREINOS_TAB: Provider recarregado após criar treino');
+      }
+    });
+  }
+
+  /// ✅ INICIAR TREINO - COM REFRESH AUTOMÁTICO  
+  void _iniciarTreino(TreinoModel treino) {
+    if (!mounted) return;
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DetalhesTreinoScreen(treino: treino),
+      ),
+    ).then((result) async {
+      print('🔄 TREINOS_TAB: Voltou da tela de detalhes');
+      
+      // ✅ CORREÇÃO: FORÇA REFRESH APÓS VER DETALHES/EDITAR
+      if (mounted) {
+        final treinoProvider = context.read<TreinoProvider>();
+        await treinoProvider.recarregar();
+        print('✅ TREINOS_TAB: Provider recarregado após detalhes');
+      }
+    });
+  }
+
+  /// Header sem overflow
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Título
           Row(
             children: [
               Container(
@@ -317,16 +344,19 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                'BIBLIOTECA',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
+              Expanded(
+                child: Text(
+                  'BIBLIOTECA',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
               if (_isLoading)
                 const SizedBox(
                   width: 20,
@@ -343,8 +373,8 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
           
           Text(
             _treinosFiltrados.isEmpty 
-              ? '0 treinos disponíveis'
-              : '${_treinosFiltrados.length} treinos disponíveis',
+              ? '0 treinos'
+              : '${_treinosFiltrados.length} treinos',
             style: const TextStyle(
               color: Color(0xFF9CA3AF),
               fontSize: 14,
@@ -352,9 +382,9 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
             ),
           ),
           
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           
-          // 🔧 CORREÇÃO: Campo de busca com verificação de disposed
+          // Campo de busca
           Container(
             decoration: BoxDecoration(
               color: const Color(0xFF2A2D3A),
@@ -390,7 +420,7 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
                         color: Color(0xFF9CA3AF),
                       ),
                       onPressed: () {
-                        if (_isDisposed || !mounted) return;
+                        if (!mounted) return;
                         _searchController.clear();
                         _searchFocusNode.unfocus();
                       },
@@ -409,22 +439,20 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     );
   }
 
-  /// Filtros horizontais (sem alterações significativas)
+  /// 🔧 CORREÇÃO: Filtros sem overflow
   Widget _buildFiltros() {
     final temFiltros = _filtroTipo != null || 
                       _filtroDificuldade != null || 
                       _textoBusca.isNotEmpty;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          // Chips de filtro
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                // Filtro por tipo
                 _buildChipFiltro(
                   'Tipo',
                   _filtroTipo ?? 'Todos',
@@ -434,7 +462,6 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
                 
                 const SizedBox(width: 12),
                 
-                // Filtro por dificuldade
                 _buildChipFiltro(
                   'Dificuldade',
                   _filtroDificuldade ?? 'Todas',
@@ -444,7 +471,6 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
                 
                 const SizedBox(width: 12),
                 
-                // Limpar filtros
                 if (temFiltros)
                   GestureDetector(
                     onTap: _limparFiltros,
@@ -486,13 +512,13 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
             ),
           ),
           
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  /// Chip de filtro (sem alterações)
+  /// Chip de filtro simplificado
   Widget _buildChipFiltro(
     String label,
     String valor,
@@ -505,7 +531,10 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 8,
+        ),
         decoration: BoxDecoration(
           color: isAtivo 
             ? const Color(0xFF4ECDC4).withOpacity(0.1)
@@ -553,15 +582,8 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     );
   }
 
-  /// 🔧 CORREÇÃO: Conteúdo principal com verificações de segurança
   Widget _buildConteudo() {
-    print('🖼️ [DEBUG] Construindo conteúdo...');
-    print('🖼️ [DEBUG] isLoading: $_isLoading');
-    print('🖼️ [DEBUG] treinos filtrados: ${_treinosFiltrados.length}');
-    print('🖼️ [DEBUG] erro: $_errorMessage');
-    
     if (_isLoading) {
-      print('🖼️ [DEBUG] Exibindo loading...');
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -583,7 +605,6 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     }
     
     if (_errorMessage != null) {
-      print('🖼️ [DEBUG] Exibindo erro: $_errorMessage');
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -623,8 +644,8 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: () {
-                  if (_isDisposed || !mounted) return;
-                  _carregarTreinosSeguro();
+                  if (!mounted) return;
+                  _carregarTreinos();
                 },
                 icon: const Icon(Icons.refresh),
                 label: const Text('Tentar novamente'),
@@ -640,7 +661,6 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     }
     
     if (_treinosFiltrados.isEmpty) {
-      print('🖼️ [DEBUG] Lista vazia - exibindo empty state');
       final temFiltros = _filtroTipo != null || 
                         _filtroDificuldade != null || 
                         _textoBusca.isNotEmpty;
@@ -687,10 +707,7 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: temFiltros ? _limparFiltros : () {
-                  if (_isDisposed || !mounted) return;
-                  // TODO: criar treino
-                },
+                onPressed: temFiltros ? _limparFiltros : () => _criarNovoTreino(context),
                 icon: Icon(temFiltros ? Icons.clear : Icons.add),
                 label: Text(temFiltros ? 'Limpar filtros' : 'Criar primeiro treino'),
                 style: ElevatedButton.styleFrom(
@@ -706,33 +723,26 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
       );
     }
     
-    print('🖼️ [DEBUG] Exibindo lista com ${_treinosFiltrados.length} treinos');
     return RefreshIndicator(
-      onRefresh: () async {
-        if (_isDisposed || !mounted) return;
-        await _carregarTreinosSeguro();
-      },
+      onRefresh: _carregarTreinos,
       color: const Color(0xFF4ECDC4),
       backgroundColor: const Color(0xFF2A2D3A),
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: _treinosFiltrados.length,
         itemBuilder: (context, index) {
-          if (_isDisposed || !mounted) {
+          if (!mounted) {
             return const SizedBox.shrink();
           }
           final treino = _treinosFiltrados[index];
-          print('🖼️ [DEBUG] Construindo card para treino: ${treino.nomeTreino}');
           return _buildCardTreino(treino);
         },
       ),
     );
   }
 
-  /// Card do treino (mantendo toda funcionalidade existente)
+  /// 🔧 CORREÇÃO PRINCIPAL: Card TOTALMENTE REDESENHADO sem overflow
   Widget _buildCardTreino(TreinoModel treino) {
-    print('🎴 [DEBUG] Construindo card para: ${treino.nomeTreino} (ID: ${treino.id})');
-    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -746,41 +756,38 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            if (_isDisposed || !mounted) return;
-            print('🎴 [DEBUG] Card clicado: ${treino.nomeTreino}');
-            // TODO: navegar para detalhes
-          },
+          onTap: () => _iniciarTreino(treino),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Header do card com menu de ações
+                // 🔧 CORREÇÃO: Header simplificado sem overflow
                 Row(
                   children: [
-                    // Ícone do treino
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         color: _getCorTreino(treino.dificuldade).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         _getIconeTreino(treino.tipoTreino),
                         color: _getCorTreino(treino.dificuldade),
-                        size: 24,
+                        size: 20,
                       ),
                     ),
                     
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     
-                    // Nome e tipo
+                    // 🔧 CORREÇÃO: Textos com Expanded garantido
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             treino.nomeTreino,
@@ -792,49 +799,56 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             treino.tipoTreino,
                             style: const TextStyle(
                               color: Color(0xFF9CA3AF),
-                              fontSize: 14,
+                              fontSize: 13,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
-                      ),
-                    ),
-                    
-                    // Badge de dificuldade
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getCorTreino(treino.dificuldade).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        _getDificuldadeTexto(treino.dificuldade),
-                        style: TextStyle(
-                          color: _getCorTreino(treino.dificuldade),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                        ),
                       ),
                     ),
                   ],
                 ),
                 
-                // Descrição
+                const SizedBox(height: 12),
+                
+                // 🔧 CORREÇÃO: Badge de dificuldade separado
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getCorTreino(treino.dificuldade).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      _getDificuldadeTexto(treino.dificuldade),
+                      style: TextStyle(
+                        color: _getCorTreino(treino.dificuldade),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Descrição se existir
                 if (treino.descricao != null && treino.descricao!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(
                     treino.descricao!,
                     style: const TextStyle(
                       color: Color(0xFF9CA3AF),
-                      fontSize: 14,
+                      fontSize: 13,
                       height: 1.4,
                     ),
                     maxLines: 2,
@@ -842,65 +856,53 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
                   ),
                 ],
                 
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 
-                // Info e ações
-                Row(
+                // 🔧 CORREÇÃO PRINCIPAL: Footer sem overflow usando Column
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Estatísticas
-                    Expanded(
-                      child: Row(
-                        children: [
-                          _buildInfoChip(
-                            Icons.fitness_center,
-                            '${treino.totalExercicios ?? 0} ex',
-                          ),
-                          const SizedBox(width: 8),
-                          _buildInfoChip(
-                            Icons.schedule,
-                            treino.duracaoFormatada ?? '0 min',
-                          ),
-                        ],
-                      ),
+                    // Estatísticas em linha simples
+                    Row(
+                      children: [
+                        _buildInfoTag(
+                          Icons.fitness_center,
+                          '${treino.exercicios.isNotEmpty ? treino.exercicios.length : (treino.totalExercicios ?? 0)} ex',
+                        ),
+                        const SizedBox(width: 8),
+                        _buildInfoTag(
+                          Icons.schedule,
+                          treino.duracaoFormatada ?? '0min',
+                        ),
+                      ],
                     ),
                     
-                    // 🔧 CORREÇÃO: Botão de iniciar com verificação de disposed
-                    Container(
+                    const SizedBox(height: 12),
+                    
+                    // Botão iniciar em linha separada
+                    SizedBox(
+                      width: double.infinity,
                       height: 36,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF4ECDC4),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () {
-                            if (_isDisposed || !mounted) return;
-                            print('🎴 [DEBUG] Botão iniciar clicado para: ${treino.nomeTreino}');
-                            // TODO: iniciar treino
-                          },
-                          borderRadius: BorderRadius.circular(18),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.play_arrow,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Iniciar',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
+                      child: ElevatedButton.icon(
+                        onPressed: () => _iniciarTreino(treino),
+                        icon: const Icon(
+                          Icons.play_arrow,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          'Iniciar Treino',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4ECDC4),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                       ),
@@ -915,13 +917,16 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     );
   }
 
-  /// Chip de informação (sem alterações)
-  Widget _buildInfoChip(IconData icon, String text) {
+  /// 🔧 NOVO: Tag de informação minimalista (sem overflow)
+  Widget _buildInfoTag(IconData icon, String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFF374151),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -929,14 +934,14 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
           Icon(
             icon,
             color: const Color(0xFF9CA3AF),
-            size: 14,
+            size: 12,
           ),
           const SizedBox(width: 4),
           Text(
             text,
             style: const TextStyle(
               color: Color(0xFF9CA3AF),
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -945,9 +950,8 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     );
   }
 
-  /// 🔧 CORREÇÃO: Mostrar filtro de tipo com verificação
   void _mostrarFiltroTipo() {
-    if (_isDisposed || !mounted) return;
+    if (!mounted) return;
     
     showModalBottomSheet(
       context: context,
@@ -957,7 +961,7 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
         _tiposTreino,
         _filtroTipo ?? 'Todos',
         (valor) {
-          if (_isDisposed || !mounted) return;
+          if (!mounted) return;
           setState(() {
             _filtroTipo = valor == 'Todos' ? null : valor;
             _aplicarFiltros();
@@ -967,9 +971,8 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     );
   }
 
-  /// 🔧 CORREÇÃO: Mostrar filtro de dificuldade com verificação
   void _mostrarFiltroDificuldade() {
-    if (_isDisposed || !mounted) return;
+    if (!mounted) return;
     
     showModalBottomSheet(
       context: context,
@@ -979,7 +982,7 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
         _dificuldades,
         _filtroDificuldade ?? 'Todas',
         (valor) {
-          if (_isDisposed || !mounted) return;
+          if (!mounted) return;
           setState(() {
             _filtroDificuldade = valor == 'Todas' ? null : valor;
             _aplicarFiltros();
@@ -989,7 +992,6 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     );
   }
 
-  /// Bottom sheet de filtro (sem alterações significativas)
   Widget _buildBottomSheetFiltro(
     String titulo,
     List<String> opcoes,
@@ -997,6 +999,9 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     Function(String) onSelected,
   ) {
     return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.6,
+      ),
       decoration: const BoxDecoration(
         color: Color(0xFF2A2D3A),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1004,7 +1009,6 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
           Container(
             width: 40,
             height: 4,
@@ -1015,7 +1019,6 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
             ),
           ),
           
-          // Título
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
@@ -1030,54 +1033,55 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
           
           const SizedBox(height: 20),
           
-          // Opções
-          ListView.builder(
-            shrinkWrap: true,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: opcoes.length,
-            itemBuilder: (context, index) {
-              final opcao = opcoes[index];
-              final isSelected = opcao == valorAtual;
-              
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: isSelected 
-                    ? const Color(0xFF4ECDC4).withOpacity(0.1)
-                    : const Color(0xFF374151),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: opcoes.length,
+              itemBuilder: (context, index) {
+                final opcao = opcoes[index];
+                final isSelected = opcao == valorAtual;
+                
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
                     color: isSelected 
-                      ? const Color(0xFF4ECDC4)
-                      : const Color(0xFF4B5563),
-                    width: 1,
-                  ),
-                ),
-                child: ListTile(
-                  title: Text(
-                    _getDificuldadeTexto(opcao),
-                    style: TextStyle(
+                      ? const Color(0xFF4ECDC4).withOpacity(0.1)
+                      : const Color(0xFF374151),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
                       color: isSelected 
                         ? const Color(0xFF4ECDC4)
-                        : Colors.white,
-                      fontWeight: isSelected 
-                        ? FontWeight.w600 
-                        : FontWeight.normal,
+                        : const Color(0xFF4B5563),
+                      width: 1,
                     ),
                   ),
-                  trailing: isSelected
-                    ? const Icon(
-                        Icons.check,
-                        color: Color(0xFF4ECDC4),
-                      )
-                    : null,
-                  onTap: () {
-                    onSelected(opcao);
-                    Navigator.pop(context);
-                  },
-                ),
-              );
-            },
+                  child: ListTile(
+                    title: Text(
+                      _getDificuldadeTexto(opcao),
+                      style: TextStyle(
+                        color: isSelected 
+                          ? const Color(0xFF4ECDC4)
+                          : Colors.white,
+                        fontWeight: isSelected 
+                          ? FontWeight.w600 
+                          : FontWeight.normal,
+                      ),
+                    ),
+                    trailing: isSelected
+                      ? const Icon(
+                          Icons.check,
+                          color: Color(0xFF4ECDC4),
+                        )
+                      : null,
+                    onTap: () {
+                      onSelected(opcao);
+                      Navigator.pop(context);
+                    },
+                  ),
+                );
+              },
+            ),
           ),
           
           const SizedBox(height: 20),
@@ -1086,7 +1090,6 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     );
   }
 
-  /// Obter cor do treino baseada na dificuldade (sem alterações)
   Color _getCorTreino(String? dificuldade) {
     switch (dificuldade?.toLowerCase()) {
       case 'iniciante':
@@ -1100,7 +1103,6 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     }
   }
 
-  /// Obter ícone do treino baseado no tipo (sem alterações)
   IconData _getIconeTreino(String tipo) {
     switch (tipo.toLowerCase()) {
       case 'musculação':
@@ -1122,7 +1124,6 @@ class _TreinosTabState extends State<TreinosTab> with TickerProviderStateMixin {
     }
   }
 
-  /// Obter texto da dificuldade formatado (sem alterações)
   String _getDificuldadeTexto(String? dificuldade) {
     switch (dificuldade?.toLowerCase()) {
       case 'iniciante':
