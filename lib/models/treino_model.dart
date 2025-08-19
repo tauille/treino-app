@@ -1,3 +1,4 @@
+import '../core/extensions/safe_conversions.dart';
 import 'package:flutter/material.dart';
 
 class TreinoModel {
@@ -402,7 +403,7 @@ class ExercicioModel {
       series: json['series'],
       tempoExecucao: json['tempo_execucao'],
       tempoDescanso: json['tempo_descanso'],
-      peso: json['peso']?.toDouble(),
+      peso: json['peso'] != null ? double.tryParse(json['peso'].toString()) ?? 0.0 : 0.0,
       unidadePeso: json['unidade_peso'],
       ordem: json['ordem'],
       observacoes: json['observacoes'],
