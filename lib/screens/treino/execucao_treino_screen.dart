@@ -31,17 +31,11 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   
   // 🆕 ESTADOS PARA LÓGICA DOS TIMERS
   ExercicioModel? _exercicioAtual;
-  int? _seriesAjustadas;
-  int? _repeticoesAjustadas;
-  int? _tempoExecucaoAjustado;
-  int? _tempoDescansoAjustado;
-  double? _pesoAjustado;
   
   // 🔧 CONTROLE DE TIMERS - CORRIGIDO
   Timer? _timerAtivo;
   int _tempoAtual = 0;
   bool _timerRodando = false;
-  bool _showAdjustControls = true;
   
   // 🆕 ESTADOS DE EXECUÇÃO MAIS CLAROS
   TimerState _timerState = TimerState.waiting;
@@ -70,19 +64,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   void _initializeExercicio() {
     if (widget.treino.exercicios.isNotEmpty) {
       _exercicioAtual = widget.treino.exercicios[_currentExerciseIndex];
-      _resetarValoresAjustados();
       _resetarTimer();
-    }
-  }
-
-  void _resetarValoresAjustados() {
-    if (_exercicioAtual != null) {
-      _seriesAjustadas = _exercicioAtual!.series ?? 3;
-      _repeticoesAjustadas = _exercicioAtual!.repeticoes ?? 12;
-      _tempoExecucaoAjustado = _exercicioAtual!.tempoExecucao ?? 30;
-      _tempoDescansoAjustado = _exercicioAtual!.tempoDescanso ?? 60;
-      _pesoAjustado = _exercicioAtual!.peso ?? 0.0;
-      _showAdjustControls = true;
     }
   }
 
@@ -339,7 +321,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     final currentProgress = (_currentExerciseIndex + 1) / totalExercises;
     
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), // 🔧 REDUZIDO: 16→12
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -356,8 +338,8 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
         children: [
           // 🔧 CORREÇÃO: Wrap em vez de Row para evitar overflow
           Wrap(
-            spacing: 8, // 🔧 Espaçamento entre elementos
-            runSpacing: 4, // 🔧 Espaçamento entre linhas
+            spacing: 8,
+            runSpacing: 4,
             alignment: WrapAlignment.spaceEvenly,
             children: [
               _buildProgressInfo(
@@ -367,7 +349,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
               ),
               _buildProgressInfo(
                 'Série',
-                '$_currentSerie/${_seriesAjustadas ?? 1}',
+                '$_currentSerie/${_exercicioAtual?.series ?? 1}',
                 Icons.repeat_rounded,
               ),
               _buildProgressInfo(
@@ -378,7 +360,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
             ],
           ),
           
-          const SizedBox(height: 10), // 🔧 REDUZIDO: 12→10
+          const SizedBox(height: 10),
           
           Container(
             height: 6,
@@ -403,13 +385,13 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   // 🔧 CORREÇÃO: Progress info mais compacto
   Widget _buildProgressInfo(String label, String value, IconData icon) {
     return SizedBox(
-      width: 90, // 🔧 LARGURA FIXA MENOR para evitar overflow
+      width: 90,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 32, // 🔧 REDUZIDO: 36→32
-            height: 32, // 🔧 REDUZIDO: 36→32
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
@@ -417,14 +399,14 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
             child: Icon(
               icon,
               color: Colors.white,
-              size: 16, // 🔧 REDUZIDO: 18→16
+              size: 16,
             ),
           ),
-          const SizedBox(height: 3), // 🔧 REDUZIDO: 4→3
+          const SizedBox(height: 3),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 11, // 🔧 REDUZIDO: 12→11
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               color: Colors.white,
             ),
@@ -435,7 +417,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
           Text(
             label,
             style: TextStyle(
-              fontSize: 8, // 🔧 REDUZIDO: 9→8
+              fontSize: 8,
               color: Colors.white.withOpacity(0.8),
               fontWeight: FontWeight.w500,
             ),
@@ -474,11 +456,6 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
           
           const SizedBox(height: 40),
           
-          if (_showAdjustControls) ...[
-            _buildControlsSection(),
-            const SizedBox(height: 30),
-          ],
-          
           // 🔧 TIMER PRINCIPAL - CORRIGIDO
           _buildTimerSection(),
           
@@ -494,160 +471,6 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
           ],
         ],
       ),
-    );
-  }
-
-  // 🔥 CONTROLES ATUALIZADOS - COM TEMPO DE DESCANSO
-  Widget _buildControlsSection() {
-    if (_exercicioAtual == null) return const SizedBox();
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: SportColors.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: SportColors.primary.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Icon(Icons.tune, color: SportColors.primary, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Ajustar Exercício',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: SportColors.primary,
-                ),
-              ),
-              const Spacer(),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _showAdjustControls = false;
-                  });
-                },
-                icon: Icon(Icons.close, color: SportColors.grey600, size: 18),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // 🆕 SÉRIES
-          _buildControlRow(
-            'Séries',
-            '${_seriesAjustadas ?? 1}',
-            () => _ajustarSeries(-1),
-            () => _ajustarSeries(1),
-          ),
-          
-          const SizedBox(height: 10),
-          
-          // 🆕 REPETIÇÕES OU TEMPO DE EXECUÇÃO
-          if (_exercicioAtual!.isRepeticao)
-            _buildControlRow(
-              'Repetições',
-              '${_repeticoesAjustadas ?? 1}',
-              () => _ajustarRepeticoes(-1),
-              () => _ajustarRepeticoes(1),
-            )
-          else
-            _buildControlRow(
-              'Tempo Exec (s)',
-              '${_tempoExecucaoAjustado ?? 30}',
-              () => _ajustarTempoExecucao(-5),
-              () => _ajustarTempoExecucao(5),
-            ),
-          
-          const SizedBox(height: 10),
-          
-          // 🔥 NOVO: SEMPRE MOSTRAR TEMPO DE DESCANSO
-          _buildControlRow(
-            'Descanso (s)',
-            '${_tempoDescansoAjustado ?? 60}',
-            () => _ajustarTempoDescanso(-5),
-            () => _ajustarTempoDescanso(5),
-          ),
-          
-          const SizedBox(height: 10),
-          
-          // 🆕 PESO (só se tiver peso)
-          if (_pesoAjustado != null && _pesoAjustado! > 0)
-            _buildControlRow(
-              'Peso (kg)',
-              '${_pesoAjustado!.toStringAsFixed(1)}',
-              () => _ajustarPeso(-2.5),
-              () => _ajustarPeso(2.5),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildControlRow(String label, String value, VoidCallback onMinus, VoidCallback onPlus) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 2,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: SportColors.grey700,
-            ),
-          ),
-        ),
-        
-        Flexible(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: SportColors.grey300),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  onPressed: onMinus,
-                  icon: Icon(Icons.remove, color: SportColors.primary, size: 14),
-                  iconSize: 14,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                ),
-                Container(
-                  width: 36,
-                  alignment: Alignment.center,
-                  child: FittedBox(
-                    child: Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: SportColors.grey800,
-                      ),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: onPlus,
-                  icon: Icon(Icons.add, color: SportColors.primary, size: 14),
-                  iconSize: 14,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -670,17 +493,17 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     
     // 🔧 CORREÇÃO: Calcular progresso da barra corretamente
     final tempoTotal = _timerState == TimerState.executing 
-        ? (_tempoExecucaoAjustado ?? 30)
-        : (_tempoDescansoAjustado ?? 60);
+        ? (_exercicioAtual!.tempoExecucao ?? 30)
+        : (_exercicioAtual!.tempoDescanso ?? 60);
     
     // 🔧 LÓGICA CORRIGIDA: progresso diferente para execução vs descanso
     final double progresso;
     if (_timerState == TimerState.executing) {
       // Durante execução: progresso cresce conforme tempo passa
-      progresso = (_tempoExecucaoAjustado! - _tempoAtual) / _tempoExecucaoAjustado!;
+      progresso = ((_exercicioAtual!.tempoExecucao ?? 30) - _tempoAtual) / (_exercicioAtual!.tempoExecucao ?? 30);
     } else if (_timerState == TimerState.resting) {
       // Durante descanso: progresso cresce conforme tempo de descanso passa
-      progresso = (_tempoDescansoAjustado! - _tempoAtual) / _tempoDescansoAjustado!;
+      progresso = ((_exercicioAtual!.tempoDescanso ?? 60) - _tempoAtual) / (_exercicioAtual!.tempoDescanso ?? 60);
     } else {
       progresso = 0.0;
     }
@@ -839,11 +662,11 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
           Icon(
             Icons.fitness_center_rounded,
             size: 48,
-            color: SportColors.primary, // 🎨 CORREÇÃO: Azul em vez de laranja
+            color: SportColors.primary,
           ),
           const SizedBox(height: 12),
           Text(
-            'Faça ${_repeticoesAjustadas} repetições',
+            'Faça ${_exercicioAtual!.repeticoes} repetições',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -853,7 +676,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
           ),
           const SizedBox(height: 4),
           Text(
-            'Série $_currentSerie de ${_seriesAjustadas}',
+            'Série $_currentSerie de ${_exercicioAtual!.series}',
             style: TextStyle(
               fontSize: 14,
               color: SportColors.grey600,
@@ -868,8 +691,8 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
 
   // 🔥 NOVA FUNCIONALIDADE: Timer de descanso para exercícios de repetição
   Widget _buildTimerDescansoRepeticao() {
-    final tempoTotal = _tempoDescansoAjustado ?? 60;
-    final progresso = (_tempoDescansoAjustado! - _tempoAtual) / _tempoDescansoAjustado!;
+    final tempoTotal = _exercicioAtual!.tempoDescanso ?? 60;
+    final progresso = ((_exercicioAtual!.tempoDescanso ?? 60) - _tempoAtual) / (_exercicioAtual!.tempoDescanso ?? 60);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1005,7 +828,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
 
   // 🆕 PROGRESSO DAS SÉRIES - OTIMIZADO
   Widget _buildSeriesProgress() {
-    final totalSeries = _seriesAjustadas ?? 1;
+    final totalSeries = _exercicioAtual?.series ?? 1;
     final progress = _currentSerie / totalSeries;
     
     return Column(
@@ -1074,7 +897,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     if (_timerState == TimerState.waiting) {
       return 'Pronto para iniciar série $_currentSerie';
     } else if (_timerState == TimerState.executing) {
-      return 'Executando série $_currentSerie de ${_seriesAjustadas}';
+      return 'Executando série $_currentSerie de ${_exercicioAtual?.series}';
     } else if (_timerState == TimerState.resting) {
       return 'Descansando após série ${_currentSerie - 1}'; // 🆕 STATUS PARA DESCANSO
     } else {
@@ -1087,46 +910,46 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
       gradient: SportColors.primaryGradient.scale(0.1),
       child: Column(
         children: [
-          if (_seriesAjustadas != null)
+          if (exercise.series != null)
             _buildInfoRowModern(
               Icons.repeat_rounded,
               'Séries',
-              '$_seriesAjustadas',
+              '${exercise.series}',
               SportColors.primary,
             ),
-          if (_exercicioAtual?.isRepeticao == true && _repeticoesAjustadas != null) ...[
+          if (_exercicioAtual?.isRepeticao == true && exercise.repeticoes != null) ...[
             const Divider(height: 16),
             _buildInfoRowModern(
               Icons.fitness_center_rounded,
               'Repetições',
-              '$_repeticoesAjustadas',
+              '${exercise.repeticoes}',
               SportColors.accent,
             ),
           ],
-          if (_exercicioAtual?.isTempo == true && _tempoExecucaoAjustado != null) ...[
+          if (_exercicioAtual?.isTempo == true && exercise.tempoExecucao != null) ...[
             const Divider(height: 16),
             _buildInfoRowModern(
               Icons.timer_rounded,
               'Execução',
-              '${_tempoExecucaoAjustado}s',
-              SportColors.primary, // 🎨 CORREÇÃO: Azul em vez de laranja
+              '${exercise.tempoExecucao}s',
+              SportColors.primary,
             ),
           ],
-          if (_pesoAjustado != null && _pesoAjustado! > 0) ...[
+          if (exercise.peso != null && exercise.peso! > 0) ...[
             const Divider(height: 16),
             _buildInfoRowModern(
               Icons.line_weight_rounded,
               'Peso',
-              '${_pesoAjustado!.toStringAsFixed(1)}kg',
-              SportColors.primary, // 🎨 CORREÇÃO: Azul em vez de laranja
+              '${exercise.peso!.toStringAsFixed(1)}kg',
+              SportColors.primary,
             ),
           ],
-          if (_tempoDescansoAjustado != null) ...[
+          if (exercise.tempoDescanso != null) ...[
             const Divider(height: 16),
             _buildInfoRowModern(
               Icons.timer_rounded,
               'Descanso',
-              '${_tempoDescansoAjustado}s',
+              '${exercise.tempoDescanso}s',
               SportColors.warning,
             ),
           ],
@@ -1228,7 +1051,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   // 🔧 CORREÇÃO CRÍTICA: Bottom Controls SEM OVERFLOW
   Widget _buildModernBottomControls() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), // 🔧 ULTRA COMPACTO: 10→8
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -1248,7 +1071,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
             // 🆕 BOTÃO PRINCIPAL (sempre visível)
             SizedBox(
               width: double.infinity,
-              height: 40, // 🔧 ALTURA REDUZIDA: 42→40
+              height: 40,
               child: ElevatedButton.icon(
                 onPressed: _getMainButtonAction(),
                 icon: Icon(
@@ -1278,7 +1101,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
             // 🆕 NAVEGAÇÃO (só se necessário e em linha separada)
             if (_currentExerciseIndex > 0 || 
                 _currentExerciseIndex < widget.treino.exercicios.length - 1) ...[
-              const SizedBox(height: 4), // 🔧 ESPAÇAMENTO MENOR: 6→4
+              const SizedBox(height: 4),
               
               // 🔧 CORREÇÃO: Layout em colunas para telas pequenas
               LayoutBuilder(
@@ -1339,10 +1162,10 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   Widget _buildNavButton(String text, IconData icon, VoidCallback onPressed) {
     return OutlinedButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, size: 12), // 🔧 ÍCONE MENOR: 14→12
+      icon: Icon(icon, size: 12),
       label: Text(
         text,
-        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500), // 🔧 TEXTO MENOR: 10→9
+        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500),
       ),
       style: OutlinedButton.styleFrom(
         foregroundColor: SportColors.grey600,
@@ -1350,7 +1173,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), // 🔧 PADDING MENOR
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       ),
     );
   }
@@ -1374,7 +1197,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
           }
       }
     } else {
-      if (_currentSerie <= (_seriesAjustadas ?? 1)) {
+      if (_currentSerie <= (_exercicioAtual?.series ?? 1)) {
         return 'Completar S$_currentSerie';
       } else {
         // 🔥 VERIFICAR SE É ÚLTIMO EXERCÍCIO
@@ -1383,28 +1206,6 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
         } else {
           return 'Próximo Exercício';
         }
-      }
-    }
-  }
-
-  // 🔧 BOTÃO PRINCIPAL ORIGINAL - MANTIDO PARA COMPATIBILIDADE
-  String _getMainButtonText() {
-    if (_exercicioAtual?.isTempo == true) {
-      switch (_timerState) {
-        case TimerState.waiting:
-          return 'Iniciar Série $_currentSerie';
-        case TimerState.executing:
-          return 'Executando...';
-        case TimerState.resting:
-          return 'Descansando...';
-        case TimerState.finished:
-          return 'Finalizar Exercício';
-      }
-    } else {
-      if (_currentSerie <= (_seriesAjustadas ?? 1)) {
-        return 'Completar Série $_currentSerie';
-      } else {
-        return 'Finalizar Exercício';
       }
     }
   }
@@ -1421,7 +1222,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     
     // 🔥 LÓGICA CORRIGIDA PARA ÚLTIMO EXERCÍCIO
     final isLastExercise = _currentExerciseIndex >= widget.treino.exercicios.length - 1;
-    final exerciseFinished = _currentSerie > (_seriesAjustadas ?? 1) || _timerState == TimerState.finished;
+    final exerciseFinished = _currentSerie > (_exercicioAtual?.series ?? 1) || _timerState == TimerState.finished;
     
     if (exerciseFinished && isLastExercise) {
       return Icons.celebration_rounded; // 🎉 Ícone de finalizar treino
@@ -1440,7 +1241,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     
     // 🔥 LÓGICA PARA COR DO BOTÃO
     final isLastExercise = _currentExerciseIndex >= widget.treino.exercicios.length - 1;
-    final exerciseFinished = _currentSerie > (_seriesAjustadas ?? 1) || _timerState == TimerState.finished;
+    final exerciseFinished = _currentSerie > (_exercicioAtual?.series ?? 1) || _timerState == TimerState.finished;
     
     if (exerciseFinished && isLastExercise) {
       return SportColors.success; // 🟢 Verde para finalizar treino
@@ -1459,18 +1260,6 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     return false;
   }
 
-  Gradient _getMainButtonGradient() {
-    if (_isMainButtonDisabled()) {
-      return LinearGradient(
-        colors: [SportColors.grey400, SportColors.grey500],
-      );
-    } else if (_timerState == TimerState.finished || _currentSerie > (_seriesAjustadas ?? 1)) {
-      return SportColors.successGradient;
-    } else {
-      return SportColors.primaryGradient;
-    }
-  }
-
   VoidCallback _getMainButtonAction() {
     if (_exercicioAtual?.isTempo == true) {
       switch (_timerState) {
@@ -1483,7 +1272,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
           return _finalizarExercicio;
       }
     } else {
-      if (_currentSerie <= (_seriesAjustadas ?? 1)) {
+      if (_currentSerie <= (_exercicioAtual?.series ?? 1)) {
         return _completeSet;
       } else {
         return _finalizarExercicio;
@@ -1496,10 +1285,9 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     if (_exercicioAtual == null || !_exercicioAtual!.isTempo) return;
 
     setState(() {
-      _tempoAtual = _tempoExecucaoAjustado ?? 30;
+      _tempoAtual = _exercicioAtual!.tempoExecucao ?? 30;
       _timerState = TimerState.executing;
       _timerRodando = true;
-      _showAdjustControls = false;
     });
 
     _timerAtivo = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -1523,7 +1311,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   void _finalizarExecucao() {
     _timerAtivo?.cancel();
     
-    if (_currentSerie < (_seriesAjustadas ?? 1)) {
+    if (_currentSerie < (_exercicioAtual?.series ?? 1)) {
       // Ainda tem séries - iniciar descanso
       _iniciarDescanso();
     } else {
@@ -1540,7 +1328,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   void _iniciarDescanso() {
     setState(() {
       _currentSerie++;
-      _tempoAtual = _tempoDescansoAjustado ?? 60;
+      _tempoAtual = _exercicioAtual!.tempoDescanso ?? 60;
       _timerState = TimerState.resting;
     });
 
@@ -1567,7 +1355,6 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     setState(() {
       _timerState = TimerState.waiting;
       _timerRodando = false;
-      _showAdjustControls = true;
     });
 
     HapticFeedback.mediumImpact();
@@ -1578,48 +1365,6 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
         _iniciarTimer();
       }
     });
-  }
-
-  // MÉTODOS DE CONTROLE DE AJUSTE
-  void _ajustarSeries(int delta) {
-    setState(() {
-      final novoValor = (_seriesAjustadas ?? 1) + delta;
-      _seriesAjustadas = novoValor.clamp(1, 10);
-    });
-    HapticFeedback.lightImpact();
-  }
-
-  void _ajustarRepeticoes(int delta) {
-    setState(() {
-      final novoValor = (_repeticoesAjustadas ?? 1) + delta;
-      _repeticoesAjustadas = novoValor.clamp(1, 100);
-    });
-    HapticFeedback.lightImpact();
-  }
-
-  void _ajustarTempoExecucao(int deltaSegundos) {
-    setState(() {
-      final novoValor = (_tempoExecucaoAjustado ?? 30) + deltaSegundos;
-      _tempoExecucaoAjustado = novoValor.clamp(5, 300);
-    });
-    HapticFeedback.lightImpact();
-  }
-
-  // 🔥 NOVO MÉTODO: Ajustar tempo de descanso
-  void _ajustarTempoDescanso(int deltaSegundos) {
-    setState(() {
-      final novoValor = (_tempoDescansoAjustado ?? 60) + deltaSegundos;
-      _tempoDescansoAjustado = novoValor.clamp(5, 300); // Entre 5s e 5min
-    });
-    HapticFeedback.lightImpact();
-  }
-
-  void _ajustarPeso(double delta) {
-    setState(() {
-      final novoValor = (_pesoAjustado ?? 0.0) + delta;
-      _pesoAjustado = novoValor.clamp(0.0, 500.0);
-    });
-    HapticFeedback.lightImpact();
   }
 
   // 🔥 CORREÇÃO CRÍTICA: Finalizar exercício corretamente
@@ -1644,7 +1389,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   void _completeSet() {
     HapticFeedback.mediumImpact();
     
-    if (_currentSerie < (_seriesAjustadas ?? 1)) {
+    if (_currentSerie < (_exercicioAtual?.series ?? 1)) {
       // 🔥 NOVA FUNCIONALIDADE: Iniciar timer de descanso para repetições
       _iniciarDescansoRepeticao();
     } else {
@@ -1656,7 +1401,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   void _iniciarDescansoRepeticao() {
     setState(() {
       _currentSerie++;
-      _tempoAtual = _tempoDescansoAjustado ?? 60;
+      _tempoAtual = _exercicioAtual!.tempoDescanso ?? 60;
       _timerState = TimerState.resting;
       _timerRodando = true;
     });
