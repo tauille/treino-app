@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
+import 'dart:math' as math;
 import '../../models/treino_model.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/sport_theme.dart';
 import '../../providers/execucao_treino_provider.dart';
-import '../../widgets/execution_timer_widget.dart';
 
 class ModernExecucaoTreinoScreen extends StatefulWidget {
   final TreinoModel treino;
@@ -26,31 +27,33 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   
   int _currentExerciseIndex = 0;
   int _currentSerie = 1;
-  bool _isResting = false;
   bool _isPaused = false;
   
-  // 🆕 ESTADOS PARA LÓGICA DOS TIMERS
+  // Estados para lógica dos timers
   ExercicioModel? _exercicioAtual;
   
-  // 🔧 CONTROLE DE TIMERS - CORRIGIDO
+  // Controle de timers
   Timer? _timerAtivo;
   int _tempoAtual = 0;
   bool _timerRodando = false;
   
-  // 🆕 ESTADOS DE EXECUÇÃO MAIS CLAROS
+  // Estados de execução
   TimerState _timerState = TimerState.waiting;
   
+  // Player de áudio para sons personalizados
+  late AudioPlayer _audioPlayer;
+  
   // Controladores de animação
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+  late AnimationController _pulseController;
+  late AnimationController _progressController;
+  late Animation<double> _pulseAnimation;
+  late Animation<double> _progressAnimation;
 
   @override
   void initState() {
     super.initState();
+    _audioPlayer = AudioPlayer();
     _setupAnimations();
-    _setupStatusBar();
     _enableWakelock();
     _initializeExercicio();
     
@@ -68,62 +71,50 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     }
   }
 
-  // 🆕 RESETAR TIMER
   void _resetarTimer() {
     _timerAtivo?.cancel();
+    _progressController.reset();
     setState(() {
       _timerRodando = false;
       _tempoAtual = 0;
       _timerState = TimerState.waiting;
-      _isResting = false;
     });
   }
 
   void _setupAnimations() {
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+    _pulseController = AnimationController(
+      duration: const Duration(seconds: 1),
       vsync: this,
     );
     
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+    _progressController = AnimationController(
+      duration: const Duration(seconds: 1),
       vsync: this,
     );
     
-    _fadeAnimation = Tween<double>(
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ));
+
+    _progressAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOut,
+      parent: _progressController,
+      curve: Curves.linear,
     ));
-    
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
-    
-    _fadeController.forward();
-    _slideController.forward();
-  }
-
-  void _setupStatusBar() {
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-      ),
-    );
   }
 
   @override
   void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
+    _pulseController.dispose();
+    _progressController.dispose();
     _timerAtivo?.cancel();
+    _audioPlayer.dispose();
     _disableWakelock();
     super.dispose();
   }
@@ -134,36 +125,457 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
       return _buildEmptyState();
     }
 
-    final currentExercise = widget.treino.exercicios[_currentExerciseIndex];
-
     return Scaffold(
-      backgroundColor: SportColors.lightGrey,
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: Column(
-            children: [
-              _buildModernAppBar(),
-              _buildProgressSection(),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: _buildExerciseScreen(currentExercise),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
                 ),
+                child: _buildResponsiveLayout(constraints),
               ),
-              _buildModernBottomControls(),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
   }
 
+  Widget _buildResponsiveLayout(BoxConstraints constraints) {
+    final width = constraints.maxWidth;
+    final height = constraints.maxHeight;
+    
+    // Responsive breakpoints
+    final isSmall = width < 400;
+    final isMedium = width >= 400 && width < 700;
+    final isLarge = width >= 700;
+    
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmall ? 13 : isMedium ? 19 : 26,
+        vertical: isSmall ? 13 : 19,
+      ),
+      child: Column(
+        children: [
+          // 🎯 HEADER - Nome do Treino
+          _buildModernHeader(isSmall),
+          
+          SizedBox(height: isSmall ? 16 : 26),
+          
+          // 🎯 CARD DO EXERCÍCIO
+          _buildExerciseCard(isSmall, isMedium),
+          
+          SizedBox(height: isSmall ? 16 : 26),
+          
+          // 🎯 TIMER CIRCULAR
+          _buildCircularTimer(isSmall, isMedium),
+          
+          SizedBox(height: isSmall ? 16 : 26),
+          
+          // 🎯 BOTÕES DE AÇÃO
+          _buildActionButtons(isSmall, isMedium),
+          
+          SizedBox(height: isSmall ? 13 : 19),
+          
+          // 🎯 NAVEGAÇÃO ENTRE EXERCÍCIOS
+          if (widget.treino.exercicios.length > 1)
+            _buildNavigationButtons(isSmall),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernHeader(bool isSmall) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isSmall ? 13 : 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF6BA6CD), Color(0xFF5B9BD5)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6BA6CD).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            widget.treino.nomeTreino.toUpperCase(),
+            style: TextStyle(
+              fontSize: isSmall ? 15 : 18,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: 1.2,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.fitness_center_rounded,
+                color: Colors.white.withOpacity(0.9),
+                size: isSmall ? 13 : 14,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Exercício ${_currentExerciseIndex + 1} de ${widget.treino.exercicios.length}',
+                style: TextStyle(
+                  fontSize: isSmall ? 11 : 13,
+                  color: Colors.white.withOpacity(0.9),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExerciseCard(bool isSmall, bool isMedium) {
+    if (_exercicioAtual == null) return const SizedBox();
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isSmall ? 16 : 19),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFED8936), Color(0xFFFF8C00)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFED8936).withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Nome do exercício
+          Text(
+            _exercicioAtual!.nomeExercicio ?? 'Exercício',
+            style: TextStyle(
+              fontSize: isSmall ? 18 : isMedium ? 21 : 24,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Informações do exercício
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Ícone de exercício
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  _exercicioAtual!.isTempo 
+                      ? Icons.timer_rounded 
+                      : Icons.fitness_center_rounded,
+                  color: Colors.white,
+                  size: isSmall ? 16 : 19,
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+              
+              // Texto das séries/repetições
+              Flexible(
+                child: Text(
+                  _getExerciseDescription(),
+                  style: TextStyle(
+                    fontSize: isSmall ? 13 : 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getExerciseDescription() {
+    if (_exercicioAtual == null) return '';
+    
+    final series = _exercicioAtual!.series ?? 1;
+    
+    if (_exercicioAtual!.isTempo) {
+      final tempo = _exercicioAtual!.tempoExecucao ?? 30;
+      return '$series séries de ${tempo}s';
+    } else {
+      final reps = _exercicioAtual!.repeticoes ?? 1;
+      return '$series séries de $reps repetições';
+    }
+  }
+
+  Widget _buildCircularTimer(bool isSmall, bool isMedium) {
+    final size = isSmall ? 176.0 : isMedium ? 208.0 : 240.0;
+    final strokeWidth = isSmall ? 6.4 : 8.0;
+    
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _timerRodando ? _pulseAnimation.value : 1.0,
+          child: Container(
+            width: size,
+            height: size,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Círculo de fundo
+                Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Progress indicator
+                SizedBox(
+                  width: size - 20,
+                  height: size - 20,
+                  child: CircularProgressIndicator(
+                    value: _getTimerProgress(),
+                    strokeWidth: strokeWidth,
+                    backgroundColor: Colors.grey.withOpacity(0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(_getTimerColor()),
+                  ),
+                ),
+                
+                // Conteúdo central
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Timer principal
+                    Text(
+                      _formatTime(_tempoAtual),
+                      style: TextStyle(
+                        fontSize: isSmall ? 29 : isMedium ? 34 : 38,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF2D3748),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 8),
+                    
+                    // Status
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getTimerColor().withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _getTimerStatusText(),
+                        style: TextStyle(
+                          fontSize: isSmall ? 10 : 11,
+                          fontWeight: FontWeight.w600,
+                          color: _getTimerColor(),
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 8),
+                    
+                    // Progresso das séries
+                    _buildSeriesIndicator(isSmall),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSeriesIndicator(bool isSmall) {
+    final totalSeries = _exercicioAtual?.series ?? 1;
+    
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(totalSeries, (index) {
+        final isCompleted = index < _currentSerie - 1;
+        final isCurrent = index == _currentSerie - 1;
+        
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          width: isSmall ? 8 : 10,
+          height: isSmall ? 8 : 10,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isCompleted
+                ? const Color(0xFF4CAF50)
+                : isCurrent
+                    ? _getTimerColor()
+                    : Colors.grey.withOpacity(0.3),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildActionButtons(bool isSmall, bool isMedium) {
+    return Column(
+      children: [
+        // Botão principal
+        SizedBox(
+          width: double.infinity,
+          height: isSmall ? 45 : 51,
+          child: ElevatedButton(
+            onPressed: _getMainButtonAction(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _getMainButtonColor(),
+              foregroundColor: Colors.white,
+              elevation: 8,
+              shadowColor: _getMainButtonColor().withOpacity(0.4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Text(
+              _getMainButtonText(),
+              style: TextStyle(
+                fontSize: isSmall ? 14 : 16,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Botão secundário (finalizar treino)
+        SizedBox(
+          width: double.infinity,
+          height: isSmall ? 38 : 45,
+          child: ElevatedButton(
+            onPressed: _showStopDialog,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6BA6CD),
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shadowColor: const Color(0xFF6BA6CD).withOpacity(0.3),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Text(
+              'FINALIZAR TREINO',
+              style: TextStyle(
+                fontSize: isSmall ? 12 : 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNavigationButtons(bool isSmall) {
+    return Row(
+      children: [
+        if (_currentExerciseIndex > 0)
+          Expanded(
+            child: SizedBox(
+              height: isSmall ? 32 : 35,
+              child: OutlinedButton.icon(
+                onPressed: _previousExercise,
+                icon: Icon(Icons.skip_previous_rounded, size: isSmall ? 14 : 16),
+                label: Text(
+                  'ANTERIOR',
+                  style: TextStyle(
+                    fontSize: isSmall ? 10 : 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF6BA6CD),
+                  side: const BorderSide(color: Color(0xFF6BA6CD)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        
+        if (_currentExerciseIndex > 0 && _currentExerciseIndex < widget.treino.exercicios.length - 1)
+          const SizedBox(width: 12),
+        
+        if (_currentExerciseIndex < widget.treino.exercicios.length - 1)
+          Expanded(
+            child: SizedBox(
+              height: isSmall ? 32 : 35,
+              child: OutlinedButton.icon(
+                onPressed: _nextExercise,
+                icon: Icon(Icons.skip_next_rounded, size: isSmall ? 14 : 16),
+                label: Text(
+                  'PRÓXIMO',
+                  style: TextStyle(
+                    fontSize: isSmall ? 10 : 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF6BA6CD),
+                  side: const BorderSide(color: Color(0xFF6BA6CD)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildEmptyState() {
     return Scaffold(
-      backgroundColor: SportColors.lightGrey,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: SportColors.primary,
+        backgroundColor: const Color(0xFF6BA6CD),
         foregroundColor: Colors.white,
         title: const Text('Execução do Treino'),
         elevation: 0,
@@ -175,9 +587,11 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
             Container(
               width: 120,
               height: 120,
-              decoration: BoxDecoration(
-                gradient: SportColors.primaryGradient,
-                borderRadius: BorderRadius.circular(60),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF6BA6CD), Color(0xFF5B9BD5)],
+                ),
+                shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.fitness_center_rounded,
@@ -191,1068 +605,117 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
-                color: SportColors.grey800,
+                color: Color(0xFF2D3748),
               ),
             ),
             const SizedBox(height: 12),
-            Text(
+            const Text(
               'Este treino não possui exercícios\npara executar',
               style: TextStyle(
                 fontSize: 16,
-                color: SportColors.grey600,
+                color: Color(0xFF718096),
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            SportWidgets.gradientButton(
-              text: 'Voltar',
+            ElevatedButton(
               onPressed: () => Navigator.pop(context),
-              gradient: SportColors.primaryGradient,
-              width: 200,
-              icon: Icons.arrow_back_rounded,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModernAppBar() {
-    return Container(
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 12,
-        left: 16,
-        right: 16,
-        bottom: 12,
-      ),
-      decoration: BoxDecoration(
-        gradient: SportColors.primaryGradient,
-        boxShadow: [
-          BoxShadow(
-            color: SportColors.primary.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: _showPauseDialog,
-                borderRadius: BorderRadius.circular(10),
-                child: Icon(
-                  _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                  color: Colors.white,
-                  size: 22,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6BA6CD),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-            ),
-          ),
-          
-          const SizedBox(width: 12),
-          
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.treino.nomeTreino,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _exercicioAtual?.nomeExercicio ?? 'Em execução',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.9),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: SportColors.error.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: _showStopDialog,
-                borderRadius: BorderRadius.circular(10),
-                child: const Icon(
-                  Icons.stop_rounded,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 🔧 CORREÇÃO OVERFLOW: Progress section usando Wrap
-  Widget _buildProgressSection() {
-    final totalExercises = widget.treino.exercicios.length;
-    final currentProgress = (_currentExerciseIndex + 1) / totalExercises;
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            SportColors.primary,
-            SportColors.primary.withOpacity(0.8),
-            SportColors.lightGrey,
-          ],
-          stops: const [0.0, 0.7, 1.0],
-        ),
-      ),
-      child: Column(
-        children: [
-          // 🔧 CORREÇÃO: Wrap em vez de Row para evitar overflow
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            alignment: WrapAlignment.spaceEvenly,
-            children: [
-              _buildProgressInfo(
-                'Exercício',
-                '${_currentExerciseIndex + 1}/$totalExercises',
-                Icons.fitness_center_rounded,
-              ),
-              _buildProgressInfo(
-                'Série',
-                '$_currentSerie/${_exercicioAtual?.series ?? 1}',
-                Icons.repeat_rounded,
-              ),
-              _buildProgressInfo(
-                'Progresso',
-                '${(currentProgress * 100).round()}%',
-                Icons.timeline_rounded,
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 10),
-          
-          Container(
-            height: 6,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: LinearProgressIndicator(
-                value: currentProgress,
-                backgroundColor: Colors.transparent,
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 🔧 CORREÇÃO: Progress info mais compacto
-  Widget _buildProgressInfo(String label, String value, IconData icon) {
-    return SizedBox(
-      width: 90,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 16,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 8,
-              color: Colors.white.withOpacity(0.8),
-              fontWeight: FontWeight.w500,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExerciseScreen(dynamic exercise) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          
-          Text(
-            exercise.nomeExercicio ?? 'Exercício',
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              color: SportColors.grey800,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          
-          const SizedBox(height: 12),
-          
-          if (exercise.grupoMuscular != null)
-            SportWidgets.difficultyBadge(
-              difficulty: exercise.grupoMuscular!,
-            ),
-          
-          const SizedBox(height: 40),
-          
-          // 🔧 TIMER PRINCIPAL - CORRIGIDO
-          _buildTimerSection(),
-          
-          const SizedBox(height: 40),
-          
-          _buildExerciseInfoModern(exercise),
-          
-          const SizedBox(height: 40),
-          
-          if (exercise.observacoes != null) ...[
-            _buildInstructionsCard(exercise.observacoes!),
-            const SizedBox(height: 20),
-          ],
-        ],
-      ),
-    );
-  }
-
-  // 🔧 TIMER SECTION - COMPLETAMENTE REESCRITO
-  Widget _buildTimerSection() {
-    if (_exercicioAtual == null) return const SizedBox();
-
-    if (_exercicioAtual!.isTempo) {
-      return _buildTimerExercicio();
-    } else {
-      return _buildRepeticaoExercicio();
-    }
-  }
-
-  // 🆕 TIMER PARA EXERCÍCIOS POR TEMPO - COM BARRA DE DESCANSO CORRIGIDA
-  Widget _buildTimerExercicio() {
-    final timerColor = _getTimerColor();
-    final timerText = _getTimerText();
-    final statusText = _getStatusText();
-    
-    // 🔧 CORREÇÃO: Calcular progresso da barra corretamente
-    final tempoTotal = _timerState == TimerState.executing 
-        ? (_exercicioAtual!.tempoExecucao ?? 30)
-        : (_exercicioAtual!.tempoDescanso ?? 60);
-    
-    // 🔧 LÓGICA CORRIGIDA: progresso diferente para execução vs descanso
-    final double progresso;
-    if (_timerState == TimerState.executing) {
-      // Durante execução: progresso cresce conforme tempo passa
-      progresso = ((_exercicioAtual!.tempoExecucao ?? 30) - _tempoAtual) / (_exercicioAtual!.tempoExecucao ?? 30);
-    } else if (_timerState == TimerState.resting) {
-      // Durante descanso: progresso cresce conforme tempo de descanso passa
-      progresso = ((_exercicioAtual!.tempoDescanso ?? 60) - _tempoAtual) / (_exercicioAtual!.tempoDescanso ?? 60);
-    } else {
-      progresso = 0.0;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: timerColor.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: timerColor.withOpacity(0.2), width: 1),
-      ),
-      child: Column(
-        children: [
-          // Status atual
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: timerColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              statusText,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: timerColor,
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // 🆕 TIMER GRANDE COM BARRA DE PROGRESSO
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                '$_tempoAtual',
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.w900,
-                  color: timerColor,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'seg',
+              child: const Text(
+                'Voltar',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: SportColors.grey600,
                 ),
               ),
-            ],
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Status do timer
-          Text(
-            timerText,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: timerColor,
             ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // 🆕 BARRA DE PROGRESSO HORIZONTAL - CORRIGIDA PARA DESCANSO
-          Column(
-            children: [
-              Container(
-                height: 8,
-                decoration: BoxDecoration(
-                  color: timerColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progresso.clamp(0.0, 1.0),
-                    backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation<Color>(timerColor),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // 🆕 LABEL DO TIPO DE TIMER COM ÍCONE
-                  Row(
-                    children: [
-                      Icon(
-                        _timerState == TimerState.resting 
-                            ? Icons.coffee_rounded 
-                            : Icons.fitness_center_rounded,
-                        size: 12,
-                        color: timerColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _timerState == TimerState.resting ? 'Descanso' : 'Execução',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: timerColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  // PROGRESSO PERCENTUAL
-                  Text(
-                    '${(progresso * 100).clamp(0, 100).round()}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: SportColors.grey600,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Progresso das séries
-          _buildSeriesProgress(),
-        ],
-      ),
-    );
-  }
-
-  // 🔥 EXERCÍCIO POR REPETIÇÕES - AGORA COM TIMER DE DESCANSO!
-  Widget _buildRepeticaoExercicio() {
-    // 🔥 NOVA FUNCIONALIDADE: Se está em descanso, mostrar timer de descanso
-    if (_timerState == TimerState.resting) {
-      return _buildTimerDescansoRepeticao();
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        // 🎨 CORREÇÃO LEGIBILIDADE: Azul em vez de laranja
-        color: SportColors.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: SportColors.primary.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.fitness_center_rounded,
-            size: 48,
-            color: SportColors.primary,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Faça ${_exercicioAtual!.repeticoes} repetições',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: SportColors.grey800,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Série $_currentSerie de ${_exercicioAtual!.series}',
-            style: TextStyle(
-              fontSize: 14,
-              color: SportColors.grey600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildSeriesProgress(),
-        ],
-      ),
-    );
-  }
-
-  // 🔥 NOVA FUNCIONALIDADE: Timer de descanso para exercícios de repetição
-  Widget _buildTimerDescansoRepeticao() {
-    final tempoTotal = _exercicioAtual!.tempoDescanso ?? 60;
-    final progresso = ((_exercicioAtual!.tempoDescanso ?? 60) - _tempoAtual) / (_exercicioAtual!.tempoDescanso ?? 60);
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        // 🎨 BARRA LARANJA PARA DESCANSO - MAIS VISÍVEL
-        color: SportColors.warning.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: SportColors.warning.withOpacity(0.3), width: 2),
-      ),
-      child: Column(
-        children: [
-          // Status de descanso
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: SportColors.warning.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.coffee_rounded, size: 14, color: SportColors.warning),
-                const SizedBox(width: 4),
-                Text(
-                  'DESCANSO APÓS SÉRIE ${_currentSerie - 1}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: SportColors.warning,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Timer grande
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                '$_tempoAtual',
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.w900,
-                  color: SportColors.warning,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'seg',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: SportColors.grey600,
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 8),
-          
-          Text(
-            'DESCANSANDO',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: SportColors.warning,
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // 🎨 BARRA DE PROGRESSO LARANJA para descanso
-          Column(
-            children: [
-              Container(
-                height: 8,
-                decoration: BoxDecoration(
-                  color: SportColors.warning.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progresso.clamp(0.0, 1.0),
-                    backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation<Color>(SportColors.warning),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.coffee_rounded, size: 12, color: SportColors.warning),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Descanso',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: SportColors.warning,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    '${(progresso * 100).clamp(0, 100).round()}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: SportColors.grey600,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 16),
-          
-          _buildSeriesProgress(),
-        ],
-      ),
-    );
-  }
-
-  // 🆕 PROGRESSO DAS SÉRIES - OTIMIZADO
-  Widget _buildSeriesProgress() {
-    final totalSeries = _exercicioAtual?.series ?? 1;
-    final progress = _currentSerie / totalSeries;
-    
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(totalSeries, (index) {
-            final isCompleted = index < _currentSerie - 1;
-            final isCurrent = index == _currentSerie - 1;
-            
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isCompleted
-                    ? SportColors.success
-                    : isCurrent
-                        ? SportColors.primary
-                        : SportColors.grey300,
-              ),
-            );
-          }),
+          ],
         ),
-        const SizedBox(height: 6),
-        Text(
-          'Série $_currentSerie de $totalSeries',
-          style: TextStyle(
-            fontSize: 11,
-            color: SportColors.grey600,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  // 🆕 HELPERS PARA TIMER - CORES DIFERENTES PARA DESCANSO
+  // Métodos auxiliares para o timer e cores
   Color _getTimerColor() {
     switch (_timerState) {
       case TimerState.waiting:
-        return SportColors.grey600;
+        return const Color(0xFF6BA6CD);
       case TimerState.executing:
-        return SportColors.primary;
+        return const Color(0xFFE53E3E);
       case TimerState.resting:
-        return SportColors.warning; // 🎨 COR LARANJA PARA DESCANSO
+        return const Color(0xFFD69E2E);
       case TimerState.finished:
-        return SportColors.success;
+        return const Color(0xFF4CAF50);
     }
   }
 
-  String _getTimerText() {
+  String _getTimerStatusText() {
     switch (_timerState) {
       case TimerState.waiting:
-        return 'Toque para iniciar';
+        return 'Pronto para série $_currentSerie';
       case TimerState.executing:
-        return 'EXECUÇÃO';
+        return 'Executando série $_currentSerie';
       case TimerState.resting:
-        return 'DESCANSO'; // 🆕 TEXTO PARA DESCANSO
+        return 'Descansando';
       case TimerState.finished:
-        return 'CONCLUÍDO';
+        return 'Exercício concluído';
     }
   }
 
-  String _getStatusText() {
-    if (_timerState == TimerState.waiting) {
-      return 'Pronto para iniciar série $_currentSerie';
-    } else if (_timerState == TimerState.executing) {
-      return 'Executando série $_currentSerie de ${_exercicioAtual?.series}';
-    } else if (_timerState == TimerState.resting) {
-      return 'Descansando após série ${_currentSerie - 1}'; // 🆕 STATUS PARA DESCANSO
-    } else {
-      return 'Exercício concluído';
-    }
-  }
-
-  Widget _buildExerciseInfoModern(dynamic exercise) {
-    return SportWidgets.gradientCard(
-      gradient: SportColors.primaryGradient.scale(0.1),
-      child: Column(
-        children: [
-          if (exercise.series != null)
-            _buildInfoRowModern(
-              Icons.repeat_rounded,
-              'Séries',
-              '${exercise.series}',
-              SportColors.primary,
-            ),
-          if (_exercicioAtual?.isRepeticao == true && exercise.repeticoes != null) ...[
-            const Divider(height: 16),
-            _buildInfoRowModern(
-              Icons.fitness_center_rounded,
-              'Repetições',
-              '${exercise.repeticoes}',
-              SportColors.accent,
-            ),
-          ],
-          if (_exercicioAtual?.isTempo == true && exercise.tempoExecucao != null) ...[
-            const Divider(height: 16),
-            _buildInfoRowModern(
-              Icons.timer_rounded,
-              'Execução',
-              '${exercise.tempoExecucao}s',
-              SportColors.primary,
-            ),
-          ],
-          if (exercise.peso != null && exercise.peso! > 0) ...[
-            const Divider(height: 16),
-            _buildInfoRowModern(
-              Icons.line_weight_rounded,
-              'Peso',
-              '${exercise.peso!.toStringAsFixed(1)}kg',
-              SportColors.primary,
-            ),
-          ],
-          if (exercise.tempoDescanso != null) ...[
-            const Divider(height: 16),
-            _buildInfoRowModern(
-              Icons.timer_rounded,
-              'Descanso',
-              '${exercise.tempoDescanso}s',
-              SportColors.warning,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRowModern(IconData icon, String label, String value, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color, size: 18),
-        ),
-        
-        const SizedBox(width: 12),
-        
-        Expanded(
-          flex: 2,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: SportColors.grey800,
-            ),
-          ),
-        ),
-        
-        Flexible(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInstructionsCard(String instructions) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: SportColors.info.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: SportColors.info.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                color: SportColors.info,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Instruções',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: SportColors.grey800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            instructions,
-            style: TextStyle(
-              fontSize: 13,
-              color: SportColors.grey700,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 🔧 CORREÇÃO CRÍTICA: Bottom Controls SEM OVERFLOW
-  Widget _buildModernBottomControls() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -8),
-          ),
-        ],
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 🆕 BOTÃO PRINCIPAL (sempre visível)
-            SizedBox(
-              width: double.infinity,
-              height: 40,
-              child: ElevatedButton.icon(
-                onPressed: _getMainButtonAction(),
-                icon: Icon(
-                  _getMainButtonIcon(),
-                  size: 16,
-                ),
-                label: Text(
-                  _getMainButtonTextShort(),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _getMainButtonColor(),
-                  foregroundColor: Colors.white,
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-            
-            // 🆕 NAVEGAÇÃO (só se necessário e em linha separada)
-            if (_currentExerciseIndex > 0 || 
-                _currentExerciseIndex < widget.treino.exercicios.length - 1) ...[
-              const SizedBox(height: 4),
-              
-              // 🔧 CORREÇÃO: Layout em colunas para telas pequenas
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  // Se a tela for muito pequena, usar layout vertical
-                  if (constraints.maxWidth < 300) {
-                    return Column(
-                      children: [
-                        if (_currentExerciseIndex > 0)
-                          SizedBox(
-                            width: double.infinity,
-                            height: 28,
-                            child: _buildNavButton('Anterior', Icons.skip_previous_rounded, _previousExercise),
-                          ),
-                        if (_currentExerciseIndex > 0 && _currentExerciseIndex < widget.treino.exercicios.length - 1)
-                          const SizedBox(height: 4),
-                        if (_currentExerciseIndex < widget.treino.exercicios.length - 1)
-                          SizedBox(
-                            width: double.infinity,
-                            height: 28,
-                            child: _buildNavButton('Próximo', Icons.skip_next_rounded, _nextExercise),
-                          ),
-                      ],
-                    );
-                  } else {
-                    // Layout normal em linha
-                    return Row(
-                      children: [
-                        if (_currentExerciseIndex > 0)
-                          Expanded(
-                            child: SizedBox(
-                              height: 28,
-                              child: _buildNavButton('Ant', Icons.skip_previous_rounded, _previousExercise),
-                            ),
-                          ),
-                        if (_currentExerciseIndex > 0 && _currentExerciseIndex < widget.treino.exercicios.length - 1)
-                          const SizedBox(width: 4),
-                        if (_currentExerciseIndex < widget.treino.exercicios.length - 1)
-                          Expanded(
-                            child: SizedBox(
-                              height: 28,
-                              child: _buildNavButton('Pró', Icons.skip_next_rounded, _nextExercise),
-                            ),
-                          ),
-                      ],
-                    );
-                  }
-                },
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 🔧 HELPER PARA BOTÕES DE NAVEGAÇÃO
-  Widget _buildNavButton(String text, IconData icon, VoidCallback onPressed) {
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 12),
-      label: Text(
-        text,
-        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500),
-      ),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: SportColors.grey600,
-        side: BorderSide(color: SportColors.grey300, width: 1),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      ),
-    );
-  }
-
-  // 🔥 CORREÇÃO PRINCIPAL: Finalizar treino - texto do botão
-  String _getMainButtonTextShort() {
+  String _getMainButtonText() {
     if (_exercicioAtual?.isTempo == true) {
       switch (_timerState) {
         case TimerState.waiting:
-          return 'Iniciar S$_currentSerie';
+          return 'INICIAR SÉRIE $_currentSerie';
         case TimerState.executing:
-          return 'Executando...';
+          return 'EXECUTANDO...';
         case TimerState.resting:
-          return 'Descansando...';
+          return 'DESCANSANDO...';
         case TimerState.finished:
-          // 🔥 VERIFICAR SE É ÚLTIMO EXERCÍCIO
           if (_currentExerciseIndex >= widget.treino.exercicios.length - 1) {
-            return 'Finalizar Treino 🎉';
+            return 'FINALIZAR TREINO 🎉';
           } else {
-            return 'Próximo Exercício';
+            return 'PRÓXIMO EXERCÍCIO';
           }
       }
     } else {
       if (_currentSerie <= (_exercicioAtual?.series ?? 1)) {
-        return 'Completar S$_currentSerie';
+        return 'COMPLETAR SÉRIE $_currentSerie';
       } else {
-        // 🔥 VERIFICAR SE É ÚLTIMO EXERCÍCIO
         if (_currentExerciseIndex >= widget.treino.exercicios.length - 1) {
-          return 'Finalizar Treino 🎉';
+          return 'FINALIZAR TREINO 🎉';
         } else {
-          return 'Próximo Exercício';
+          return 'PRÓXIMO EXERCÍCIO';
         }
       }
     }
   }
 
-  // 🔥 ÍCONE DO BOTÃO CORRIGIDO PARA ÚLTIMO EXERCÍCIO
-  IconData _getMainButtonIcon() {
-    if (_isMainButtonDisabled()) {
-      if (_timerState == TimerState.executing) {
-        return Icons.timer;
-      } else if (_timerState == TimerState.resting) {
-        return Icons.coffee;
-      }
-    }
-    
-    // 🔥 LÓGICA CORRIGIDA PARA ÚLTIMO EXERCÍCIO
-    final isLastExercise = _currentExerciseIndex >= widget.treino.exercicios.length - 1;
-    final exerciseFinished = _currentSerie > (_exercicioAtual?.series ?? 1) || _timerState == TimerState.finished;
-    
-    if (exerciseFinished && isLastExercise) {
-      return Icons.celebration_rounded; // 🎉 Ícone de finalizar treino
-    } else if (exerciseFinished) {
-      return Icons.arrow_forward_rounded; // ➡️ Próximo exercício
-    } else {
-      return Icons.play_arrow_rounded; // ▶️ Iniciar/continuar
-    }
-  }
-
-  // 🔥 COR DO BOTÃO CORRIGIDA PARA ÚLTIMO EXERCÍCIO
   Color _getMainButtonColor() {
     if (_isMainButtonDisabled()) {
-      return SportColors.grey500;
+      return const Color(0xFFA0AEC0);
     }
     
-    // 🔥 LÓGICA PARA COR DO BOTÃO
     final isLastExercise = _currentExerciseIndex >= widget.treino.exercicios.length - 1;
     final exerciseFinished = _currentSerie > (_exercicioAtual?.series ?? 1) || _timerState == TimerState.finished;
     
     if (exerciseFinished && isLastExercise) {
-      return SportColors.success; // 🟢 Verde para finalizar treino
+      return const Color(0xFF4CAF50); // Verde para finalizar treino
     } else if (exerciseFinished) {
-      return SportColors.accent; // 🟠 Laranja para próximo exercício
+      return const Color(0xFFED8936); // Laranja para próximo exercício
     } else {
-      return SportColors.primary; // 🔵 Azul para ações normais
+      return const Color(0xFFED8936); // Laranja para iniciar série (mudado de vermelho)
     }
   }
 
-  // 🔧 VERIFICAR SE BOTÃO DEVE ESTAR DESABILITADO
   bool _isMainButtonDisabled() {
     if (_exercicioAtual?.isTempo == true) {
       return _timerState == TimerState.executing || _timerState == TimerState.resting;
@@ -1260,14 +723,16 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     return false;
   }
 
-  VoidCallback _getMainButtonAction() {
+  VoidCallback? _getMainButtonAction() {
+    if (_isMainButtonDisabled()) return null;
+    
     if (_exercicioAtual?.isTempo == true) {
       switch (_timerState) {
         case TimerState.waiting:
           return _iniciarTimer;
         case TimerState.executing:
         case TimerState.resting:
-          return () {};
+          return null;
         case TimerState.finished:
           return _finalizarExercicio;
       }
@@ -1280,7 +745,27 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     }
   }
 
-  // 🔧 MÉTODOS DE TIMER - REESCRITOS
+  double _getTimerProgress() {
+    if (_exercicioAtual == null) return 0.0;
+    
+    if (_timerState == TimerState.executing) {
+      final total = _exercicioAtual!.tempoExecucao ?? 30;
+      return (_tempoAtual / total).clamp(0.0, 1.0);
+    } else if (_timerState == TimerState.resting) {
+      final total = _exercicioAtual!.tempoDescanso ?? 60;
+      return (_tempoAtual / total).clamp(0.0, 1.0);
+    }
+    
+    return 0.0;
+  }
+
+  String _formatTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  // Métodos de lógica do timer (mantidos do arquivo original)
   void _iniciarTimer() {
     if (_exercicioAtual == null || !_exercicioAtual!.isTempo) return;
 
@@ -1290,13 +775,17 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
       _timerRodando = true;
     });
 
+    _pulseController.repeat(reverse: true);
+
     _timerAtivo = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         _tempoAtual--;
       });
 
-      if (_tempoAtual <= 3 && _tempoAtual > 0) {
-        HapticFeedback.lightImpact();
+      if (_tempoAtual == 3 || _tempoAtual == 2 || _tempoAtual == 1) {
+        HapticFeedback.heavyImpact();
+        // 🔊 CONTAGEM REGRESSIVA: 3...2...1 (exatamente 3 vezes)
+        _playCountdownSound();
       }
 
       if (_tempoAtual <= 0) {
@@ -1305,23 +794,23 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     });
 
     HapticFeedback.mediumImpact();
-    _showSnackBar('Série $_currentSerie iniciada! 💪', SportColors.primary);
+    _showSnackBar('Série $_currentSerie iniciada! 💪', _getTimerColor());
   }
 
   void _finalizarExecucao() {
     _timerAtivo?.cancel();
+    _pulseController.stop();
     
     if (_currentSerie < (_exercicioAtual?.series ?? 1)) {
-      // Ainda tem séries - iniciar descanso
       _iniciarDescanso();
     } else {
-      // Todas as séries foram feitas
       setState(() {
         _timerState = TimerState.finished;
         _timerRodando = false;
       });
       HapticFeedback.heavyImpact();
-      _showSnackBar('Exercício concluído! 🎉', SportColors.success);
+      
+      _showSnackBar('Exercício concluído! 🎉', const Color(0xFF4CAF50));
     }
   }
 
@@ -1337,8 +826,10 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
         _tempoAtual--;
       });
 
-      if (_tempoAtual <= 3 && _tempoAtual > 0) {
-        HapticFeedback.lightImpact();
+      if (_tempoAtual == 3 || _tempoAtual == 2 || _tempoAtual == 1) {
+        HapticFeedback.heavyImpact();
+        // 🔊 CONTAGEM REGRESSIVA: 3...2...1 (exatamente 3 vezes)
+        _playCountdownSound();
       }
 
       if (_tempoAtual <= 0) {
@@ -1346,7 +837,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
       }
     });
 
-    _showSnackBar('Descanso iniciado ⏱️', SportColors.warning);
+    _showSnackBar('Descanso iniciado ⏱️', const Color(0xFFD69E2E));
   }
 
   void _finalizarDescanso() {
@@ -1359,7 +850,6 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
 
     HapticFeedback.mediumImpact();
     
-    // Auto-iniciar próxima série após 1 segundo
     Future.delayed(const Duration(seconds: 1), () {
       if (mounted && _timerState == TimerState.waiting) {
         _iniciarTimer();
@@ -1367,37 +857,16 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     });
   }
 
-  // 🔥 CORREÇÃO CRÍTICA: Finalizar exercício corretamente
-  void _finalizarExercicio() {
-    _showSnackBar('Exercício completado! 🎉', SportColors.success);
-    
-    // 🔧 LÓGICA CORRIGIDA: Verificar se é o último exercício
-    if (_currentExerciseIndex >= widget.treino.exercicios.length - 1) {
-      // 🔥 É o último exercício - FINALIZAR TREINO
-      Future.delayed(const Duration(seconds: 2), () {
-        _finishTreino();
-      });
-    } else {
-      // 🔄 Não é o último - próximo exercício
-      Future.delayed(const Duration(seconds: 1), () {
-        _nextExercise();
-      });
-    }
-  }
-
-  // 🔥 CORREÇÃO PRINCIPAL: Timer de descanso para exercícios de repetição
   void _completeSet() {
     HapticFeedback.mediumImpact();
     
     if (_currentSerie < (_exercicioAtual?.series ?? 1)) {
-      // 🔥 NOVA FUNCIONALIDADE: Iniciar timer de descanso para repetições
       _iniciarDescansoRepeticao();
     } else {
       _finalizarExercicio();
     }
   }
 
-  // 🔥 NOVO MÉTODO: Timer de descanso para exercícios de repetição
   void _iniciarDescansoRepeticao() {
     setState(() {
       _currentSerie++;
@@ -1406,13 +875,17 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
       _timerRodando = true;
     });
 
+    _pulseController.repeat(reverse: true);
+
     _timerAtivo = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         _tempoAtual--;
       });
 
-      if (_tempoAtual <= 3 && _tempoAtual > 0) {
-        HapticFeedback.lightImpact();
+      if (_tempoAtual == 3 || _tempoAtual == 2 || _tempoAtual == 1) {
+        HapticFeedback.heavyImpact();
+        // 🔊 CONTAGEM REGRESSIVA: 3...2...1 (exatamente 3 vezes)
+        _playCountdownSound();
       }
 
       if (_tempoAtual <= 0) {
@@ -1420,12 +893,12 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
       }
     });
 
-    _showSnackBar('Descanso iniciado! ⏱️ Próxima série: $_currentSerie', SportColors.warning);
+    _showSnackBar('Descanso iniciado! ⏱️ Próxima série: $_currentSerie', const Color(0xFFD69E2E));
   }
 
-  // 🔥 NOVO MÉTODO: Finalizar descanso para repetições
   void _finalizarDescansoRepeticao() {
     _timerAtivo?.cancel();
+    _pulseController.stop();
     
     setState(() {
       _timerState = TimerState.waiting;
@@ -1433,10 +906,23 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     });
 
     HapticFeedback.mediumImpact();
-    _showSnackBar('Descanso terminado! Vamos para série $_currentSerie! 💪', SportColors.success);
+    _showSnackBar('Descanso terminado! Vamos para série $_currentSerie! 💪', const Color(0xFF4CAF50));
   }
 
-  // 🔧 CORREÇÃO: NextExercise mais claro
+  void _finalizarExercicio() {
+    _showSnackBar('Exercício completado! 🎉', const Color(0xFF48BB78));
+    
+    if (_currentExerciseIndex >= widget.treino.exercicios.length - 1) {
+      Future.delayed(const Duration(seconds: 2), () {
+        _finishTreino();
+      });
+    } else {
+      Future.delayed(const Duration(seconds: 1), () {
+        _nextExercise();
+      });
+    }
+  }
+
   void _nextExercise() {
     HapticFeedback.lightImpact();
     
@@ -1447,7 +933,6 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
       });
       _initializeExercicio();
     } else {
-      // 🔥 ÚLTIMO EXERCÍCIO - FINALIZAR TREINO
       _finishTreino();
     }
   }
@@ -1489,46 +974,39 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     );
   }
 
-  void _showPauseDialog() {
-    setState(() {
-      _isPaused = !_isPaused;
-    });
-    
-    HapticFeedback.lightImpact();
-    
-    final message = _isPaused ? 'Treino pausado' : 'Treino retomado';
-    final color = _isPaused ? SportColors.warning : SportColors.success;
-    
-    _showSnackBar(message, color);
-  }
-
   void _showStopDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
-          'Parar Treino?',
+          'Finalizar Treino?',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
-        content: const Text('Tem certeza que deseja parar o treino?'),
+        content: const Text('Tem certeza que deseja finalizar o treino agora?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
+            child: const Text(
               'Cancelar',
-              style: TextStyle(color: SportColors.grey600),
+              style: TextStyle(color: Color(0xFF718096)),
             ),
           ),
-          SportWidgets.gradientButton(
-            text: 'Parar',
+          ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               _finishTreino();
             },
-            gradient: SportColors.motivationalGradient,
-            width: 100,
-            height: 40,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6BA6CD),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Finalizar',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -1547,15 +1025,21 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
         ),
         content: const Text('Este treino não possui exercícios para executar.'),
         actions: [
-          SportWidgets.gradientButton(
-            text: 'Voltar',
+          ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               Navigator.pop(context);
             },
-            gradient: SportColors.primaryGradient,
-            width: 120,
-            height: 40,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6BA6CD),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Voltar',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -1566,8 +1050,9 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     HapticFeedback.heavyImpact();
     
     _timerAtivo?.cancel();
+    _pulseController.stop();
     
-    _showSnackBar('Treino "${widget.treino.nomeTreino}" finalizado! 🎉', SportColors.success);
+    _showSnackBar('Treino "${widget.treino.nomeTreino}" finalizado! 🎉', const Color(0xFF4CAF50));
     
     Navigator.pushNamedAndRemoveUntil(
       context,
@@ -1593,9 +1078,21 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
       print('❌ Erro ao desativar wakelock: $e');
     }
   }
+
+  // 🔊 MÉTODO DE SOM - APENAS CONTAGEM REGRESSIVA
+  Future<void> _playCountdownSound() async {
+    try {
+      await _audioPlayer.play(AssetSource('sounds/countdown.mp3'));
+      HapticFeedback.heavyImpact();
+    } catch (e) {
+      print('Erro ao reproduzir som de contagem: $e');
+      // Fallback: só vibração
+      HapticFeedback.heavyImpact();
+    }
+  }
 }
 
-// 🆕 ENUM PARA ESTADOS DO TIMER
+// Enum para estados do timer
 enum TimerState {
   waiting,    // Aguardando início
   executing,  // Executando exercício
