@@ -8,7 +8,7 @@ import 'storage_service.dart';
 class TreinoService {
   static final StorageService _storage = StorageService();
   
-  // CACHE SIMPLIFICADO - APENAS LISTA PRINCIPAL
+  // CACHE SIMPLIFICADO
   static List<TreinoModel>? _cachedTreinos;
   static DateTime? _lastFetch;
   static const int _cacheExpireMinutes = 5;
@@ -22,7 +22,7 @@ class TreinoService {
     };
   }
 
-  /// LISTAR TREINOS - CACHE SIMPLES
+  /// LISTAR TREINOS
   static Future<ApiResponse<List<TreinoModel>>> listarTreinos({
     String? busca,
     String? dificuldade,
@@ -33,21 +33,17 @@ class TreinoService {
     bool forceRefresh = false,
   }) async {
     try {
-      print('🔍 LISTAR TREINOS - forceRefresh: $forceRefresh');
-      
       // INVALIDAR CACHE SE NECESSÁRIO
       final cacheExpired = _lastFetch == null || 
           DateTime.now().difference(_lastFetch!).inMinutes > _cacheExpireMinutes;
       
       if (forceRefresh || cacheExpired) {
-        print('🗑️ Cache expirado ou forçado - buscando da API');
         _invalidateCache();
       }
 
       // USAR CACHE SE DISPONÍVEL (apenas para consultas sem filtros)
       if (_cachedTreinos != null && !forceRefresh && 
           busca == null && dificuldade == null && tipoTreino == null) {
-        print('📦 Retornando ${_cachedTreinos!.length} treinos do cache');
         return ApiResponse<List<TreinoModel>>(
           success: true,
           data: _cachedTreinos!,
@@ -68,11 +64,7 @@ class TreinoService {
       final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
       final headers = await _getHeaders();
 
-      print('🚀 GET $uri');
-
       final response = await http.get(uri, headers: headers).timeout(ApiConstants.defaultTimeout);
-
-      print('📡 Status: ${response.statusCode}');
       
       if (response.statusCode == ApiConstants.statusOk) {
         final jsonData = json.decode(response.body);
@@ -92,13 +84,10 @@ class TreinoService {
             treinos = data.map((json) => TreinoModel.fromJson(json)).toList();
           }
 
-          print('✅ Carregados ${treinos.length} treinos da API');
-
           // ATUALIZAR CACHE (apenas se não tiver filtros)
           if (busca == null && dificuldade == null && tipoTreino == null) {
             _cachedTreinos = treinos;
             _lastFetch = DateTime.now();
-            print('💾 Cache atualizado com ${treinos.length} treinos');
           }
 
           return ApiResponse<List<TreinoModel>>(
@@ -114,7 +103,6 @@ class TreinoService {
         message: ApiConstants.getErrorMessage(response.statusCode),
       );
     } catch (e) {
-      print('❌ Erro ao listar treinos: $e');
       return ApiResponse<List<TreinoModel>>(
         success: false,
         message: 'Erro interno: $e',
@@ -125,16 +113,10 @@ class TreinoService {
   /// BUSCAR TREINO ESPECÍFICO
   static Future<ApiResponse<TreinoModel>> buscarTreino(int id) async {
     try {
-      print('🔍 Buscando treino ID: $id');
-
       final uri = Uri.parse(await ApiConstants.getTreinoUrl(id));
       final headers = await _getHeaders();
 
-      print('🚀 GET $uri');
-
       final response = await http.get(uri, headers: headers).timeout(ApiConstants.defaultTimeout);
-
-      print('📡 Status: ${response.statusCode}');
 
       if (response.statusCode == ApiConstants.statusOk) {
         final jsonData = json.decode(response.body);
@@ -142,7 +124,6 @@ class TreinoService {
 
         if (apiResponse.success && apiResponse.data != null) {
           final treino = TreinoModel.fromJson(apiResponse.data);
-          print('✅ Treino encontrado: ${treino.nomeTreino} com ${treino.exercicios.length} exercícios');
           
           return ApiResponse<TreinoModel>(
             success: true,
@@ -164,7 +145,6 @@ class TreinoService {
         message: ApiConstants.getErrorMessage(response.statusCode),
       );
     } catch (e) {
-      print('❌ Erro ao buscar treino: $e');
       return ApiResponse<TreinoModel>(
         success: false,
         message: 'Erro interno: $e',
@@ -175,8 +155,6 @@ class TreinoService {
   /// CRIAR NOVO TREINO
   static Future<ApiResponse<TreinoModel>> criarTreino(TreinoModel treino) async {
     try {
-      print('➕ Criando treino: ${treino.nomeTreino}');
-      
       final uri = Uri.parse(await ApiConstants.getUrl(ApiConstants.treinoStore));
       final headers = await _getHeaders();
       
@@ -190,15 +168,11 @@ class TreinoService {
       
       final body = json.encode(dadosSimplificados);
 
-      print('🚀 POST $uri');
-
       final response = await http.post(
         uri,
         headers: headers,
         body: body,
       ).timeout(ApiConstants.defaultTimeout);
-
-      print('📡 Status: ${response.statusCode}');
 
       if (response.statusCode == ApiConstants.statusCreated) {
         final jsonData = json.decode(response.body);
@@ -209,11 +183,9 @@ class TreinoService {
           
           // INVALIDAR CACHE APÓS CRIAÇÃO
           _invalidateCache();
-          print('🗑️ Cache invalidado após criação');
           
           // CRIAR EXERCÍCIOS SE EXISTIREM
           if (treino.exercicios.isNotEmpty) {
-            print('📝 Criando ${treino.exercicios.length} exercícios...');
             await _criarExerciciosDoTreino(treinoCriado.id!, treino.exercicios);
             
             // BUSCAR TREINO COMPLETO
@@ -247,7 +219,6 @@ class TreinoService {
         message: ApiConstants.getErrorMessage(response.statusCode),
       );
     } catch (e) {
-      print('❌ Erro ao criar treino: $e');
       return ApiResponse<TreinoModel>(
         success: false,
         message: 'Erro interno: $e',
@@ -265,8 +236,6 @@ class TreinoService {
         );
       }
 
-      print('📝 Atualizando treino ID: ${treino.id} - ${treino.nomeTreino}');
-
       final uri = Uri.parse(await ApiConstants.getTreinoUrl(treino.id!));
       final headers = await _getHeaders();
       
@@ -279,15 +248,11 @@ class TreinoService {
       
       final body = json.encode(dadosAtualizacao);
 
-      print('🚀 PUT $uri');
-
       final response = await http.put(
         uri,
         headers: headers,
         body: body,
       ).timeout(ApiConstants.defaultTimeout);
-
-      print('📡 Status: ${response.statusCode}');
 
       if (response.statusCode == ApiConstants.statusOk) {
         final jsonData = json.decode(response.body);
@@ -298,7 +263,6 @@ class TreinoService {
           
           // INVALIDAR CACHE APÓS ATUALIZAÇÃO
           _invalidateCache();
-          print('🗑️ Cache invalidado após atualização');
           
           return ApiResponse<TreinoModel>(
             success: true,
@@ -331,7 +295,6 @@ class TreinoService {
         message: ApiConstants.getErrorMessage(response.statusCode),
       );
     } catch (e) {
-      print('❌ Erro ao atualizar treino: $e');
       return ApiResponse<TreinoModel>(
         success: false,
         message: 'Erro interno: $e',
@@ -339,34 +302,21 @@ class TreinoService {
     }
   }
 
-  /// ALIAS PARA COMPATIBILIDADE
-  static Future<ApiResponse<TreinoModel>> editarTreino(TreinoModel treino) async {
-    return await atualizarTreino(treino);
-  }
-
-  /// DELETAR TREINO - MÉTODO PRINCIPAL
+  /// DELETAR TREINO
   static Future<ApiResponse<bool>> deletarTreino(int id) async {
     try {
-      print('🗑️ DELETANDO TREINO ID: $id');
-      
       final uri = Uri.parse(await ApiConstants.getTreinoUrl(id));
       final headers = await _getHeaders();
 
-      print('🚀 DELETE $uri');
-
       final response = await http.delete(uri, headers: headers).timeout(ApiConstants.defaultTimeout);
-
-      print('📡 Status: ${response.statusCode}');
-      print('📡 Response: ${response.body}');
 
       if (response.statusCode == ApiConstants.statusOk) {
         final jsonData = json.decode(response.body);
         final apiResponse = ApiResponse.fromJson(jsonData);
 
         if (apiResponse.success) {
-          // CRÍTICO: INVALIDAR CACHE APÓS EXCLUSÃO
+          // INVALIDAR CACHE APÓS EXCLUSÃO
           _invalidateCache();
-          print('✅ TREINO $id DELETADO - CACHE INVALIDADO');
           
           return ApiResponse<bool>(
             success: true,
@@ -374,7 +324,6 @@ class TreinoService {
             message: apiResponse.message ?? 'Treino excluído com sucesso',
           );
         } else {
-          print('❌ API retornou erro: ${apiResponse.message}');
           return ApiResponse<bool>(
             success: false,
             message: apiResponse.message ?? 'Erro ao excluir treino',
@@ -394,114 +343,7 @@ class TreinoService {
         message: ApiConstants.getErrorMessage(response.statusCode),
       );
     } catch (e) {
-      print('❌ Erro ao deletar treino: $e');
       return ApiResponse<bool>(
-        success: false,
-        message: 'Erro interno: $e',
-      );
-    }
-  }
-
-  /// DUPLICAR TREINO
-  static Future<ApiResponse<TreinoModel>> duplicarTreino(TreinoModel treinoOriginal) async {
-    try {
-      print('📋 Duplicando treino: ${treinoOriginal.nomeTreino}');
-      
-      final treinoCopia = TreinoModel.novo(
-        nomeTreino: '${treinoOriginal.nomeTreino} (Cópia)',
-        tipoTreino: treinoOriginal.tipoTreino,
-        descricao: treinoOriginal.descricao,
-        dificuldade: treinoOriginal.dificuldade,
-        exercicios: [],
-      );
-      
-      final resultadoTreino = await criarTreino(treinoCopia);
-      
-      if (resultadoTreino.success && treinoOriginal.exercicios.isNotEmpty) {
-        await _criarExerciciosDoTreino(
-          resultadoTreino.data!.id!,
-          treinoOriginal.exercicios,
-        );
-        
-        final treinoCompleto = await buscarTreino(resultadoTreino.data!.id!);
-        if (treinoCompleto.success) {
-          return treinoCompleto;
-        }
-      }
-      
-      return resultadoTreino;
-    } catch (e) {
-      print('❌ Erro ao duplicar treino: $e');
-      return ApiResponse<TreinoModel>(
-        success: false,
-        message: 'Erro interno: $e',
-      );
-    }
-  }
-
-  /// MÉTODO AUXILIAR: CRIAR EXERCÍCIOS DO TREINO
-  static Future<void> _criarExerciciosDoTreino(
-    int treinoId,
-    List<ExercicioModel> exercicios,
-  ) async {
-    try {
-      for (int i = 0; i < exercicios.length; i++) {
-        final exercicio = exercicios[i].copyWith(ordem: i + 1);
-        final response = await criarExercicio(treinoId, exercicio);
-        
-        if (response.success) {
-          print('✅ Exercício criado: ${exercicio.nomeExercicio}');
-        } else {
-          print('❌ Erro ao criar exercício: ${exercicio.nomeExercicio}');
-        }
-      }
-    } catch (e) {
-      print('❌ Erro ao criar exercícios: $e');
-    }
-  }
-
-  // ========================================================================
-  // MÉTODOS PARA EXERCÍCIOS
-  // ========================================================================
-
-  /// LISTAR EXERCÍCIOS DE UM TREINO
-  static Future<ApiResponse<List<ExercicioModel>>> listarExercicios(int treinoId) async {
-    try {
-      print('📋 Listando exercícios do treino $treinoId');
-
-      final uri = Uri.parse(await ApiConstants.getExerciciosUrl(treinoId));
-      final headers = await _getHeaders();
-
-      print('🚀 GET $uri');
-
-      final response = await http.get(uri, headers: headers).timeout(ApiConstants.defaultTimeout);
-
-      print('📡 Status: ${response.statusCode}');
-
-      if (response.statusCode == ApiConstants.statusOk) {
-        final jsonData = json.decode(response.body);
-        final apiResponse = ApiResponse.fromJson(jsonData);
-
-        if (apiResponse.success) {
-          final data = apiResponse.data as Map<String, dynamic>;
-          final List<dynamic> exerciciosJson = data['exercicios'];
-          final exercicios = exerciciosJson.map((json) => ExercicioModel.fromJson(json)).toList();
-          
-          return ApiResponse<List<ExercicioModel>>(
-            success: true,
-            data: exercicios,
-            message: apiResponse.message ?? 'Exercícios carregados',
-          );
-        }
-      }
-
-      return ApiResponse<List<ExercicioModel>>(
-        success: false,
-        message: ApiConstants.getErrorMessage(response.statusCode),
-      );
-    } catch (e) {
-      print('❌ Erro ao listar exercícios: $e');
-      return ApiResponse<List<ExercicioModel>>(
         success: false,
         message: 'Erro interno: $e',
       );
@@ -515,15 +357,11 @@ class TreinoService {
       final headers = await _getHeaders();
       final body = json.encode(exercicio.toJson());
 
-      print('🚀 POST $uri - ${exercicio.nomeExercicio}');
-
       final response = await http.post(
         uri,
         headers: headers,
         body: body,
       ).timeout(ApiConstants.defaultTimeout);
-
-      print('📡 Status: ${response.statusCode}');
 
       if (response.statusCode == ApiConstants.statusCreated) {
         final jsonData = json.decode(response.body);
@@ -534,7 +372,6 @@ class TreinoService {
           
           // INVALIDAR CACHE APÓS CRIAR EXERCÍCIO
           _invalidateCache();
-          print('🗑️ Cache invalidado após criar exercício');
           
           return ApiResponse<ExercicioModel>(
             success: true,
@@ -560,8 +397,44 @@ class TreinoService {
         message: ApiConstants.getErrorMessage(response.statusCode),
       );
     } catch (e) {
-      print('❌ Erro ao criar exercício: $e');
       return ApiResponse<ExercicioModel>(
+        success: false,
+        message: 'Erro interno: $e',
+      );
+    }
+  }
+
+  /// LISTAR EXERCÍCIOS DE UM TREINO
+  static Future<ApiResponse<List<ExercicioModel>>> listarExercicios(int treinoId) async {
+    try {
+      final uri = Uri.parse(await ApiConstants.getExerciciosUrl(treinoId));
+      final headers = await _getHeaders();
+
+      final response = await http.get(uri, headers: headers).timeout(ApiConstants.defaultTimeout);
+
+      if (response.statusCode == ApiConstants.statusOk) {
+        final jsonData = json.decode(response.body);
+        final apiResponse = ApiResponse.fromJson(jsonData);
+
+        if (apiResponse.success) {
+          final data = apiResponse.data as Map<String, dynamic>;
+          final List<dynamic> exerciciosJson = data['exercicios'];
+          final exercicios = exerciciosJson.map((json) => ExercicioModel.fromJson(json)).toList();
+          
+          return ApiResponse<List<ExercicioModel>>(
+            success: true,
+            data: exercicios,
+            message: apiResponse.message ?? 'Exercícios carregados',
+          );
+        }
+      }
+
+      return ApiResponse<List<ExercicioModel>>(
+        success: false,
+        message: ApiConstants.getErrorMessage(response.statusCode),
+      );
+    } catch (e) {
+      return ApiResponse<List<ExercicioModel>>(
         success: false,
         message: 'Erro interno: $e',
       );
@@ -579,15 +452,11 @@ class TreinoService {
       final headers = await _getHeaders();
       final body = json.encode(exercicio.toJson());
 
-      print('🚀 PUT $uri - ${exercicio.nomeExercicio}');
-
       final response = await http.put(
         uri,
         headers: headers,
         body: body,
       ).timeout(ApiConstants.defaultTimeout);
-
-      print('📡 Status: ${response.statusCode}');
 
       if (response.statusCode == ApiConstants.statusOk) {
         final jsonData = json.decode(response.body);
@@ -598,7 +467,6 @@ class TreinoService {
           
           // INVALIDAR CACHE APÓS ATUALIZAR EXERCÍCIO
           _invalidateCache();
-          print('🗑️ Cache invalidado após atualizar exercício');
           
           return ApiResponse<ExercicioModel>(
             success: true,
@@ -613,7 +481,6 @@ class TreinoService {
         message: ApiConstants.getErrorMessage(response.statusCode),
       );
     } catch (e) {
-      print('❌ Erro ao atualizar exercício: $e');
       return ApiResponse<ExercicioModel>(
         success: false,
         message: 'Erro interno: $e',
@@ -624,25 +491,18 @@ class TreinoService {
   /// DELETAR EXERCÍCIO
   static Future<ApiResponse<bool>> deletarExercicio(int treinoId, int exercicioId) async {
     try {
-      print('🗑️ Deletando exercício $exercicioId do treino $treinoId');
-      
       final uri = Uri.parse(await ApiConstants.getExercicioUrl(treinoId, exercicioId));
       final headers = await _getHeaders();
 
-      print('🚀 DELETE $uri');
-
       final response = await http.delete(uri, headers: headers).timeout(ApiConstants.defaultTimeout);
-
-      print('📡 Status: ${response.statusCode}');
 
       if (response.statusCode == ApiConstants.statusOk) {
         final jsonData = json.decode(response.body);
         final apiResponse = ApiResponse.fromJson(jsonData);
 
         if (apiResponse.success) {
-          // CRÍTICO: INVALIDAR CACHE APÓS DELETAR EXERCÍCIO
+          // INVALIDAR CACHE APÓS DELETAR EXERCÍCIO
           _invalidateCache();
-          print('✅ Exercício $exercicioId deletado - CACHE INVALIDADO');
           
           return ApiResponse<bool>(
             success: true,
@@ -657,7 +517,6 @@ class TreinoService {
         message: ApiConstants.getErrorMessage(response.statusCode),
       );
     } catch (e) {
-      print('❌ Erro ao deletar exercício: $e');
       return ApiResponse<bool>(
         success: false,
         message: 'Erro interno: $e',
@@ -675,15 +534,11 @@ class TreinoService {
       final headers = await _getHeaders();
       final body = json.encode({'exercicios': exerciciosOrdenados});
 
-      print('🚀 PUT $uri - Reordenar exercícios');
-
       final response = await http.put(
         uri,
         headers: headers,
         body: body,
       ).timeout(ApiConstants.defaultTimeout);
-
-      print('📡 Status: ${response.statusCode}');
 
       if (response.statusCode == ApiConstants.statusOk) {
         final jsonData = json.decode(response.body);
@@ -692,7 +547,6 @@ class TreinoService {
         if (apiResponse.success) {
           // INVALIDAR CACHE APÓS REORDENAR
           _invalidateCache();
-          print('🗑️ Cache invalidado após reordenar');
         }
 
         return ApiResponse<bool>(
@@ -707,7 +561,6 @@ class TreinoService {
         message: ApiConstants.getErrorMessage(response.statusCode),
       );
     } catch (e) {
-      print('❌ Erro ao reordenar exercícios: $e');
       return ApiResponse<bool>(
         success: false,
         message: 'Erro interno: $e',
@@ -715,44 +568,35 @@ class TreinoService {
     }
   }
 
-  // ========================================================================
-  // MÉTODOS DE CACHE E UTILIDADES
-  // ========================================================================
+  /// MÉTODO AUXILIAR: CRIAR EXERCÍCIOS DO TREINO
+  static Future<void> _criarExerciciosDoTreino(
+    int treinoId,
+    List<ExercicioModel> exercicios,
+  ) async {
+    try {
+      for (int i = 0; i < exercicios.length; i++) {
+        final exercicio = exercicios[i].copyWith(ordem: i + 1);
+        await criarExercicio(treinoId, exercicio);
+      }
+    } catch (e) {
+      // Ignorar erros na criação de exercícios
+    }
+  }
 
-  /// INVALIDAR CACHE - MÉTODO PRINCIPAL
+  /// INVALIDAR CACHE
   static void _invalidateCache() {
     _cachedTreinos = null;
     _lastFetch = null;
-    print('🧹 CACHE INVALIDADO');
   }
 
   /// FORÇAR ATUALIZAÇÃO DA LISTA
   static Future<ApiResponse<List<TreinoModel>>> forcarAtualizacao() async {
-    print('🔄 Forçando atualização da lista...');
     return await listarTreinos(forceRefresh: true);
   }
 
   /// LIMPAR CACHE MANUALMENTE
   static void limparCache() {
     _invalidateCache();
-    print('🧹 Cache limpo manualmente');
-  }
-
-  /// DEBUG: MOSTRAR STATUS DO CACHE
-  static void debugCache() {
-    print('🔍 === DEBUG CACHE ===');
-    print('Cache: ${_cachedTreinos?.length ?? 0} treinos');
-    print('Last Fetch: $_lastFetch');
-    if (_lastFetch != null) {
-      final diff = DateTime.now().difference(_lastFetch!);
-      print('Idade: ${diff.inMinutes} minutos');
-    }
-    print('==================');
-  }
-
-  /// ALIAS PARA COMPATIBILIDADE
-  static Future<ApiResponse<bool>> removerTreino(int id) async {
-    return await deletarTreino(id);
   }
 
   /// TESTAR CONEXÃO COM API
@@ -760,7 +604,6 @@ class TreinoService {
     try {
       return await ApiConstants.testCurrentAPI();
     } catch (e) {
-      print('❌ Erro no teste de conexão: $e');
       return false;
     }
   }
@@ -770,47 +613,13 @@ class TreinoService {
     return await listarTreinos(dificuldade: dificuldade);
   }
 
-  /// LISTAR EXERCÍCIOS POR GRUPO MUSCULAR
-  static Future<ApiResponse<List<ExercicioModel>>> listarExerciciosPorGrupoMuscular(
-    int treinoId, 
-    String grupoMuscular
-  ) async {
-    try {
-      final uri = Uri.parse('${await ApiConstants.getExerciciosUrl(treinoId)}/grupo/$grupoMuscular');
-      final headers = await _getHeaders();
+  /// ALIAS PARA COMPATIBILIDADE
+  static Future<ApiResponse<bool>> removerTreino(int id) async {
+    return await deletarTreino(id);
+  }
 
-      print('🚀 GET $uri');
-
-      final response = await http.get(uri, headers: headers).timeout(ApiConstants.defaultTimeout);
-
-      print('📡 Status: ${response.statusCode}');
-
-      if (response.statusCode == ApiConstants.statusOk) {
-        final jsonData = json.decode(response.body);
-        final apiResponse = ApiResponse.fromJson(jsonData);
-
-        if (apiResponse.success) {
-          final List<dynamic> exerciciosJson = apiResponse.data;
-          final exercicios = exerciciosJson.map((json) => ExercicioModel.fromJson(json)).toList();
-          
-          return ApiResponse<List<ExercicioModel>>(
-            success: true,
-            data: exercicios,
-            message: apiResponse.message ?? 'Exercícios carregados',
-          );
-        }
-      }
-
-      return ApiResponse<List<ExercicioModel>>(
-        success: false,
-        message: ApiConstants.getErrorMessage(response.statusCode),
-      );
-    } catch (e) {
-      print('❌ Erro ao buscar exercícios por grupo muscular: $e');
-      return ApiResponse<List<ExercicioModel>>(
-        success: false,
-        message: 'Erro interno: $e',
-      );
-    }
+  /// ALIAS PARA COMPATIBILIDADE
+  static Future<ApiResponse<TreinoModel>> editarTreino(TreinoModel treino) async {
+    return await atualizarTreino(treino);
   }
 }

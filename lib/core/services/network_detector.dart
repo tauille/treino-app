@@ -8,9 +8,7 @@ class NetworkDetector {
   factory NetworkDetector() => _instance;
   NetworkDetector._internal();
 
-  // ===== CONFIGURAÇÃO DOS IPs =====
-  
-  /// Lista de IPs/redes onde você trabalha
+  // Lista de IPs onde você trabalha
   static const List<String> _possibleIPs = [
     '192.168.18.48',    // Rede atual
     '192.168.18.16',    // Rede atual  
@@ -30,19 +28,15 @@ class NetworkDetector {
   /// Cache da última URL que funcionou
   static const String _cacheKey = 'last_working_api_url';
   
-  // ===== ESTADO =====
-  
+  // Estado interno
   String? _currentWorkingIP;
   String? _currentBaseUrl;
   bool _isDetecting = false;
 
-  // ===== GETTERS =====
-  
+  // Getters
   String? get currentIP => _currentWorkingIP;
   String? get currentBaseUrl => _currentBaseUrl;
   bool get isDetecting => _isDetecting;
-
-  // ===== MÉTODOS PRINCIPAIS =====
 
   /// Detectar automaticamente qual IP está funcionando
   Future<String> detectWorkingAPI() async {
@@ -55,7 +49,9 @@ class NetworkDetector {
     _isDetecting = true;
 
     try {
-      print('🔍 Detectando rede disponível...');
+      if (kDebugMode) {
+        print('🔍 Detectando rede disponível...');
+      }
 
       // 1. Tentar usar o último IP que funcionou (cache)
       final cachedUrl = await _tryFromCache();
@@ -73,13 +69,17 @@ class NetworkDetector {
       }
 
       // 3. Fallback para IP padrão
-      print('⚠️ Nenhuma rede detectada, usando IP padrão');
+      if (kDebugMode) {
+        print('⚠️ Nenhuma rede detectada, usando IP padrão');
+      }
       final defaultUrl = _getDefaultUrl();
       _setWorkingUrl(defaultUrl);
       return defaultUrl;
 
     } catch (e) {
-      print('❌ Erro na detecção de rede: $e');
+      if (kDebugMode) {
+        print('❌ Erro na detecção de rede: $e');
+      }
       final defaultUrl = _getDefaultUrl();
       _setWorkingUrl(defaultUrl);
       return defaultUrl;
@@ -90,7 +90,9 @@ class NetworkDetector {
 
   /// Forçar nova detecção (limpar cache)
   Future<String> forceDetection() async {
-    print('🔄 Forçando nova detecção de rede...');
+    if (kDebugMode) {
+      print('🔄 Forçando nova detecção de rede...');
+    }
     await _clearCache();
     return await detectWorkingAPI();
   }
@@ -102,8 +104,6 @@ class NetworkDetector {
     return await _testSingleIP(_extractIPFromUrl(_currentBaseUrl!));
   }
 
-  // ===== MÉTODOS PRIVADOS =====
-
   /// Tentar usar o IP do cache
   Future<String?> _tryFromCache() async {
     try {
@@ -111,21 +111,29 @@ class NetworkDetector {
       final cachedUrl = await storage.getString(_cacheKey);
       
       if (cachedUrl != null && cachedUrl.isNotEmpty) {
-        print('📦 Testando URL do cache: $cachedUrl');
+        if (kDebugMode) {
+          print('📦 Testando URL do cache: $cachedUrl');
+        }
         
         final ip = _extractIPFromUrl(cachedUrl);
         final isWorking = await _testSingleIP(ip);
         
         if (isWorking) {
-          print('✅ Cache funcionando: $cachedUrl');
+          if (kDebugMode) {
+            print('✅ Cache funcionando: $cachedUrl');
+          }
           return cachedUrl;
         } else {
-          print('❌ Cache não funciona mais, limpando...');
+          if (kDebugMode) {
+            print('❌ Cache não funciona mais, limpando...');
+          }
           await _clearCache();
         }
       }
     } catch (e) {
-      print('❌ Erro ao testar cache: $e');
+      if (kDebugMode) {
+        print('❌ Erro ao testar cache: $e');
+      }
     }
     
     return null;
@@ -133,7 +141,9 @@ class NetworkDetector {
 
   /// Testar todos os IPs possíveis
   Future<String?> _testAllIPs() async {
-    print('🔍 Testando ${_possibleIPs.length} IPs possíveis...');
+    if (kDebugMode) {
+      print('🔍 Testando ${_possibleIPs.length} IPs possíveis...');
+    }
     
     // Testa todos os IPs em paralelo para ser mais rápido
     final futures = _possibleIPs.map((ip) => _testSingleIPWithResult(ip));
@@ -142,12 +152,16 @@ class NetworkDetector {
     // Encontra o primeiro que funciona
     for (final result in results) {
       if (result != null) {
-        print('✅ IP funcionando encontrado: $result');
+        if (kDebugMode) {
+          print('✅ IP funcionando encontrado: $result');
+        }
         return result;
       }
     }
     
-    print('❌ Nenhum IP funcionando encontrado');
+    if (kDebugMode) {
+      print('❌ Nenhum IP funcionando encontrado');
+    }
     return null;
   }
 
@@ -210,7 +224,9 @@ class NetworkDetector {
     _currentBaseUrl = url;
     _currentWorkingIP = _extractIPFromUrl(url);
     
-    print('🌐 URL ativa definida: $url');
+    if (kDebugMode) {
+      print('🌐 URL ativa definida: $url');
+    }
   }
 
   /// Extrair IP de uma URL
@@ -229,9 +245,13 @@ class NetworkDetector {
     try {
       final storage = StorageService();
       await storage.saveString(_cacheKey, url);
-      print('💾 URL salva no cache: $url');
+      if (kDebugMode) {
+        print('💾 URL salva no cache: $url');
+      }
     } catch (e) {
-      print('❌ Erro ao salvar cache: $e');
+      if (kDebugMode) {
+        print('❌ Erro ao salvar cache: $e');
+      }
     }
   }
 
@@ -240,13 +260,17 @@ class NetworkDetector {
     try {
       final storage = StorageService();
       await storage.remove(_cacheKey);
-      print('🗑️ Cache de rede limpo');
+      if (kDebugMode) {
+        print('🗑️ Cache de rede limpo');
+      }
     } catch (e) {
-      print('❌ Erro ao limpar cache: $e');
+      if (kDebugMode) {
+        print('❌ Erro ao limpar cache: $e');
+      }
     }
   }
 
-  // ===== MÉTODOS UTILITÁRIOS =====
+  // Métodos utilitários
 
   /// Obter informações da rede atual
   Map<String, dynamic> getNetworkInfo() {
@@ -262,8 +286,10 @@ class NetworkDetector {
   /// Adicionar novo IP à lista (temporariamente)
   void addTempIP(String ip) {
     if (!_possibleIPs.contains(ip)) {
-      // Cria uma nova lista temporária com o IP adicional
-      print('➕ Adicionando IP temporário: $ip');
+      if (kDebugMode) {
+        print('➕ Adicionando IP temporário: $ip');
+      }
+      // Não modificamos a lista constante, apenas logamos
     }
   }
 
@@ -282,8 +308,6 @@ class NetworkDetector {
     _isDetecting = false;
   }
 
-  // ===== ✅ MÉTODOS ADICIONADOS PARA FLEXIBILIDADE =====
-
   /// Obter URL de fallback (sempre o primeiro IP da lista)
   String getFallbackUrl() {
     return _getDefaultUrl();
@@ -292,5 +316,26 @@ class NetworkDetector {
   /// Obter URL atual ou fallback se não tiver nenhuma detectada
   String getCurrentOrFallbackUrl() {
     return _currentBaseUrl ?? getFallbackUrl();
+  }
+
+  /// Forçar uso de IP específico (para testes)
+  void forceIP(String ip) {
+    final url = 'http://$ip:$_port/api';
+    _setWorkingUrl(url);
+    if (kDebugMode) {
+      print('🔧 IP forçado: $url');
+    }
+  }
+
+  /// Verificar status da detecção
+  String get detectionStatus {
+    if (_isDetecting) return 'Detectando...';
+    if (_currentBaseUrl != null) return 'Conectado: $_currentWorkingIP';
+    return 'Desconectado';
+  }
+
+  /// Obter IP atual ou fallback
+  String get currentOrFallbackIP {
+    return _currentWorkingIP ?? _possibleIPs.first;
   }
 }

@@ -75,7 +75,7 @@ class TreinoApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => AuthProviderGoogle()),
         ChangeNotifierProvider(create: (context) => TreinoProvider()),
         // ✅ CORRIGIDO: Provider com service injetado
-        ChangeNotifierProvider(create: (context) => ExecucaoTreinoProvider(ExecucaoTreinoService(baseUrl: ''))), // TODO: Forneça a baseUrl correta aqui
+        ChangeNotifierProvider(create: (context) => ExecucaoTreinoProvider(ExecucaoTreinoService())),
         Provider<WakelockService>(create: (_) => WakelockService()),
         ChangeNotifierProvider.value(value: themeController),
       ],

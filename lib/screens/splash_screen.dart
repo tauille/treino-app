@@ -3,10 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../core/services/google_auth_service.dart';
+import '../core/theme/sport_theme.dart'; // ✅ Importar tema padrão
 import 'login_screen.dart';
-import 'home_screen.dart'; // Será criada depois
+import 'home/home_screen.dart';  // ✅ CORRIGIDO: caminho correto
 
-/// Tela de Splash - Verificação inicial de autenticação
+/// Tela de Splash - Verificação inicial de autenticação - CORES PADRONIZADAS
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -31,11 +32,11 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     
-    // Configurar status bar para tema escuro
+    // Configurar status bar para tema claro
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.light, // ✅ Ícones claros para gradiente
       ),
     );
     
@@ -223,15 +224,8 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1A1D29),
-              Color(0xFF2A2D3A),
-            ],
-          ),
+        decoration: BoxDecoration(
+          gradient: SportColors.primaryGradient, // ✅ Gradiente azul/turquesa padrão
         ),
         child: SafeArea(
           child: Column(
@@ -248,29 +242,25 @@ class _SplashScreenState extends State<SplashScreen>
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // LOGO/ÍCONE com gradiente
+                            // LOGO/ÍCONE com cores padrão
                             Container(
                               width: 120,
                               height: 120,
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFFFF8C42), Color(0xFFFF6B6B)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
+                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(30),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFFFF8C42).withOpacity(0.3),
+                                    color: Colors.white.withOpacity(0.3),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
                                   ),
                                 ],
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.fitness_center,
                                 size: 60,
-                                color: Colors.white,
+                                color: SportColors.secondary, // ✅ Laranja padrão
                               ),
                             ),
                             
@@ -315,9 +305,9 @@ class _SplashScreenState extends State<SplashScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       if (!_hasError) ...[
-                        // LOADING com cor turquesa
-                        const SpinKitFadingCube(
-                          color: Color(0xFF4ECDC4),
+                        // LOADING com cor padrão
+                        SpinKitFadingCube(
+                          color: Colors.white,
                           size: 40.0,
                         ),
                         
@@ -337,7 +327,7 @@ class _SplashScreenState extends State<SplashScreen>
                         // ERRO
                         Icon(
                           Icons.error_outline,
-                          color: const Color(0xFFFF6B6B).withOpacity(0.8),
+                          color: SportColors.error.withOpacity(0.8), // ✅ Vermelho padrão
                           size: 48,
                         ),
                         
@@ -359,18 +349,14 @@ class _SplashScreenState extends State<SplashScreen>
                         
                         const SizedBox(height: 24),
                         
-                        // BOTÃO RETRY com gradiente
+                        // BOTÃO RETRY com gradiente padrão
                         Container(
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFF8C42), Color(0xFFFF6B6B)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            gradient: SportColors.secondaryGradient, // ✅ Gradiente laranja padrão
                             borderRadius: BorderRadius.circular(25),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF8C42).withOpacity(0.3),
+                                color: SportColors.secondary.withOpacity(0.3), // ✅ Laranja padrão
                                 blurRadius: 12,
                                 offset: const Offset(0, 6),
                               ),

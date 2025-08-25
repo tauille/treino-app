@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../screens/auth/auth_wrapper.dart';
 import '../../screens/auth/google_login_screen.dart';
-import '../../screens/home/home_screen.dart'; // Manter para compatibilidade
-//import '../../screens/treino/meus_treinos_screen.dart'; // Manter para compatibilidade
+import '../../screens/home/home_dashboard_screen.dart'; // ✅ CORRIGIDO
 import '../../screens/treino/treinos_library_screen.dart';
 import '../../screens/treino/criar_treino_screen.dart';
 import '../../screens/treino/detalhes_treino_screen.dart';
 import '../../screens/treino/treino_preparacao_screen.dart';
 import '../../screens/treino/execucao_treino_screen.dart';
-// 🆕 IMPORTS DAS NOVAS TELAS
 import '../../screens/main_navigation_screen.dart';
-import '../../screens/home/home_dashboard_screen.dart';
-import '../../screens/treino/treinos_library_screen.dart';
 import '../../screens/stats_screen.dart';
 import '../../screens/profile_screen.dart';
 import '../../models/treino_model.dart';
@@ -25,13 +21,10 @@ class RouteGenerator {
     final routeName = settings.name;
     final arguments = settings.arguments;
 
-    print('🧭 Navegando para: $routeName');
-    print('📦 Argumentos: $arguments');
-
     // ===== ROTAS PRINCIPAIS =====
     switch (routeName) {
       
-      // ===== AUTENTICAÇÃO =====
+      // ===== AUTENTICACAO =====
       case AppRoutes.splash:
         return _buildRoute(
           const AuthWrapper(),
@@ -46,7 +39,7 @@ class RouteGenerator {
           transitionType: RouteTransition.slide,
         );
 
-      // ===== 🆕 NOVA ARQUITETURA =====
+      // ===== NOVA ARQUITETURA =====
       case AppRoutes.main:
         return _buildRoute(
           const MainNavigationScreen(),
@@ -57,7 +50,7 @@ class RouteGenerator {
         
       case AppRoutes.dashboard:
         return _buildRoute(
-          const HomeDashboardScreen(),
+          const HomeDashboardScreen(), // ✅ CORRIGIDO
           settings,
           transitionType: RouteTransition.fade,
           requiresAuth: true,
@@ -91,9 +84,9 @@ class RouteGenerator {
 
       // ===== TREINOS =====
       case AppRoutes.meusTreinos:
-        // Redirecionar para nova biblioteca ou manter a antiga
+        // Redirecionar para nova biblioteca
         return _buildRoute(
-          const TreinosLibraryScreen(), // Usar nova biblioteca
+          const TreinosLibraryScreen(),
           settings,
           transitionType: RouteTransition.slideFromRight,
           requiresAuth: true,
@@ -111,7 +104,7 @@ class RouteGenerator {
       case AppRoutes.detalhesTreino:
         return _buildDetalhesTreinoRoute(settings);
 
-      // ===== EXECUÇÃO DE TREINO - IMPLEMENTAÇÃO COMPLETA =====
+      // ===== EXECUCAO DE TREINO =====
       case AppRoutes.treinoPreparacao:
         return _buildTreinoPreparacaoRoute(settings);
         
@@ -142,7 +135,7 @@ class RouteGenerator {
           requiresAuth: true,
         );
 
-      // ===== CONFIGURAÇÕES =====
+      // ===== CONFIGURACOES =====
       case AppRoutes.settings:
         return _buildRoute(
           _buildPlaceholderScreen('Configurações', Icons.settings),
@@ -151,7 +144,6 @@ class RouteGenerator {
         );
         
       case AppRoutes.profile:
-        // Usar nova tela de perfil
         return _buildRoute(
           const ProfileScreen(),
           settings,
@@ -159,7 +151,7 @@ class RouteGenerator {
           requiresAuth: true,
         );
 
-      // ===== HISTÓRICO =====
+      // ===== HISTORICO =====
       case AppRoutes.historico:
         return _buildRoute(
           _buildPlaceholderScreen('Histórico', Icons.history),
@@ -196,7 +188,7 @@ class RouteGenerator {
           settings,
         );
 
-      // ===== ROTA NÃO ENCONTRADA =====
+      // ===== ROTA NAO ENCONTRADA =====
       default:
         return _buildErrorRoute(settings);
     }
@@ -224,11 +216,9 @@ class RouteGenerator {
 
   /// Construir rota para preparação do treino
   static Route<dynamic> _buildTreinoPreparacaoRoute(RouteSettings settings) {
-    print('🔧 Construindo rota de preparação...');
     final treino = settings.arguments as TreinoModel?;
     
     if (treino == null) {
-      print('❌ Erro: Treino não informado na preparação');
       return _buildErrorRoute(
         settings,
         'Treino não informado',
@@ -236,7 +226,6 @@ class RouteGenerator {
       );
     }
     
-    print('✅ Criando TreinoPreparacaoScreen para: ${treino.nomeTreino}');
     return _buildRoute(
       TreinoPreparacaoScreen(treino: treino),
       settings,
@@ -247,11 +236,9 @@ class RouteGenerator {
 
   /// Construir rota para execução do treino
   static Route<dynamic> _buildTreinoExecucaoRoute(RouteSettings settings) {
-    print('🔧 Construindo rota de execução...');
     final treino = settings.arguments as TreinoModel?;
     
     if (treino == null) {
-      print('❌ Erro: Treino não informado na execução');
       return _buildErrorRoute(
         settings,
         'Treino não informado',
@@ -259,9 +246,8 @@ class RouteGenerator {
       );
     }
     
-    print('✅ Criando ExecucaoTreinoScreen para: ${treino.nomeTreino}');
     return _buildRoute(
-      ModernExecucaoTreinoScreen(treino: treino), // ✅ NOME CORRETO
+      ModernExecucaoTreinoScreen(treino: treino), // ✅ CORRIGIDO
       settings,
       transitionType: RouteTransition.fade,
       requiresAuth: true,
@@ -277,8 +263,6 @@ class RouteGenerator {
     bool requiresPremium = false,
   }) {
     // TODO: Implementar verificações de autenticação e premium
-    // Por enquanto, sempre permitir acesso
-    
     Widget finalPage = page;
     
     // Wrap com verificações se necessário
@@ -313,7 +297,6 @@ class RouteGenerator {
     return Builder(
       builder: (context) {
         // TODO: Verificar se usuário está autenticado
-        // Por enquanto, sempre retornar a página
         return page;
       },
     );
@@ -324,7 +307,6 @@ class RouteGenerator {
     return Builder(
       builder: (context) {
         // TODO: Verificar se usuário tem acesso premium
-        // Por enquanto, sempre retornar a página
         return page;
       },
     );
@@ -471,7 +453,6 @@ class RouteGenerator {
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: () {
-                  // 🆕 Navegar para nova tela principal em caso de erro
                   Navigator.pushNamedAndRemoveUntil(
                     context,
                     AppRoutes.main,
@@ -497,7 +478,7 @@ class RouteGenerator {
     );
   }
 
-  // ===== TRANSIÇÕES CUSTOMIZADAS (MANTIDAS IGUAIS) =====
+  // ===== TRANSICOES CUSTOMIZADAS =====
 
   static Route<T> _fadeRoute<T>(Widget page, RouteSettings settings) {
     return PageRouteBuilder<T>(

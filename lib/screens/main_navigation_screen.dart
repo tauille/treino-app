@@ -1,23 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart'; // ✅ ADICIONADO: Para kDebugMode
 import 'package:provider/provider.dart';
 import '../providers/auth_provider_google.dart';
-import '../providers/treino_provider.dart'; // ✅ NOVO: Import do provider
+import '../providers/treino_provider.dart';
 import '../core/theme/sport_theme.dart';
 import 'home/home_dashboard_screen.dart';
 import 'treino/treinos_library_screen.dart';
 import 'stats_screen.dart';
 import 'profile_screen.dart';
 
-/// 🗂️ Tela principal com navegação por abas - VERSÃO SEM OVERFLOW
+/// Tela principal com navegação global por abas
 class MainNavigationScreen extends StatefulWidget {
-  /// 🔧 Parâmetro para definir tab inicial
   final int initialTab;
   
   const MainNavigationScreen({
     super.key,
-    this.initialTab = 0, // Home por padrão
+    this.initialTab = 0,
   });
 
   @override
@@ -28,13 +26,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     with TickerProviderStateMixin {
   
   late int _currentIndex;
+  late PageController _pageController;
   late AnimationController _animationController;
-  late PageController _pageController; // ✅ NOVO: PageController para controle manual
   
-  // ✅ NOVO: Controle de refresh por aba
+  // Controle de refresh por aba
   final Map<int, DateTime> _lastTabRefresh = {};
   
-  // Lista de telas - ✅ MUDANÇA: Não usar IndexedStack
+  // Telas principais
   late final List<Widget> _screens;
   
   // Dados das abas
@@ -69,10 +67,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   void initState() {
     super.initState();
     
-    // ✅ Usar initialTab do widget
     _currentIndex = widget.initialTab;
-    
-    // ✅ NOVO: Configurar PageController
     _pageController = PageController(initialPage: _currentIndex);
     
     // Configurar status bar
@@ -81,7 +76,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
         statusBarBrightness: Brightness.light,
-        systemNavigationBarColor: SportColors.white,
+        systemNavigationBarColor: Colors.white,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
@@ -91,7 +86,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
       vsync: this,
     );
     
-    // ✅ MUDANÇA: Usar widgets que podem ser recriados
+    // Inicializar telas
     _screens = [
       const HomeDashboardScreen(),
       const TreinosLibraryScreen(),
@@ -99,86 +94,72 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
       const ProfileScreen(),
     ];
     
-    // ✅ NOVO: Marcar refresh inicial
+    // Marcar refresh inicial
     _lastTabRefresh[_currentIndex] = DateTime.now();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
-    _pageController.dispose(); // ✅ NOVO: Dispose do PageController
+    _pageController.dispose();
     super.dispose();
   }
 
-  /// ✅ NOVO: Verificar se precisa refresh automático na aba
+  /// Verificar se precisa refresh automático na aba
   Future<void> _verificarRefreshAba(int index) async {
     final agora = DateTime.now();
     final ultimoRefresh = _lastTabRefresh[index];
     
     // Se nunca foi refreshado ou passou mais de 10 segundos
     if (ultimoRefresh == null || agora.difference(ultimoRefresh).inSeconds > 10) {
-      print('🔄 NAV: Aba $index precisa refresh (${ultimoRefresh != null ? agora.difference(ultimoRefresh).inSeconds : 'nunca'} segundos)');
-      
-      // ✅ Refresh específico por tipo de aba
       await _refreshAbaEspecifica(index);
-      
-      // Marcar como refreshado
       _lastTabRefresh[index] = agora;
-    } else {
-      print('✅ NAV: Aba $index não precisa refresh (${agora.difference(ultimoRefresh).inSeconds} segundos)');
     }
   }
 
-  /// ✅ NOVO: Refresh específico por aba
+  /// Refresh específico por aba
   Future<void> _refreshAbaEspecifica(int index) async {
     if (!mounted) return;
     
     switch (index) {
       case 0: // Home
-        print('🏠 NAV: Refreshing Home...');
-        // Home normalmente se atualiza sozinho
+        // Home se atualiza automaticamente
         break;
         
-      case 1: // Treinos (CRÍTICO!)
-        print('🏋️ NAV: Refreshing Treinos...');
+      case 1: // Treinos
         try {
           final treinoProvider = context.read<TreinoProvider>();
-          await treinoProvider.recarregar(); // Força refresh no provider
-          print('✅ NAV: Treinos refreshed via provider');
+          await treinoProvider.recarregar();
         } catch (e) {
-          print('❌ NAV: Erro ao refresh treinos: $e');
+          // Erro silencioso
         }
         break;
         
       case 2: // Stats
-        print('📊 NAV: Refreshing Stats...');
-        // Stats podem precisar de refresh específico
+        // Stats se atualizam automaticamente
         break;
         
       case 3: // Perfil
-        print('👤 NAV: Refreshing Profile...');
-        // Perfil normalmente não precisa refresh frequente
+        // Perfil não precisa refresh frequente
         break;
     }
   }
 
-  /// ✅ MUDANÇA: Navegar para aba com refresh automático
+  /// Navegar para aba com refresh automático
   Future<void> _onTabTapped(int index) async {
     if (index == _currentIndex) return;
     
     // Feedback háptico suave
     HapticFeedback.lightImpact();
     
-    print('🔄 NAV: Navegando para aba $index (vinha da $_currentIndex)');
-    
-    // ✅ NOVO: Verificar se a aba destino precisa refresh
+    // Verificar se a aba destino precisa refresh
     await _verificarRefreshAba(index);
     
     setState(() {
       _currentIndex = index;
     });
     
-    // ✅ NOVO: Navegar via PageController (suave)
+    // Navegar via PageController
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -217,7 +198,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                 isSelected ? tab.activeIcon : tab.icon,
                 color: isSelected 
                     ? tab.color 
-                    : SportColors.bottomNavUnselected,
+                    : SportColors.textSecondary,
                 size: 24,
               ),
             ),
@@ -232,7 +213,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected 
                     ? tab.color 
-                    : SportColors.bottomNavUnselected,
+                    : SportColors.textSecondary,
                 letterSpacing: 0.5,
               ),
               child: Text(tab.label),
@@ -272,11 +253,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
         return Scaffold(
           backgroundColor: SportColors.background,
-          // 🔥 REMOVIDO: appBar que causava overflow
-          body: PageView( // ✅ MUDANÇA: PageView em vez de IndexedStack
+          body: PageView(
             controller: _pageController,
             onPageChanged: (index) {
-              // Sincronizar com a navegação por tab
               if (index != _currentIndex) {
                 setState(() {
                   _currentIndex = index;
@@ -295,13 +274,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   Widget _buildBottomNavigation() {
     return Container(
       decoration: BoxDecoration(
-        color: SportColors.bottomNavBackground,
+        color: SportColors.backgroundCard,
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(20),
         ),
         boxShadow: [
           BoxShadow(
-            color: SportColors.grey900.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 20,
             offset: const Offset(0, -10),
             spreadRadius: 0,

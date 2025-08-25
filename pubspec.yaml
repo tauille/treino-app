@@ -10,61 +10,53 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # AUTENTICAÇÃO & HTTP
+  google_sign_in: ^6.2.1
+  http: ^1.2.2
+  dio: ^5.4.0
+
+  # STORAGE & STATE
+  shared_preferences: ^2.3.2
+  flutter_secure_storage: ^9.2.2
+  provider: ^6.1.2
+
+  # UI & NAVIGATION
+  cupertino_icons: ^1.0.2
+  font_awesome_flutter: ^10.6.0
+  flutter_spinkit: ^5.2.0
+
+  # GRÁFICOS & CHARTS
+  fl_chart: ^0.68.0
+
+  # UTILITIES
+  intl: ^0.19.0
+  connectivity_plus: ^6.0.5
+  package_info_plus: ^8.0.2
   visibility_detector: ^0.4.0+2
 
-  # ===== AUTENTICAÇÃO GOOGLE =====
-  google_sign_in: ^6.2.1              # Google Sign In oficial
-  
-  # ===== HTTP & API =====
-  http: ^1.2.2                        # Requisições para Laravel API
-  dio: ^5.4.0                         # HTTP client avançado (alternativa ao http)
-  
-  # ===== STORAGE & CACHE =====
-  shared_preferences: ^2.3.2          # Persistir tokens e dados do usuário
-  flutter_secure_storage: ^9.2.2      # Storage seguro para tokens sensíveis
-  
-  # ===== STATE MANAGEMENT =====
-  provider: ^6.1.2                    # Gerenciamento de estado
-  
-  # ===== UI & NAVIGATION =====
-  cupertino_icons: ^1.0.2            # Ícones iOS
-  font_awesome_flutter: ^10.6.0       # Ícones Google, etc
-  
-  # ===== LOADING & FEEDBACK =====
-  flutter_spinkit: ^5.2.0            # Loading animado
-  # fluttertoast: ^8.2.8             # Toast messages (COMENTADO - usar SnackBar)
+  # TREINO FEATURES
+  audioplayers: ^5.0.0
+  wakelock_plus: ^1.1.4
 
-  # ===== UTILITIES =====
-  intl: ^0.19.0                       # Formatação de datas
-  connectivity_plus: ^6.0.5          # Verificar conectividade
-  package_info_plus: ^8.0.2          # Info da versão do app
-  
-  # ===== IN-APP PURCHASE (para futuro) =====
-  in_app_purchase: ^3.1.11           # Google Play Billing
-  
-  # 🆕 TREINO FEATURES - CORRIGIDO
-  audioplayers: ^5.0.0        # Para sons
-  wakelock_plus: ^1.1.4       # Para manter tela ativa
-  # vibration: ^3.0.0         # ❌ REMOVIDO - causava problemas de compilação
-  
+  # IN-APP PURCHASE
+  in_app_purchase: ^3.1.11
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
 
-# ===== CONFIGURAÇÃO DE ASSETS =====
 flutter:
   uses-material-design: true
   
-  # ===== ASSETS =====
   assets:
     - assets/images/
     - assets/icons/
     - assets/animations/
-    - assets/fonts/        # ✅ Para as fontes
-    - assets/sounds/       # ✅ Para os sons
+    - assets/fonts/
+    - assets/sounds/
   
-  # ===== FONTES =====
   fonts:
     - family: Poppins
       fonts:

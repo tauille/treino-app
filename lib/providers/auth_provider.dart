@@ -1,5 +1,3 @@
-// lib/providers/auth_provider.dart
-
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/api_response_model.dart';
@@ -15,10 +13,6 @@ enum AuthState {
 }
 
 class AuthProvider with ChangeNotifier {
-  // ========================================
-  // PROPRIEDADES PRIVADAS
-  // ========================================
-  
   AuthState _state = AuthState.initial;
   User? _user;
   String? _token;
@@ -29,10 +23,7 @@ class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
   final StorageService _storageService = StorageService();
 
-  // ========================================
-  // GETTERS PÚBLICOS
-  // ========================================
-  
+  // GETTERS
   AuthState get state => _state;
   User? get user => _user;
   String? get token => _token;
@@ -52,17 +43,12 @@ class AuthProvider with ChangeNotifier {
   String get accountType => _user?.accountType ?? 'Gratuita';
   String get displayName => _user?.displayName ?? 'Usuário';
 
-  // ========================================
-  // INICIALIZAÇÃO
-  // ========================================
-  
   AuthProvider() {
     _initialize();
   }
 
   Future<void> _initialize() async {
     try {
-      print('🔄 Inicializando AuthProvider...');
       _setState(AuthState.loading);
       
       // Inicializar storage
@@ -71,9 +57,7 @@ class AuthProvider with ChangeNotifier {
       // Verificar se há dados salvos
       await _checkStoredAuth();
       
-      print('✅ AuthProvider inicializado');
     } catch (e) {
-      print('❌ Erro ao inicializar AuthProvider: $e');
       _setError('Erro ao inicializar autenticação');
     }
   }
@@ -93,25 +77,17 @@ class AuthProvider with ChangeNotifier {
         final isValid = await _authService.isAuthenticated();
         
         if (isValid) {
-          print('✅ Sessão restaurada: ${_user!.name}');
           _setState(AuthState.authenticated);
         } else {
-          print('⚠️ Token inválido, fazendo logout');
           await _clearAuth();
         }
       } else {
-        print('📝 Nenhuma sessão encontrada');
         _setState(AuthState.unauthenticated);
       }
     } catch (e) {
-      print('❌ Erro ao verificar auth armazenado: $e');
       await _clearAuth();
     }
   }
-
-  // ========================================
-  // MÉTODOS DE AUTENTICAÇÃO
-  // ========================================
 
   /// Login do usuário
   Future<bool> login({
@@ -119,7 +95,6 @@ class AuthProvider with ChangeNotifier {
     required String password,
   }) async {
     try {
-      print('🔐 Iniciando login para: $email');
       _setLoading(true);
       _clearError();
       
@@ -132,7 +107,6 @@ class AuthProvider with ChangeNotifier {
         // Salvar dados da resposta
         await _saveAuthData(response.data!);
         
-        print('✅ Login bem-sucedido: ${response.data!.name}');
         _setState(AuthState.authenticated);
         return true;
       } else {
@@ -141,7 +115,6 @@ class AuthProvider with ChangeNotifier {
       }
       
     } catch (e) {
-      print('❌ Erro no login: $e');
       _setError('Erro ao fazer login: $e');
       return false;
     } finally {
@@ -157,7 +130,6 @@ class AuthProvider with ChangeNotifier {
     required String passwordConfirmation,
   }) async {
     try {
-      print('👤 Iniciando registro para: $email');
       _setLoading(true);
       _clearError();
       
@@ -172,7 +144,6 @@ class AuthProvider with ChangeNotifier {
         // Salvar dados da resposta
         await _saveAuthData(response.data!);
         
-        print('✅ Registro bem-sucedido: ${response.data!.name}');
         _setState(AuthState.authenticated);
         return true;
       } else {
@@ -181,7 +152,6 @@ class AuthProvider with ChangeNotifier {
       }
       
     } catch (e) {
-      print('❌ Erro no registro: $e');
       _setError('Erro ao criar conta: $e');
       return false;
     } finally {
@@ -192,7 +162,6 @@ class AuthProvider with ChangeNotifier {
   /// Logout do usuário
   Future<void> logout() async {
     try {
-      print('🚪 Fazendo logout...');
       _setLoading(true);
       
       // Tentar fazer logout no servidor
@@ -201,9 +170,7 @@ class AuthProvider with ChangeNotifier {
       // Limpar dados locais
       await _clearAuth();
       
-      print('✅ Logout realizado');
     } catch (e) {
-      print('❌ Erro no logout: $e');
       // Mesmo com erro, limpar dados locais
       await _clearAuth();
     } finally {
@@ -217,7 +184,6 @@ class AuthProvider with ChangeNotifier {
     required String email,
   }) async {
     try {
-      print('👤 Atualizando perfil...');
       _setLoading(true);
       _clearError();
       
@@ -234,7 +200,6 @@ class AuthProvider with ChangeNotifier {
       
       return false;
     } catch (e) {
-      print('❌ Erro ao atualizar perfil: $e');
       _setError('Erro ao atualizar perfil: $e');
       return false;
     } finally {
@@ -249,7 +214,6 @@ class AuthProvider with ChangeNotifier {
     required String confirmPassword,
   }) async {
     try {
-      print('🔒 Alterando senha...');
       _setLoading(true);
       _clearError();
       
@@ -262,11 +226,9 @@ class AuthProvider with ChangeNotifier {
       await Future.delayed(const Duration(seconds: 1));
       
       // Por enquanto, simular sucesso
-      print('✅ Senha alterada');
       return true;
       
     } catch (e) {
-      print('❌ Erro ao alterar senha: $e');
       _setError('Erro ao alterar senha: $e');
       return false;
     } finally {
@@ -279,21 +241,14 @@ class AuthProvider with ChangeNotifier {
     try {
       if (!isAuthenticated) return;
       
-      print('🔄 Atualizando dados do usuário...');
-      
       // Simular busca de dados atualizados (implementar quando tiver endpoint)
       await Future.delayed(const Duration(seconds: 1));
       
-      print('✅ Dados do usuário atualizados');
       notifyListeners();
     } catch (e) {
-      print('❌ Erro ao atualizar dados: $e');
+      // Ignorar erros no refresh
     }
   }
-
-  // ========================================
-  // MÉTODOS PRIVADOS
-  // ========================================
 
   void _setState(AuthState newState) {
     if (_state != newState) {
@@ -330,9 +285,7 @@ class AuthProvider with ChangeNotifier {
       _user = user;
       
       // Não precisa salvar novamente, o AuthService já salvou
-      print('💾 Dados de autenticação salvos');
     } catch (e) {
-      print('❌ Erro ao salvar dados de auth: $e');
       throw e;
     }
   }
@@ -351,7 +304,7 @@ class AuthProvider with ChangeNotifier {
         createdAt: user.createdAt,
       );
     } catch (e) {
-      print('❌ Erro ao atualizar usuário armazenado: $e');
+      // Ignorar erros de storage
     }
   }
 
@@ -367,14 +320,9 @@ class AuthProvider with ChangeNotifier {
       
       _setState(AuthState.unauthenticated);
     } catch (e) {
-      print('❌ Erro ao limpar auth: $e');
       _setState(AuthState.unauthenticated);
     }
   }
-
-  // ========================================
-  // MÉTODOS UTILITÁRIOS
-  // ========================================
 
   /// Verificar se feature está disponível
   bool canUseFeature(String featureName) {
@@ -407,23 +355,6 @@ class AuthProvider with ChangeNotifier {
     return baseHeaders;
   }
 
-  /// Debug: Imprimir informações de auth
-  void printDebugInfo() {
-    print('🔍 AuthProvider Debug Info:');
-    print('   State: $_state');
-    print('   Is Authenticated: $isAuthenticated');
-    print('   User: ${_user?.name ?? 'null'} (${_user?.email ?? 'no email'})');
-    print('   Token: ${_token != null ? 'Present (${_token!.length} chars)' : 'null'}');
-    print('   Premium: $hasPremium');
-    print('   Trial: $hasActiveTrial');
-    print('   Account Type: $accountType');
-    print('   Error: $_errorMessage');
-  }
-
-  // ========================================
-  // MÉTODOS PARA TRIAL/PREMIUM
-  // ========================================
-
   /// Iniciar trial
   Future<bool> startTrial() async {
     try {
@@ -433,10 +364,8 @@ class AuthProvider with ChangeNotifier {
       await _updateStoredUser(_user!);
       notifyListeners();
       
-      print('🎯 Trial iniciado para ${_user!.name}');
       return true;
     } catch (e) {
-      print('❌ Erro ao iniciar trial: $e');
       return false;
     }
   }
@@ -450,10 +379,8 @@ class AuthProvider with ChangeNotifier {
       await _updateStoredUser(_user!);
       notifyListeners();
       
-      print('💎 Upgrade para premium: ${_user!.name}');
       return true;
     } catch (e) {
-      print('❌ Erro ao fazer upgrade: $e');
       return false;
     }
   }

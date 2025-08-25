@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../core/services/google_auth_service.dart';
+import '../core/theme/sport_theme.dart'; // ✅ Importar tema padrão
 
-/// Tela de loading intermediária - feedback para o usuário
+/// Tela de loading intermediária - feedback para o usuário - CORES PADRONIZADAS
 class LoadingScreen extends StatefulWidget {
   final String message;
   final bool isNewUser;
@@ -152,11 +153,11 @@ class _LoadingScreenState extends State<LoadingScreen>
   /// Obter cor baseada no step atual
   Color _getCurrentColor() {
     switch (_currentStep) {
-      case 0: return const Color(0xFF667eea);
-      case 1: return const Color(0xFF764ba2);
-      case 2: return const Color(0xFF667eea);
-      case 3: return Colors.green;
-      default: return const Color(0xFF667eea);
+      case 0: return SportColors.primary;      // ✅ Azul/turquesa
+      case 1: return SportColors.secondary;    // ✅ Laranja
+      case 2: return SportColors.primary;      // ✅ Azul/turquesa
+      case 3: return SportColors.success;      // ✅ Verde
+      default: return SportColors.primary;     // ✅ Azul/turquesa
     }
   }
 
@@ -221,13 +222,13 @@ class _LoadingScreenState extends State<LoadingScreen>
             ),
             decoration: BoxDecoration(
               color: user.hasAccess 
-                  ? Colors.green.withOpacity(0.2)
-                  : Colors.orange.withOpacity(0.2),
+                  ? SportColors.success.withOpacity(0.2) // ✅ Verde
+                  : SportColors.warning.withOpacity(0.2), // ✅ Laranja
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: user.hasAccess 
-                    ? Colors.green.withOpacity(0.4)
-                    : Colors.orange.withOpacity(0.4),
+                    ? SportColors.success.withOpacity(0.4) // ✅ Verde
+                    : SportColors.warning.withOpacity(0.4), // ✅ Laranja
               ),
             ),
             child: Text(
@@ -239,7 +240,9 @@ class _LoadingScreenState extends State<LoadingScreen>
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: user.hasAccess ? Colors.green : Colors.orange,
+                color: user.hasAccess 
+                    ? SportColors.success // ✅ Verde 
+                    : SportColors.warning, // ✅ Laranja
               ),
             ),
           ),
@@ -252,15 +255,8 @@ class _LoadingScreenState extends State<LoadingScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
-            ],
-          ),
+        decoration: BoxDecoration(
+          gradient: SportColors.primaryGradient, // ✅ Gradiente azul/turquesa padrão
         ),
         child: SafeArea(
           child: Column(
@@ -378,7 +374,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                             children: [
                               Icon(
                                 Icons.star,
-                                color: Colors.yellow[400],
+                                color: SportColors.warning, // ✅ Laranja padrão
                                 size: 24,
                               ),
                               const SizedBox(height: 8),

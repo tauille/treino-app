@@ -1,7 +1,7 @@
 /// Constantes de rotas centralizadas do aplicativo
 class AppRoutes {
   
-  // ===== ROTAS DE AUTENTICAÇÃO =====
+  // ===== ROTAS DE AUTENTICACAO =====
   static const String splash = '/splash';
   static const String login = '/login';
   static const String register = '/register';
@@ -13,7 +13,7 @@ class AppRoutes {
   static const String onboarding = '/onboarding';
   static const String welcome = '/welcome';
   
-  // ===== 🆕 NOVA ARQUITETURA - ROTAS PRINCIPAIS =====
+  // ===== NOVA ARQUITETURA - ROTAS PRINCIPAIS =====
   /// Tela principal com navegação por abas
   static const String main = '/main';
   
@@ -32,20 +32,20 @@ class AppRoutes {
   static const String detalhesTreino = '/detalhes-treino';
   static const String editarTreino = '/editar-treino';
   
-  // ===== ROTAS DE EXECUÇÃO DE TREINO - EXISTENTES =====
+  // ===== ROTAS DE EXECUCAO DE TREINO - EXISTENTES =====
   static const String treinoPreparacao = '/treino-preparacao';
   static const String treinoExecucao = '/treino-execucao';
   static const String treinoDescanso = '/treino-descanso';
   static const String treinoResumo = '/treino-resumo';
   static const String treinoPausa = '/treino-pausa';
   
-  // ===== ROTAS DE EXERCÍCIO =====
+  // ===== ROTAS DE EXERCICIO =====
   static const String exercicios = '/exercicios';
   static const String criarExercicio = '/criar-exercicio';
   static const String editarExercicio = '/editar-exercicio';
   static const String detalhesExercicio = '/detalhes-exercicio';
   
-  // ===== ROTAS DE HISTÓRICO =====
+  // ===== ROTAS DE HISTORICO =====
   static const String historico = '/historico';
   static const String detalhesHistorico = '/detalhes-historico';
   static const String estatisticas = '/estatisticas';
@@ -55,7 +55,7 @@ class AppRoutes {
   static const String editarPerfil = '/editar-perfil';
   static const String configuracoes = '/configuracoes';
   
-  // ===== ROTAS DE CONFIGURAÇÕES =====
+  // ===== ROTAS DE CONFIGURACOES =====
   static const String settings = '/settings';
   static const String notificacoes = '/notificacoes';
   static const String privacidade = '/privacidade';
@@ -76,7 +76,7 @@ class AppRoutes {
   
   /// Rotas que requerem autenticação
   static List<String> get authRequiredRoutes => [
-    // 🆕 Novas rotas da arquitetura moderna
+    // Novas rotas da arquitetura moderna
     main,
     dashboard,
     biblioteca,
@@ -122,7 +122,7 @@ class AppRoutes {
     treinoPausa,
   ];
   
-  /// 🆕 Rotas da nova arquitetura (navegação por abas)
+  /// Rotas da nova arquitetura (navegação por abas)
   static List<String> get newArchitectureRoutes => [
     main,
     dashboard,
@@ -153,7 +153,7 @@ class AppRoutes {
     ...premiumRequiredRoutes,
   ];
   
-  // ===== MÉTODOS UTILITÁRIOS =====
+  // ===== METODOS UTILITARIOS =====
   
   /// Verificar se rota requer autenticação
   static bool requiresAuth(String route) {
@@ -170,7 +170,7 @@ class AppRoutes {
     return execucaoTreinoRoutes.contains(route);
   }
   
-  /// 🆕 Verificar se rota é da nova arquitetura
+  /// Verificar se rota é da nova arquitetura
   static bool isNewArchitecture(String route) {
     return newArchitectureRoutes.contains(route);
   }
@@ -198,7 +198,7 @@ class AppRoutes {
     return null;
   }
   
-  /// 🆕 Obter rota principal baseada no status de autenticação
+  /// Obter rota principal baseada no status de autenticação
   static String getMainRoute({bool isAuthenticated = false}) {
     if (isAuthenticated) {
       return main; // Nova tela principal com abas
@@ -206,7 +206,7 @@ class AppRoutes {
     return splash;
   }
   
-  /// 🆕 Mapear rota antiga para nova (compatibilidade)
+  /// Mapear rota antiga para nova (compatibilidade)
   static String migrateRoute(String oldRoute) {
     switch (oldRoute) {
       case home:

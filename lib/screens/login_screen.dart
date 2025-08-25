@@ -3,10 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../core/services/google_auth_service.dart';
-import 'home_screen.dart'; // Será criada depois
-import 'loading_screen.dart'; // Será criada depois
+import '../core/theme/sport_theme.dart'; // ✅ Importar tema padrão
+import 'home/home_screen.dart';  // ✅ CORRIGIDO: caminho correto
+import 'loading_screen.dart';
 
-/// Tela de Login com Google Sign In
+/// Tela de Login com Google Sign In - CORES PADRONIZADAS
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -31,11 +32,11 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
     
-    // Configurar status bar
+    // Configurar status bar para tema claro
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.dark, // ✅ Ícones escuros para tema claro
       ),
     );
     
@@ -181,9 +182,9 @@ class _LoginScreenState extends State<LoginScreen>
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.8,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
+        decoration: BoxDecoration(
+          color: SportColors.backgroundCard, // ✅ Fundo branco padrão
+          borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(20),
             topRight: Radius.circular(20),
           ),
@@ -196,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen>
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: SportColors.grey300, // ✅ Cinza padrão
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -206,18 +207,22 @@ class _LoginScreenState extends State<LoginScreen>
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Política de Privacidade',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
+                        color: SportColors.textPrimary, // ✅ Texto principal padrão
                       ),
                     ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                    icon: Icon(
+                      Icons.close,
+                      color: SportColors.textSecondary, // ✅ Texto secundário padrão
+                    ),
                   ),
                 ],
               ),
@@ -265,10 +270,10 @@ class _LoginScreenState extends State<LoginScreen>
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF667eea),
+              color: SportColors.primary, // ✅ Azul/turquesa padrão
             ),
           ),
           const SizedBox(height: 8),
@@ -276,7 +281,7 @@ class _LoginScreenState extends State<LoginScreen>
             content,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[700],
+              color: SportColors.textSecondary, // ✅ Texto secundário padrão
               height: 1.5,
             ),
           ),
@@ -289,15 +294,8 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
-            ],
-          ),
+        decoration: BoxDecoration(
+          gradient: SportColors.primaryGradient, // ✅ Gradiente azul/turquesa padrão
         ),
         child: SafeArea(
           child: Column(
@@ -324,10 +322,10 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                           ],
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.fitness_center,
                           size: 50,
-                          color: Color(0xFF667eea),
+                          color: SportColors.primary, // ✅ Azul/turquesa padrão
                         ),
                       ),
                       
@@ -380,7 +378,7 @@ class _LoginScreenState extends State<LoginScreen>
                               onPressed: _isLoading ? null : _signInWithGoogle,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
-                                foregroundColor: const Color(0xFF757575),
+                                foregroundColor: SportColors.textSecondary, // ✅ Texto secundário padrão
                                 elevation: 3,
                                 shadowColor: Colors.black26,
                                 shape: RoundedRectangleBorder(
@@ -388,11 +386,11 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               ),
                               icon: _isLoading
-                                  ? const SizedBox(
+                                  ? SizedBox(
                                       width: 20,
                                       height: 20,
                                       child: SpinKitFadingCircle(
-                                        color: Color(0xFF667eea),
+                                        color: SportColors.primary, // ✅ Azul/turquesa padrão
                                         size: 20,
                                       ),
                                     )
@@ -420,17 +418,17 @@ class _LoginScreenState extends State<LoginScreen>
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.1),
+                              color: SportColors.error.withOpacity(0.1), // ✅ Vermelho padrão
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: Colors.red.withOpacity(0.3),
+                                color: SportColors.error.withOpacity(0.3), // ✅ Vermelho padrão
                               ),
                             ),
                             child: Row(
                               children: [
                                 Icon(
                                   Icons.error_outline,
-                                  color: Colors.red[700],
+                                  color: SportColors.error, // ✅ Vermelho padrão
                                   size: 20,
                                 ),
                                 const SizedBox(width: 8),
@@ -438,7 +436,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   child: Text(
                                     _errorMessage!,
                                     style: TextStyle(
-                                      color: Colors.red[700],
+                                      color: SportColors.error, // ✅ Vermelho padrão
                                       fontSize: 14,
                                     ),
                                   ),
@@ -464,7 +462,7 @@ class _LoginScreenState extends State<LoginScreen>
                             children: [
                               Icon(
                                 Icons.star,
-                                color: Colors.yellow[400],
+                                color: SportColors.warning, // ✅ Laranja padrão
                                 size: 24,
                               ),
                               const SizedBox(height: 8),
