@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:visibility_detector/visibility_detector.dart'; // ✅ Para detectar quando volta à tela
+import 'package:visibility_detector/visibility_detector.dart';
 import '../../providers/treino_provider.dart';
 import '../../models/treino_model.dart';
 import '../../core/theme/sport_theme.dart';
@@ -12,7 +12,7 @@ import 'criar_treino_screen.dart';
 import 'treino_preparacao_screen.dart';
 import 'detalhes_treino_screen.dart';
 
-// 🔧 Extensões para métodos seguros
+// Extensões para métodos seguros
 extension TreinoModelExtensions on TreinoModel {
   String get dificuldadeTextoSeguro {
     switch (dificuldade?.toLowerCase()) {
@@ -36,7 +36,7 @@ extension TreinoModelExtensions on TreinoModel {
   }
 }
 
-/// 📚 Biblioteca de Treinos - VERSÃO ANTI-OVERFLOW DEFINITIVA
+/// Biblioteca de Treinos - COM DEGRADÊ + BOTÕES DUPLOS
 class TreinosLibraryScreen extends StatefulWidget {
   const TreinosLibraryScreen({super.key});
 
@@ -60,7 +60,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
   bool _isLoading = false;
   bool _showFilters = false;
   
-  // ✅ Controle de visibilidade da tela
+  // Controle de visibilidade da tela
   bool _isVisible = false;
   DateTime? _lastRefresh;
   
@@ -134,51 +134,48 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     });
   }
 
-  /// ✅ Detectar quando a tela fica visível
+  /// Detectar quando a tela fica visível
   void _onVisibilityChanged(VisibilityInfo info) {
     final wasVisible = _isVisible;
     _isVisible = info.visibleFraction > 0.5;
     
-    print('👁 SCREEN: Visibilidade mudou: $wasVisible → $_isVisible');
+    print('SCREEN: Visibilidade mudou: $wasVisible → $_isVisible');
     
-    // Se a tela ficou visível E não estava antes, recarregar
     if (_isVisible && !wasVisible) {
-      print('👀 SCREEN: Tela ficou visível - verificando se precisa refresh...');
+      print('SCREEN: Tela ficou visível - verificando se precisa refresh...');
       _verificarERecarregar();
     }
   }
 
-  /// ✅ Verificar se precisa recarregar dados
+  /// Verificar se precisa recarregar dados
   void _verificarERecarregar() {
     final agora = DateTime.now();
     final tempoSinceLastRefresh = _lastRefresh != null 
         ? agora.difference(_lastRefresh!)
         : const Duration(hours: 1);
     
-    // Recarregar se passou mais de 5 segundos desde último refresh
     if (tempoSinceLastRefresh.inSeconds > 5) {
-      print('⏰ SCREEN: Precisa refresh (${tempoSinceLastRefresh.inSeconds}s desde último)');
+      print('SCREEN: Precisa refresh (${tempoSinceLastRefresh.inSeconds}s desde último)');
       _carregarTreinosComCache();
     } else {
-      print('✅ SCREEN: Dados ainda frescos (${tempoSinceLastRefresh.inSeconds}s)');
+      print('SCREEN: Dados ainda frescos (${tempoSinceLastRefresh.inSeconds}s)');
     }
   }
 
-  /// ✅ Carregar treinos com invalidação de cache inteligente
+  /// Carregar treinos com invalidação de cache inteligente
   Future<void> _carregarTreinosComCache() async {
     if (!mounted) return;
     
-    print('🔄 SCREEN: Iniciando carregamento inteligente...');
+    print('SCREEN: Iniciando carregamento inteligente...');
     setState(() => _isLoading = true);
     
     try {
       final treinoProvider = context.read<TreinoProvider>();
       
-      // 🎯 FORÇA REFRESH NO PROVIDER (invalidar cache)
-      print('💾 SCREEN: Forçando refresh no provider...');
+      print('SCREEN: Forçando refresh no provider...');
       final resultado = await treinoProvider.listarTreinos(forceRefresh: true);
       
-      print('📊 SCREEN: RESULTADO do provider (forceRefresh=true):');
+      print('SCREEN: RESULTADO do provider (forceRefresh=true):');
       print('   • Success: ${resultado.success}');
       print('   • Data: ${resultado.data?.length ?? 0} treinos');
       print('   • Message: ${resultado.message}');
@@ -187,33 +184,33 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
         setState(() {
           _todosTreinos = resultado.data as List<TreinoModel>;
           _aplicarFiltros();
-          _lastRefresh = DateTime.now(); // ✅ Marcar horário do refresh
+          _lastRefresh = DateTime.now();
         });
         
-        print('✅ SCREEN: Lista atualizada com ${_todosTreinos.length} treinos');
+        print('SCREEN: Lista atualizada com ${_todosTreinos.length} treinos');
         for (var treino in _todosTreinos) {
-          print('   • ${treino.id}: ${treino.nomeTreino}');
+          print('   • ${treino.id}: ${treino.nomeTreino} (${treino.exercicios.length} exercícios)');
         }
       } else {
-        print('❌ SCREEN: Erro no carregamento: ${resultado.message}');
+        print('SCREEN: Erro no carregamento: ${resultado.message}');
         if (mounted) {
           _mostrarErro('Erro ao carregar treinos: ${resultado.message}');
         }
       }
     } catch (e) {
-      print('❌ SCREEN: EXCEÇÃO no carregamento: $e');
+      print('SCREEN: EXCEÇÃO no carregamento: $e');
       if (mounted) {
         _mostrarErro('Erro inesperado ao carregar treinos: $e');
       }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
-        print('🏁 SCREEN: Carregamento finalizado');
+        print('SCREEN: Carregamento finalizado');
       }
     }
   }
 
-  /// ✅ Método original de carregamento para compatibilidade
+  /// Método original de carregamento para compatibilidade
   Future<void> _carregarTreinos() async {
     return _carregarTreinosComCache();
   }
@@ -221,16 +218,13 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
   void _aplicarFiltros() {
     setState(() {
       _treinosFiltrados = _todosTreinos.where((treino) {
-        // Filtro por busca
         final matchBusca = _textoBusca.isEmpty || 
             treino.nomeTreino.toLowerCase().contains(_textoBusca.toLowerCase()) ||
             treino.tipoTreino.toLowerCase().contains(_textoBusca.toLowerCase());
         
-        // Filtro por tipo
         final matchTipo = _filtroTipo == 'Todos' || 
             treino.tipoTreino.toLowerCase() == _filtroTipo.toLowerCase();
         
-        // Filtro por dificuldade
         final matchDificuldade = _filtroDificuldade == 'Todos' || 
             treino.dificuldadeTextoSeguro == _filtroDificuldade;
         
@@ -251,7 +245,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     );
   }
 
-  /// 🎨 Obter cor da dificuldade
+  /// Obter cor da dificuldade
   Color _getCorDificuldade(String? dificuldade) {
     switch (dificuldade?.toLowerCase()) {
       case 'iniciante':
@@ -265,7 +259,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     }
   }
 
-  // 🔧 Método auxiliar para normalizar dificuldade
+  // Método auxiliar para normalizar dificuldade
   String _normalizarDificuldade(String dificuldade) {
     switch (dificuldade.toLowerCase()) {
       case 'iniciante':
@@ -283,12 +277,12 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
 
   @override
   Widget build(BuildContext context) {
-    return VisibilityDetector( // ✅ Detector de visibilidade
+    return VisibilityDetector(
       key: const Key('treinos-library-screen'),
       onVisibilityChanged: _onVisibilityChanged,
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
-        body: RefreshIndicator( // ✅ Pull-to-refresh
+        body: RefreshIndicator(
           onRefresh: _carregarTreinosComCache,
           color: const Color(0xFF6366F1),
           backgroundColor: Colors.white,
@@ -298,10 +292,8 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-                // App Bar com gradiente
                 _buildGradientAppBar(),
                 
-                // Search Bar e Filtros
                 SliverToBoxAdapter(
                   child: AnimatedBuilder(
                     animation: _slideAnimation,
@@ -309,12 +301,12 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                       return Transform.translate(
                         offset: Offset(0, _slideAnimation.value),
                         child: Padding(
-                          padding: const EdgeInsets.all(16), // 🔥 REDUZIDO: 20 → 16
+                          padding: const EdgeInsets.all(16),
                           child: Column(
-                            mainAxisSize: MainAxisSize.min, // 🔥 ANTI-OVERFLOW
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               _buildSearchBar(),
-                              const SizedBox(height: 12), // 🔥 REDUZIDO: 16 → 12
+                              const SizedBox(height: 12),
                               if (_showFilters) _buildFilterChips(),
                             ],
                           ),
@@ -324,7 +316,6 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                   ),
                 ),
                 
-                // Loading ou Lista de Treinos
                 _isLoading 
                     ? SliverToBoxAdapter(child: _buildLoadingState())
                     : _treinosFiltrados.isEmpty
@@ -339,11 +330,11 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     );
   }
 
-  /// App Bar com gradiente moderno - 🔥 VERSÃO ANTI-OVERFLOW DEFINITIVA
+  /// App Bar com degradê igual ao Stats
   Widget _buildGradientAppBar() {
     return SliverAppBar(
       automaticallyImplyLeading: false,
-      expandedHeight: 110, // 🔥 REDUZIDO: 120 → 110
+      expandedHeight: 110,
       pinned: true,
       backgroundColor: Colors.transparent,
       flexibleSpace: Container(
@@ -352,14 +343,14 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF6366F1),
-              Color(0xFF8B5CF6),
-              Color(0xFFA855F7),
+              Color(0xFF1E40AF),
+              Color(0xFF3B82F6),
+              Color(0xFFF97316),
             ],
           ),
         ),
         child: FlexibleSpaceBar(
-          titlePadding: const EdgeInsets.only(left: 16, bottom: 12), // 🔥 REDUZIDO: 20→16, 16→12
+          titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
           title: LayoutBuilder(
             builder: (context, constraints) {
               return Row(
@@ -368,15 +359,15 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.end,
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min, // 🔥 ANTI-OVERFLOW
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        FittedBox( // 🔥 ANTI-OVERFLOW: FittedBox para título
+                        FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
                           child: Text(
                             'Meus Treinos',
                             style: TextStyle(
-                              fontSize: 20, // 🔥 REDUZIDO: 22 → 20
+                              fontSize: 20,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                               shadows: [
@@ -389,15 +380,14 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                             ),
                           ),
                         ),
-                        // ✅ Indicador de última atualização
                         if (_lastRefresh != null)
-                          FittedBox( // 🔥 ANTI-OVERFLOW
+                          FittedBox(
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
                             child: Text(
                               'Atualizado há ${DateTime.now().difference(_lastRefresh!).inMinutes}min',
                               style: TextStyle(
-                                fontSize: 8, // 🔥 REDUZIDO: 9 → 8
+                                fontSize: 8,
                                 color: Colors.white.withOpacity(0.7),
                               ),
                             ),
@@ -405,12 +395,11 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                       ],
                     ),
                   ),
-                  // 🔥 BOTÕES COMPACTOS
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
-                        width: 32, // 🔥 REDUZIDO: 36 → 32
+                        width: 32,
                         height: 32,
                         child: IconButton(
                           padding: EdgeInsets.zero,
@@ -424,7 +413,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                             child: Icon(
                               Icons.tune_rounded,
                               color: Colors.white,
-                              size: 16, // 🔥 REDUZIDO: 18 → 16
+                              size: 16,
                               shadows: [
                                 Shadow(
                                   offset: const Offset(0, 1),
@@ -436,9 +425,9 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                           ),
                         ),
                       ),
-                      const SizedBox(width: 4), // 🔥 ESPAÇAMENTO MÍNIMO
+                      const SizedBox(width: 4),
                       SizedBox(
-                        width: 32, // 🔥 REDUZIDO: 36 → 32
+                        width: 32,
                         height: 32,
                         child: IconButton(
                           padding: EdgeInsets.zero,
@@ -452,7 +441,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                             child: Icon(
                               Icons.refresh_rounded,
                               color: Colors.white,
-                              size: 16, // 🔥 REDUZIDO: 18 → 16
+                              size: 16,
                               shadows: [
                                 Shadow(
                                   offset: const Offset(0, 1),
@@ -475,7 +464,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     );
   }
 
-  /// Search Bar moderna - 🔥 VERSÃO ANTI-OVERFLOW
+  /// Search Bar moderna
   Widget _buildSearchBar() {
     return Container(
       decoration: BoxDecoration(
@@ -499,12 +488,12 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
           hintText: 'Buscar treinos...',
           hintStyle: TextStyle(
             color: const Color(0xFF94A3B8),
-            fontSize: 15, // 🔥 REDUZIDO: 16 → 15
+            fontSize: 15,
           ),
           prefixIcon: const Icon(
             Icons.search_rounded,
             color: Color(0xFF6366F1),
-            size: 22, // 🔥 REDUZIDO: 24 → 22
+            size: 22,
           ),
           suffixIcon: _textoBusca.isNotEmpty
               ? IconButton(
@@ -516,49 +505,48 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                   icon: const Icon(
                     Icons.clear_rounded,
                     color: Color(0xFF94A3B8),
-                    size: 20, // 🔥 REDUZIDO
+                    size: 20,
                   ),
                 )
               : null,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16, // 🔥 REDUZIDO: 20 → 16
-            vertical: 14, // 🔥 REDUZIDO: 16 → 14
+            horizontal: 16,
+            vertical: 14,
           ),
         ),
       ),
     );
   }
 
-  /// Chips de filtro - 🔥 VERSÃO ANTI-OVERFLOW
+  /// Chips de filtro
   Widget _buildFilterChips() {
     return AnimatedSize(
       duration: const Duration(milliseconds: 300),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min, // 🔥 ANTI-OVERFLOW
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Filtro por Tipo
-          FittedBox( // 🔥 ANTI-OVERFLOW no título
+          FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
               'Tipo de Treino',
               style: TextStyle(
-                fontSize: 15, // 🔥 REDUZIDO: 16 → 15
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: const Color(0xFF0F172A),
               ),
             ),
           ),
-          const SizedBox(height: 6), // 🔥 REDUZIDO: 8 → 6
+          const SizedBox(height: 6),
           Wrap(
-            spacing: 6, // 🔥 REDUZIDO: 8 → 6
-            runSpacing: 6, // 🔥 REDUZIDO: 8 → 6
+            spacing: 6,
+            runSpacing: 6,
             children: _tiposTreino.map((tipo) {
               final isSelected = _filtroTipo == tipo;
               return FilterChip(
-                label: FittedBox( // 🔥 ANTI-OVERFLOW
+                label: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(tipo),
                 ),
@@ -573,7 +561,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                 labelStyle: TextStyle(
                   color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF64748B),
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  fontSize: 12, // 🔥 TAMANHO FIXO REDUZIDO
+                  fontSize: 12,
                 ),
                 side: BorderSide(
                   color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
@@ -581,34 +569,33 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, // 🔥 COMPACTO
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               );
             }).toList(),
           ),
           
-          const SizedBox(height: 12), // 🔥 REDUZIDO: 16 → 12
+          const SizedBox(height: 12),
           
-          // Filtro por Dificuldade
-          FittedBox( // 🔥 ANTI-OVERFLOW no título
+          FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
               'Dificuldade',
               style: TextStyle(
-                fontSize: 15, // 🔥 REDUZIDO: 16 → 15
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: const Color(0xFF0F172A),
               ),
             ),
           ),
-          const SizedBox(height: 6), // 🔥 REDUZIDO: 8 → 6
+          const SizedBox(height: 6),
           Wrap(
-            spacing: 6, // 🔥 REDUZIDO: 8 → 6
-            runSpacing: 6, // 🔥 REDUZIDO: 8 → 6
+            spacing: 6,
+            runSpacing: 6,
             children: _dificuldades.map((dificuldade) {
               final isSelected = _filtroDificuldade == dificuldade;
               return FilterChip(
-                label: FittedBox( // 🔥 ANTI-OVERFLOW
+                label: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(dificuldade),
                 ),
@@ -623,7 +610,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                 labelStyle: TextStyle(
                   color: isSelected ? const Color(0xFF8B5CF6) : const Color(0xFF64748B),
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  fontSize: 12, // 🔥 TAMANHO FIXO REDUZIDO
+                  fontSize: 12,
                 ),
                 side: BorderSide(
                   color: isSelected ? const Color(0xFF8B5CF6) : const Color(0xFFE2E8F0),
@@ -631,7 +618,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, // 🔥 COMPACTO
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               );
             }).toList(),
           ),
@@ -640,10 +627,10 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     );
   }
 
-  /// Lista de treinos - 🔥 VERSÃO ANTI-OVERFLOW
+  /// Lista de treinos
   Widget _buildTreinosList() {
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 16), // 🔥 REDUZIDO: 20 → 16
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       sliver: SliverList.builder(
         itemCount: _treinosFiltrados.length,
         itemBuilder: (context, index) {
@@ -661,7 +648,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                 child: Opacity(
                   opacity: animationValue,
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12), // 🔥 REDUZIDO: 16 → 12
+                    padding: const EdgeInsets.only(bottom: 12),
                     child: _buildTreinoCard(treino),
                   ),
                 ),
@@ -673,54 +660,54 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     );
   }
 
-  /// Card do treino premium - 🔥 VERSÃO ANTI-OVERFLOW DEFINITIVA
+  /// Card do treino com BOTÕES DUPLOS
   Widget _buildTreinoCard(TreinoModel treino) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18), // 🔥 REDUZIDO: 20 → 18
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
-            blurRadius: 16, // 🔥 REDUZIDO: 20 → 16
-            offset: const Offset(0, 6), // 🔥 REDUZIDO: 8 → 6
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _iniciarTreino(treino),
+          onTap: () => _verDetalhesTreino(treino),
           borderRadius: BorderRadius.circular(18),
           child: Padding(
-            padding: const EdgeInsets.all(14), // 🔥 REDUZIDO: 16 → 14
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min, // 🔥 ANTI-OVERFLOW
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Header do card - 🔥 VERSÃO ANTI-OVERFLOW DEFINITIVA
+                // Header do card
                 Row(
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min, // 🔥 ANTI-OVERFLOW
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             treino.nomeTreino,
                             style: const TextStyle(
-                              fontSize: 16, // 🔥 REDUZIDO: 18 → 16
+                              fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF0F172A),
                             ),
-                            maxLines: 1, // 🔥 REDUZIDO: 2 → 1
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             treino.tipoTreino,
                             style: const TextStyle(
-                              fontSize: 12, // 🔥 REDUZIDO: 13 → 12
+                              fontSize: 12,
                               color: Color(0xFF64748B),
                               fontWeight: FontWeight.w500,
                             ),
@@ -730,14 +717,14 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(width: 6), // 🔥 REDUZIDO: 8 → 6
+                    const SizedBox(width: 6),
                     SizedBox(
-                      width: 28, // 🔥 REDUZIDO: 32 → 28
+                      width: 28,
                       height: 28,
                       child: PopupMenuButton<String>(
                         onSelected: (value) => _executarAcaoTreino(value, treino),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10), // 🔥 REDUZIDO: 12 → 10
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         padding: EdgeInsets.zero,
                         itemBuilder: (context) => [
@@ -758,7 +745,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                           child: const Icon(
                             Icons.more_vert_rounded,
                             color: Color(0xFF64748B),
-                            size: 14, // 🔥 REDUZIDO: 16 → 14
+                            size: 14,
                           ),
                         ),
                       ),
@@ -766,11 +753,11 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                   ],
                 ),
                 
-                const SizedBox(height: 10), // 🔥 REDUZIDO: 12 → 10
+                const SizedBox(height: 10),
                 
-                // Informações do treino - 🔥 VERSÃO ANTI-OVERFLOW DEFINITIVA
-                Wrap( // 🔥 WRAP é melhor que Row para overflow
-                  spacing: 6, // 🔥 REDUZIDO: 8 → 6
+                // Informações do treino
+                Wrap(
+                  spacing: 6,
                   runSpacing: 4,
                   children: [
                     _buildInfoChip(
@@ -786,21 +773,21 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                   ],
                 ),
                 
-                const SizedBox(height: 6), // 🔥 REDUZIDO: 8 → 6
+                const SizedBox(height: 6),
                 
-                // Badge de dificuldade - 🔥 VERSÃO ANTI-OVERFLOW
+                // Badge de dificuldade
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), // 🔥 REDUZIDO
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: _getCorDificuldade(treino.dificuldade).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16), // 🔥 REDUZIDO: 20 → 16
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
                       treino.dificuldadeTextoSeguro,
                       style: TextStyle(
-                        fontSize: 10, // 🔥 REDUZIDO: 11 → 10
+                        fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: _getCorDificuldade(treino.dificuldade),
                       ),
@@ -809,56 +796,105 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                 ),
                 
                 if (treino.descricao?.isNotEmpty == true) ...[
-                  const SizedBox(height: 6), // 🔥 REDUZIDO: 8 → 6
+                  const SizedBox(height: 6),
                   Text(
                     treino.descricao!,
                     style: const TextStyle(
-                      fontSize: 12, // 🔥 REDUZIDO: 13 → 12
+                      fontSize: 12,
                       color: Color(0xFF64748B),
-                      height: 1.2, // 🔥 REDUZIDO: 1.3 → 1.2
+                      height: 1.2,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
                 
-                const SizedBox(height: 10), // 🔥 REDUZIDO: 12 → 10
+                const SizedBox(height: 10),
                 
-                // Botão de ação principal - 🔥 VERSÃO SEM CORTE DE TEXTO
-                SizedBox(
-                  width: double.infinity,
-                  height: 42, // 🔥 AUMENTADO: 40 → 42 para comportar o texto
-                  child: ElevatedButton(
-                    onPressed: () => _iniciarTreino(treino),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // 🔥 PADDING ESPECÍFICO
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.visibility_rounded, size: 16), // 🔥 AUMENTADO: 14 → 16
-                        const SizedBox(width: 6),
-                        Flexible( // 🔥 FLEXIBLE para evitar overflow do texto
-                          child: Text(
-                            'Ver Detalhes',
-                            style: TextStyle(
-                              fontSize: 13, // 🔥 AUMENTADO: 12 → 13
-                              fontWeight: FontWeight.w600,
+                // BOTÕES DUPLOS
+                Row(
+                  children: [
+                    // Botão Detalhes
+                    Expanded(
+                      child: SizedBox(
+                        height: 42,
+                        child: ElevatedButton(
+                          onPressed: () => _verDetalhesTreino(treino),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF6366F1),
+                            elevation: 0,
+                            side: const BorderSide(
+                              color: Color(0xFF6366F1),
+                              width: 1.5,
                             ),
-                            overflow: TextOverflow.ellipsis,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.visibility_rounded, size: 16),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  'Detalhes',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                    
+                    const SizedBox(width: 8),
+                    
+                    // Botão Treinar
+                    Expanded(
+                      child: SizedBox(
+                        height: 42,
+                        child: ElevatedButton(
+                          onPressed: () => _iniciarTreinoDirecto(treino),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6366F1),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.play_arrow_rounded, size: 16),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  'Treinar',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -868,24 +904,24 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     );
   }
 
-  /// Chip de informação - 🔥 VERSÃO ANTI-OVERFLOW DEFINITIVA
+  /// Chip de informação
   Widget _buildInfoChip(IconData icon, String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4), // 🔥 REDUZIDO
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8), // 🔥 REDUZIDO: 10 → 8
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color), // 🔥 REDUZIDO: 14 → 12
-          const SizedBox(width: 3), // 🔥 REDUZIDO: 4 → 3
-          Flexible( // 🔥 ANTI-OVERFLOW
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 3),
+          Flexible(
             child: Text(
               text,
               style: TextStyle(
-                fontSize: 10, // 🔥 REDUZIDO: 11 → 10
+                fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),
@@ -910,17 +946,17 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
         children: [
           Icon(
             icon,
-            size: 18, // 🔥 REDUZIDO: 20 → 18
+            size: 18,
             color: isDestructive ? const Color(0xFFEF4444) : const Color(0xFF64748B),
           ),
-          const SizedBox(width: 10), // 🔥 REDUZIDO: 12 → 10
-          Flexible( // 🔥 ANTI-OVERFLOW
+          const SizedBox(width: 10),
+          Flexible(
             child: Text(
               text,
               style: TextStyle(
                 color: isDestructive ? const Color(0xFFEF4444) : const Color(0xFF0F172A),
                 fontWeight: FontWeight.w500,
-                fontSize: 14, // 🔥 TAMANHO FIXO
+                fontSize: 14,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -930,17 +966,17 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     );
   }
 
-  /// Estado de loading - 🔥 VERSÃO ANTI-OVERFLOW
+  /// Estado de loading
   Widget _buildLoadingState() {
     return SizedBox(
-      height: 350, // 🔥 REDUZIDO: 400 → 350
+      height: 350,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min, // 🔥 ANTI-OVERFLOW
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 56, // 🔥 REDUZIDO: 60 → 56
+              width: 56,
               height: 56,
               decoration: BoxDecoration(
                 color: const Color(0xFF6366F1).withOpacity(0.1),
@@ -953,11 +989,11 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                 ),
               ),
             ),
-            const SizedBox(height: 16), // 🔥 REDUZIDO: 20 → 16
+            const SizedBox(height: 16),
             Text(
               'Carregando treinos...',
               style: TextStyle(
-                fontSize: 15, // 🔥 REDUZIDO: 16 → 15
+                fontSize: 15,
                 fontWeight: FontWeight.w500,
                 color: const Color(0xFF64748B),
               ),
@@ -968,19 +1004,19 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     );
   }
 
-  /// Estado vazio - 🔥 VERSÃO ANTI-OVERFLOW
+  /// Estado vazio
   Widget _buildEmptyState() {
     final isFiltered = _textoBusca.isNotEmpty || 
         _filtroTipo != 'Todos' || 
         _filtroDificuldade != 'Todos';
     
     return Padding(
-      padding: const EdgeInsets.all(32), // 🔥 REDUZIDO: 40 → 32
+      padding: const EdgeInsets.all(32),
       child: Column(
-        mainAxisSize: MainAxisSize.min, // 🔥 ANTI-OVERFLOW
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 100, // 🔥 REDUZIDO: 120 → 100
+            width: 100,
             height: 100,
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -995,56 +1031,56 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
             ),
             child: Icon(
               isFiltered ? Icons.search_off_rounded : Icons.fitness_center_rounded,
-              size: 50, // 🔥 REDUZIDO: 60 → 50
+              size: 50,
               color: const Color(0xFF6366F1),
             ),
           ),
-          const SizedBox(height: 20), // 🔥 REDUZIDO: 24 → 20
-          FittedBox( // 🔥 ANTI-OVERFLOW no título
+          const SizedBox(height: 20),
+          FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
               isFiltered ? 'Nenhum treino encontrado' : 'Nenhum treino criado',
               style: const TextStyle(
-                fontSize: 22, // 🔥 REDUZIDO: 24 → 22
+                fontSize: 22,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF0F172A),
               ),
             ),
           ),
-          const SizedBox(height: 10), // 🔥 REDUZIDO: 12 → 10
+          const SizedBox(height: 10),
           Text(
             isFiltered 
                 ? 'Tente ajustar os filtros ou buscar por outros termos'
                 : 'Crie seu primeiro treino personalizado para começar',
             style: const TextStyle(
-              fontSize: 14, // 🔥 REDUZIDO: 16 → 14
+              fontSize: 14,
               color: Color(0xFF64748B),
-              height: 1.4, // 🔥 REDUZIDO: 1.5 → 1.4
+              height: 1.4,
             ),
             textAlign: TextAlign.center,
-            maxLines: 3, // 🔥 ANTI-OVERFLOW
+            maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 24), // 🔥 REDUZIDO: 32 → 24
+          const SizedBox(height: 24),
           if (!isFiltered)
             SizedBox(
-              height: 42, // 🔥 ALTURA CONSISTENTE
+              height: 42,
               child: ElevatedButton.icon(
                 onPressed: _criarNovoTreino,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6366F1),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14), // 🔥 REDUZIDO
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14), // 🔥 REDUZIDO: 16 → 14
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   elevation: 0,
                 ),
-                icon: const Icon(Icons.add_rounded, size: 18), // 🔥 REDUZIDO
+                icon: const Icon(Icons.add_rounded, size: 18),
                 label: Text(
                   'Criar Primeiro Treino',
                   style: TextStyle(
-                    fontSize: 14, // 🔥 REDUZIDO: 16 → 14
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1061,10 +1097,10 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                 });
                 _aplicarFiltros();
               },
-              icon: const Icon(Icons.clear_all_rounded, size: 16), // 🔥 REDUZIDO
+              icon: const Icon(Icons.clear_all_rounded, size: 16),
               label: Text(
                 'Limpar Filtros',
-                style: TextStyle(fontSize: 14), // 🔥 REDUZIDO
+                style: TextStyle(fontSize: 14),
               ),
             ),
         ],
@@ -1077,21 +1113,21 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     return ScaleTransition(
       scale: _fabController,
       child: SizedBox(
-        height: 44, // 🔥 ALTURA CONSISTENTE
+        height: 44,
         child: FloatingActionButton.extended(
           onPressed: _criarNovoTreino,
           backgroundColor: const Color(0xFF6366F1),
           foregroundColor: Colors.white,
-          elevation: 6, // 🔥 REDUZIDO: 8 → 6
+          elevation: 6,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14), // 🔥 REDUZIDO: 16 → 14
+            borderRadius: BorderRadius.circular(14),
           ),
-          icon: const Icon(Icons.add_rounded, size: 18), // 🔥 REDUZIDO
+          icon: const Icon(Icons.add_rounded, size: 18),
           label: Text(
             'Novo Treino',
             style: TextStyle(
               fontWeight: FontWeight.w600,
-              fontSize: 14, // 🔥 TAMANHO FIXO
+              fontSize: 14,
             ),
           ),
         ),
@@ -1099,11 +1135,76 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     );
   }
 
-  // ========================
-  // 🔧 MÉTODOS DE AÇÃO - CORRIGIDOS COM REFRESH AUTOMÁTICO
-  // ========================
+  // MÉTODOS DE AÇÃO - CORRIGIDOS COM REFRESH AUTOMÁTICO
 
-  /// ✅ CRIAR NOVO TREINO
+  /// VER DETALHES DO TREINO
+  void _verDetalhesTreino(TreinoModel treino) {
+    HapticFeedback.lightImpact();
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DetalhesTreinoScreen(treino: treino),
+      ),
+    );
+  }
+
+  /// CORRIGIDO: INICIAR TREINO DIRETO COM CARREGAMENTO DE EXERCÍCIOS
+  void _iniciarTreinoDirecto(TreinoModel treino) async {
+    HapticFeedback.mediumImpact();
+    
+    print('BOTÃO TREINAR: Iniciando treino ${treino.nomeTreino}');
+    print('EXERCÍCIOS NO TREINO ATUAL: ${treino.exercicios.length}');
+    
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFF6366F1),
+        ),
+      ),
+    );
+    
+    try {
+      // CARREGAR TREINO COMPLETO COM EXERCÍCIOS
+      final treinoProvider = context.read<TreinoProvider>();
+      final resultado = await treinoProvider.buscarTreino(treino.id!);
+      
+      if (mounted) {
+        Navigator.pop(context); // Remover loading
+        
+        if (resultado.success && resultado.data != null) {
+          final treinoCompleto = resultado.data!;
+          print('TREINO CARREGADO: ${treinoCompleto.exercicios.length} exercícios');
+          
+          if (treinoCompleto.exercicios.isEmpty) {
+            _mostrarErro('Este treino não possui exercícios. Adicione exercícios antes de treinar.');
+            return;
+          }
+          
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TreinoPreparacaoScreen(
+                treino: treinoCompleto, // TREINO COM EXERCÍCIOS
+              ),
+            ),
+          );
+        } else {
+          _mostrarErro('Erro ao carregar exercícios do treino');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Remover loading
+        _mostrarErro('Erro ao carregar treino: $e');
+      }
+    }
+  }
+
+  /// CRIAR NOVO TREINO
   void _criarNovoTreino() {
     HapticFeedback.mediumImpact();
     Navigator.push(
@@ -1112,16 +1213,16 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
         builder: (context) => const CriarTreinoScreen(),
       ),
     ).then((result) async {
-      print('🔄 VOLTOU da tela de criar treino - forçando refresh...');
+      print('VOLTOU da tela de criar treino - forçando refresh...');
       
       if (mounted) {
         await _carregarTreinosComCache();
-        print('✅ Lista de treinos atualizada após criar/editar');
+        print('Lista de treinos atualizada após criar/editar');
       }
     });
   }
 
-  /// ✅ INICIAR TREINO
+  /// INICIAR TREINO (método antigo - mantido para compatibilidade)
   void _iniciarTreino(TreinoModel treino) {
     HapticFeedback.mediumImpact();
     
@@ -1133,7 +1234,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     );
   }
 
-  /// ✅ EXECUTAR AÇÃO TREINO
+  /// EXECUTAR AÇÃO TREINO
   void _executarAcaoTreino(String acao, TreinoModel treino) {
     HapticFeedback.lightImpact();
     
@@ -1156,11 +1257,11 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     }
   }
 
-  /// ✅ EDITAR TREINO
+  /// EDITAR TREINO
   void _editarTreino(TreinoModel treino) {
     HapticFeedback.lightImpact();
     
-    print('✏️ Abrindo modal de edição para: ${treino.nomeTreino}');
+    print('Abrindo modal de edição para: ${treino.nomeTreino}');
     
     showModalBottomSheet<void>(
       context: context,
@@ -1173,52 +1274,51 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
         return _buildEditModal(treino);
       },
     ).then((value) async {
-      print('📋 Modal de edição fechado - forçando refresh...');
+      print('Modal de edição fechado - forçando refresh...');
       
       if (mounted) {
         await _carregarTreinosComCache();
-        print('✅ Lista de treinos atualizada após editar');
+        print('Lista de treinos atualizada após editar');
       }
     });
   }
 
-  /// 📝 Modal de edição básico (implementação simplificada)
+  /// Modal de edição básico (implementação simplificada)
   Widget _buildEditModal(TreinoModel treino) {
-    // Implementação básica - você pode expandir conforme necessário
     return Container(
-      height: MediaQuery.of(context).size.height * 0.6, // 🔥 REDUZIDO: 0.7 → 0.6
+      height: MediaQuery.of(context).size.height * 0.6,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16), // 🔥 REDUZIDO: 20 → 16
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min, // 🔥 ANTI-OVERFLOW
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'Editar ${treino.nomeTreino}',
               style: const TextStyle(
-                fontSize: 20, // 🔥 REDUZIDO: 24 → 20
+                fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF0F172A),
               ),
-              maxLines: 2, // 🔥 ANTI-OVERFLOW
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 16), // 🔥 REDUZIDO: 20 → 16
+            const SizedBox(height: 16),
             Text(
               'Funcionalidade de edição em desenvolvimento...',
               style: TextStyle(
-                fontSize: 14, // 🔥 REDUZIDO: 16 → 14
+                fontSize: 14,
                 color: const Color(0xFF64748B),
               ),
             ),
             const Spacer(),
             SizedBox(
               width: double.infinity,
-              height: 44, // 🔥 REDUZIDO: 48 → 44
+              height: 44,
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
@@ -1230,7 +1330,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                 ),
                 child: Text(
                   'Fechar',
-                  style: TextStyle(fontSize: 14), // 🔥 TAMANHO FIXO
+                  style: TextStyle(fontSize: 14),
                 ),
               ),
             ),
@@ -1240,7 +1340,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     );
   }
 
-  /// ✅ DUPLICAR TREINO
+  /// DUPLICAR TREINO
   void _duplicarTreino(TreinoModel treino) async {
     try {
       HapticFeedback.lightImpact();
@@ -1258,7 +1358,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded( // 🔥 ANTI-OVERFLOW
+              Expanded(
                 child: Text('Duplicando treino "${treino.nomeTreino}"...'),
               ),
             ],
@@ -1301,7 +1401,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     }
   }
 
-  /// ✅ EDITAR EXERCÍCIOS
+  /// EDITAR EXERCÍCIOS
   void _editarExercicios(TreinoModel treino) {
     HapticFeedback.lightImpact();
     
@@ -1311,11 +1411,11 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
         builder: (context) => DetalhesTreinoScreen(treino: treino),
       ),
     ).then((result) async {
-      print('🔄 VOLTOU da tela de exercícios - forçando refresh...');
+      print('VOLTOU da tela de exercícios - forçando refresh...');
       
       if (mounted) {
         await _carregarTreinosComCache();
-        print('✅ Lista de treinos atualizada após editar exercícios');
+        print('Lista de treinos atualizada após editar exercícios');
       }
     });
   }
@@ -1355,7 +1455,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
         title: Row(
           children: [
             Container(
-              width: 36, // 🔥 REDUZIDO: 40 → 36
+              width: 36,
               height: 36,
               decoration: BoxDecoration(
                 color: const Color(0xFFEF4444).withOpacity(0.1),
@@ -1364,16 +1464,16 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
               child: const Icon(
                 Icons.warning_rounded,
                 color: Color(0xFFEF4444),
-                size: 20, // 🔥 REDUZIDO: 24 → 20
+                size: 20,
               ),
             ),
-            const SizedBox(width: 10), // 🔥 REDUZIDO: 12 → 10
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'Excluir Treino',
                 style: TextStyle(
                   color: const Color(0xFF0F172A),
-                  fontSize: 18, // 🔥 REDUZIDO: 20 → 18
+                  fontSize: 18,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1388,7 +1488,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
               text: TextSpan(
                 style: const TextStyle(
                   color: Color(0xFF64748B),
-                  fontSize: 14, // 🔥 REDUZIDO: 16 → 14
+                  fontSize: 14,
                   height: 1.4,
                 ),
                 children: [
@@ -1404,9 +1504,9 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                 ],
               ),
             ),
-            const SizedBox(height: 10), // 🔥 REDUZIDO: 12 → 10
+            const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.all(10), // 🔥 REDUZIDO: 12 → 10
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: const Color(0xFFEF4444).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
@@ -1420,15 +1520,15 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                   Icon(
                     Icons.info_outline_rounded,
                     color: const Color(0xFFEF4444),
-                    size: 18, // 🔥 REDUZIDO: 20 → 18
+                    size: 18,
                   ),
-                  const SizedBox(width: 6), // 🔥 REDUZIDO: 8 → 6
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Esta ação não pode ser desfeita',
                       style: TextStyle(
                         color: const Color(0xFFEF4444),
-                        fontSize: 12, // 🔥 REDUZIDO: 14 → 12
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1446,7 +1546,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
               style: TextStyle(
                 color: const Color(0xFF64748B),
                 fontWeight: FontWeight.w500,
-                fontSize: 14, // 🔥 TAMANHO FIXO
+                fontSize: 14,
               ),
             ),
           ),
@@ -1462,13 +1562,13 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), // 🔥 REDUZIDO
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             child: Text(
               'Excluir',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                fontSize: 14, // 🔥 TAMANHO FIXO
+                fontSize: 14,
               ),
             ),
           ),
@@ -1477,7 +1577,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
     );
   }
 
-  /// ✅ EXCLUIR TREINO
+  /// EXCLUIR TREINO
   void _excluirTreino(TreinoModel treino) async {
     try {
       HapticFeedback.lightImpact();
@@ -1495,7 +1595,7 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded( // 🔥 ANTI-OVERFLOW
+              Expanded(
                 child: Text('Excluindo treino "${treino.nomeTreino}"...'),
               ),
             ],

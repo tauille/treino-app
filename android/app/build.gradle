@@ -47,7 +47,7 @@ android {
         applicationId "com.treinoapp.treino_app"
         
         // ===== VERSÕES MÍNIMAS PARA GOOGLE SIGN IN =====
-        minSdkVersion 21                    // Mínimo para Google Sign In
+        minSdkVersion flutter.minSdkVersion                    // Mínimo para Google Sign In
         targetSdkVersion 34                 // Versão alvo atual
         
         versionCode flutterVersionCode.toInteger()

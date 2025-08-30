@@ -34,7 +34,7 @@ extension TreinoModelExtensions on TreinoModel {
   }
 }
 
-/// Home Dashboard - Versão otimizada sem redundâncias
+/// Home Dashboard - Versão com degradê no header
 class HomeDashboardScreen extends StatefulWidget {
   const HomeDashboardScreen({super.key});
 
@@ -184,7 +184,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-                  _buildModernAppBar(),
+                  _buildGradientAppBar(),
                   
                   SliverToBoxAdapter(
                     child: Padding(
@@ -215,74 +215,130 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
     );
   }
 
-  /// App Bar moderno e limpo
-  Widget _buildModernAppBar() {
+  /// ✅ NOVO: App Bar com degradê igual ao Stats
+  Widget _buildGradientAppBar() {
     return SliverAppBar(
+      automaticallyImplyLeading: false,
+      expandedHeight: 110,
+      pinned: true,
       backgroundColor: Colors.transparent,
-      elevation: 0,
-      pinned: false,
-      expandedHeight: 120,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 60, 16, 20),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Treino App',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF0F172A),
-                          letterSpacing: -0.5,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1E40AF),
+              Color(0xFF3B82F6), 
+              Color(0xFFF97316),
+            ],
+          ),
+        ),
+        child: FlexibleSpaceBar(
+          titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
+          title: LayoutBuilder(
+            builder: (context, constraints) {
+              return Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Home',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(
+                                  offset: const Offset(0, 1),
+                                  blurRadius: 3,
+                                  color: Colors.black.withOpacity(0.3),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+                        if (_lastRefresh != null)
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Atualizado há ${DateTime.now().difference(_lastRefresh!).inMinutes}min',
+                              style: TextStyle(
+                                fontSize: 8,
+                                color: Colors.white.withOpacity(0.7),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    if (_lastRefresh != null)
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Atualizado há ${DateTime.now().difference(_lastRefresh!).inMinutes}min',
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: const Color(0xFF64748B),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: () {
+                            HapticFeedback.lightImpact();
+                            _carregarDadosComCache();
+                          },
+                          icon: AnimatedRotation(
+                            turns: _isLoading ? 1 : 0,
+                            duration: const Duration(milliseconds: 1000),
+                            child: Icon(
+                              Icons.refresh_rounded,
+                              color: Colors.white,
+                              size: 16,
+                              shadows: [
+                                Shadow(
+                                  offset: const Offset(0, 1),
+                                  blurRadius: 3,
+                                  color: Colors.black.withOpacity(0.3),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.notifications_none_rounded,
-                  color: const Color(0xFF64748B),
-                  size: 20,
-                ),
-              ),
-            ],
+                      const SizedBox(width: 4),
+                      SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: () {
+                            HapticFeedback.lightImpact();
+                            // Ação de notificações
+                          },
+                          icon: Icon(
+                            Icons.notifications_none_rounded,
+                            color: Colors.white,
+                            size: 16,
+                            shadows: [
+                              Shadow(
+                                offset: const Offset(0, 1),
+                                blurRadius: 3,
+                                color: Colors.black.withOpacity(0.3),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -349,13 +405,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF6366F1),
-                      const Color(0xFF8B5CF6),
-                    ],
+                  gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF6366F1),
+                      Color(0xFF8B5CF6),
+                    ],
                   ),
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -522,7 +578,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
     );
   }
 
-  /// Ações principais - SEM BIBLIOTECA REDUNDANTE
+  /// Ações principais
   Widget _buildMainActions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -541,7 +597,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
           ),
         ),
         const SizedBox(height: 14),
-        // APENAS UM CARD - CRIAR TREINO (sem biblioteca redundante)
         _buildActionCard(
           title: 'Criar Treino',
           subtitle: 'Monte seu treino personalizado',
@@ -553,7 +608,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
     );
   }
 
-  /// Card de ação moderno - versão otimizada
+  /// Card de ação moderno
   Widget _buildActionCard({
     required String title,
     required String subtitle,
@@ -761,7 +816,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
           
           SizedBox(
             width: double.infinity,
-            height: 40,
+            height: 48,
             child: ElevatedButton(
               onPressed: () => _iniciarTreino(treino),
               style: ElevatedButton.styleFrom(
@@ -771,17 +826,18 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.play_arrow_rounded, size: 16),
-                  const SizedBox(width: 4),
+                  Icon(Icons.play_arrow_rounded, size: 18),
+                  const SizedBox(width: 6),
                   Text(
                     'Iniciar Treino',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -846,7 +902,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            height: 40,
+            height: 48,
             child: ElevatedButton(
               onPressed: _criarNovoTreino,
               style: ElevatedButton.styleFrom(
@@ -856,11 +912,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
               child: Text(
                 'Criar Primeiro Treino',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),

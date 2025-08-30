@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'dart:convert';
 import '../../models/treino_model.dart';
 import '../../providers/treino_provider.dart';
 
@@ -32,6 +38,10 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
   bool _isLoading = false;
   bool _isSaving = false;
 
+  // CORRIGIDO: Sistema robusto de imagens
+  final Map<String, String> _exercicioImagens = {};
+  final ImagePicker _imagePicker = ImagePicker();
+
   // Opções para dropdowns
   final List<String> _tiposTreino = [
     'Musculação',
@@ -56,7 +66,6 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
   void initState() {
     super.initState();
     
-    // Configurar status bar
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -76,7 +85,6 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     super.dispose();
   }
 
-  /// Configurar animações
   void _setupAnimations() {
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 600),
@@ -94,12 +102,10 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     _fadeController.forward();
   }
 
-  /// 🔧 CORRIGIDO: Inicializar formulário (edição ou novo)
   void _initializeForm() {
     if (widget.treinoParaEditar != null) {
       final treino = widget.treinoParaEditar!;
       
-      // ✅ GARANTIR que os campos sejam preenchidos
       setState(() {
         _nomeController.text = treino.nomeTreino;
         _descricaoController.text = treino.descricao ?? '';
@@ -108,14 +114,113 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
         _exercicios = List.from(treino.exercicios);
       });
       
-      print('🔧 Editando treino: ${treino.nomeTreino}');
-      print('🔧 Tipo: $_tipoTreino');
-      print('🔧 Dificuldade: $_dificuldade');
-      print('🔧 Exercícios: ${_exercicios.length}');
+      // CORRIGIDO: Carregar imagens com backup local
+      _carregarImagensCompleto();
+      
+      print('INIT: Editando treino: ${treino.nomeTreino}');
+      print('INIT: Exercícios: ${_exercicios.length}');
     }
   }
 
-  /// Normalizar dificuldade para valores consistentes
+  // NOVO: Sistema completo de carregamento de imagens
+  void _carregarImagensCompleto() async {
+    print('=== CARREGANDO IMAGENS (SISTEMA COMPLETO) ===');
+    
+    for (final exercicio in _exercicios) {
+      print('CARREGANDO: ${exercicio.nomeExercicio}');
+      print('   imagemPath do modelo: ${exercicio.imagemPath}');
+      
+      String? caminhoImagem;
+      
+      // Método 1: Tentar carregar do modelo
+      if (exercicio.imagemPath != null && exercicio.imagemPath!.isNotEmpty) {
+        final file = File(exercicio.imagemPath!);
+        if (await file.exists()) {
+          caminhoImagem = exercicio.imagemPath!;
+          print('   ✅ Carregado do modelo');
+        } else {
+          print('   ❌ Arquivo do modelo não existe');
+        }
+      }
+      
+      // Método 2: Tentar carregar backup local
+      if (caminhoImagem == null) {
+        caminhoImagem = await _recuperarImagemLocal(exercicio.nomeExercicio);
+        if (caminhoImagem != null) {
+          print('   ✅ Carregado do backup local');
+        }
+      }
+      
+      // Método 3: Tentar procurar no diretório de exercícios
+      if (caminhoImagem == null) {
+        caminhoImagem = await _procurarImagemDiretorio(exercicio.nomeExercicio);
+        if (caminhoImagem != null) {
+          print('   ✅ Encontrado no diretório');
+        }
+      }
+      
+      if (caminhoImagem != null) {
+        setState(() {
+          _exercicioImagens[exercicio.nomeExercicio] = caminhoImagem!;
+        });
+        
+        // Salvar backup
+        await _salvarImagemLocal(exercicio.nomeExercicio, caminhoImagem);
+        print('   ✅ Imagem carregada e backup salvo');
+      } else {
+        print('   ❌ Nenhuma imagem encontrada');
+      }
+    }
+    
+    print('RESULTADO: ${_exercicioImagens.length} imagens carregadas');
+    print('=== FIM CARREGAMENTO ===');
+  }
+
+  // NOVO: Backup local de imagens
+  Future<void> _salvarImagemLocal(String nomeExercicio, String caminhoImagem) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('backup_img_$nomeExercicio', caminhoImagem);
+    } catch (e) {
+      print('Erro ao salvar backup: $e');
+    }
+  }
+
+  Future<String?> _recuperarImagemLocal(String nomeExercicio) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final caminho = prefs.getString('backup_img_$nomeExercicio');
+      if (caminho != null && await File(caminho).exists()) {
+        return caminho;
+      }
+    } catch (e) {
+      print('Erro ao recuperar backup: $e');
+    }
+    return null;
+  }
+
+  // NOVO: Procurar imagem no diretório
+  Future<String?> _procurarImagemDiretorio(String nomeExercicio) async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final exerciciosDir = Directory('${appDir.path}/exercicios');
+      
+      if (await exerciciosDir.exists()) {
+        final files = exerciciosDir.listSync();
+        final nomeNormalizado = nomeExercicio.replaceAll(' ', '_').toLowerCase();
+        
+        for (final file in files) {
+          if (file is File && file.path.toLowerCase().contains(nomeNormalizado)) {
+            return file.path;
+          }
+        }
+      }
+    } catch (e) {
+      print('Erro ao procurar no diretório: $e');
+    }
+    return null;
+  }
+
   String _normalizarDificuldade(String dificuldade) {
     switch (dificuldade.toLowerCase()) {
       case 'iniciante':
@@ -131,7 +236,6 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     }
   }
 
-  /// Validar formulário
   bool _validateForm() {
     if (!_formKey.currentState!.validate()) {
       return false;
@@ -148,7 +252,6 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     return true;
   }
 
-  /// 🚀 MÉTODO PRINCIPAL CORRIGIDO: Salvar treino usando PROVIDER
   Future<void> _salvarTreino() async {
     if (!_validateForm()) return;
 
@@ -157,25 +260,23 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     });
 
     try {
-      // ✅ OBTER PROVIDER
       final treinoProvider = Provider.of<TreinoProvider>(context, listen: false);
       
       final isEdicao = widget.treinoParaEditar != null;
       
-      print('🚀 ${isEdicao ? "EDITANDO" : "CRIANDO"} treino: ${_nomeController.text}');
-      print('📊 Total de exercícios locais: ${_exercicios.length}');
+      print('${isEdicao ? "EDITANDO" : "CRIANDO"} treino: ${_nomeController.text}');
+      print('Total de exercícios locais: ${_exercicios.length}');
+      print('Total de imagens no mapa: ${_exercicioImagens.length}');
 
       if (isEdicao) {
-        // ========== EDIÇÃO ==========
         await _editarTreino(treinoProvider);
       } else {
-        // ========== CRIAÇÃO ==========
         await _criarNovoTreino(treinoProvider);
       }
 
     } catch (e) {
       final acao = widget.treinoParaEditar != null ? 'editar' : 'criar';
-      print('❌ Erro ao $acao treino: $e');
+      print('Erro ao $acao treino: $e');
       _showSnackBar(
         'Erro ao $acao treino: $e',
         isError: true,
@@ -189,11 +290,9 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     }
   }
 
-  /// 🆕 CRIAR NOVO TREINO - Fluxo correto: Treino → Exercícios
   Future<void> _criarNovoTreino(TreinoProvider treinoProvider) async {
-    print('🆕 === INICIANDO CRIAÇÃO DE NOVO TREINO ===');
+    print('=== CRIAÇÃO DE NOVO TREINO ===');
     
-    // 1️⃣ CRIAR TREINO SEM EXERCÍCIOS PRIMEIRO
     final treinoSemExercicios = TreinoModel(
       nomeTreino: _nomeController.text.trim(),
       tipoTreino: _tipoTreino,
@@ -201,10 +300,10 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           ? _descricaoController.text.trim() 
           : null,
       dificuldade: _dificuldade,
-      exercicios: [], // ✅ VAZIO - exercícios criados depois
+      exercicios: [],
     );
 
-    print('🎯 PASSO 1: Criando treino básico...');
+    print('PASSO 1: Criando treino básico...');
     final resultTreino = await treinoProvider.criarTreino(treinoSemExercicios);
     
     if (!resultTreino.success || resultTreino.data == null) {
@@ -212,74 +311,99 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     }
 
     final treinoCriado = resultTreino.data!;
-    print('✅ PASSO 1 CONCLUÍDO: Treino criado com ID ${treinoCriado.id}');
+    print('PASSO 1 OK: Treino criado com ID ${treinoCriado.id}');
 
-    // 2️⃣ CRIAR EXERCÍCIOS UM POR UM
     if (_exercicios.isNotEmpty) {
-      print('🎯 PASSO 2: Criando ${_exercicios.length} exercícios...');
+      print('PASSO 2: Criando ${_exercicios.length} exercícios...');
       
-      int exerciciosOk = 0;
-      int exerciciosErro = 0;
-
+      // DEBUG: Status do mapa antes de criar
+      print('MAPA DE IMAGENS:');
+      _exercicioImagens.forEach((key, value) {
+        final exists = File(value).existsSync();
+        print('  $key: $value (existe: $exists)');
+      });
+      
       for (int i = 0; i < _exercicios.length; i++) {
         final exercicio = _exercicios[i];
         
         try {
-          print('  ➕ Criando exercício ${i + 1}: ${exercicio.nomeExercicio}');
+          print('CRIANDO EXERCÍCIO ${i + 1}: ${exercicio.nomeExercicio}');
+          
+          // CORRIGIDO: Garantir que imagem está sendo passada
+          final imagemPath = _exercicioImagens[exercicio.nomeExercicio];
+          print('  Caminho da imagem: $imagemPath');
+          
+          if (imagemPath != null) {
+            final exists = await File(imagemPath).exists();
+            print('  Arquivo existe: $exists');
+            if (exists) {
+              final size = await File(imagemPath).length();
+              print('  Tamanho: $size bytes');
+            }
+          }
+          
+          // CORRIGIDO: Usar copyWith para garantir que imagemPath seja incluído
+          final exercicioComDados = ExercicioModel(
+            nomeExercicio: exercicio.nomeExercicio,
+            descricao: exercicio.descricao,
+            grupoMuscular: exercicio.grupoMuscular,
+            tipoExecucao: exercicio.tipoExecucao,
+            series: exercicio.series,
+            repeticoes: exercicio.repeticoes,
+            tempoExecucao: exercicio.tempoExecucao,
+            tempoDescanso: exercicio.tempoDescanso,
+            peso: exercicio.peso,
+            unidadePeso: exercicio.unidadePeso,
+            observacoes: exercicio.observacoes,
+            ordem: i + 1,
+            imagemPath: imagemPath, // CRITICAL: Garantir que está sendo passado
+          );
+          
+          print('  Dados sendo enviados:');
+          print('    Nome: ${exercicioComDados.nomeExercicio}');
+          print('    ImagemPath: ${exercicioComDados.imagemPath}');
+          print('    Ordem: ${exercicioComDados.ordem}');
           
           final resultExercicio = await treinoProvider.criarExercicio(
             treinoCriado.id!,
-            exercicio.copyWith(ordem: i + 1),
+            exercicioComDados,
           );
           
-          if (resultExercicio.success) {
-            exerciciosOk++;
-            print('  ✅ Exercício ${i + 1} criado com sucesso');
+          print('  Resposta API: ${resultExercicio.success}');
+          if (!resultExercicio.success) {
+            print('  Erro: ${resultExercicio.message}');
           } else {
-            exerciciosErro++;
-            print('  ❌ Erro no exercício ${i + 1}: ${resultExercicio.message}');
+            print('  Sucesso! Exercício criado');
+            
+            // Salvar backup da imagem
+            if (imagemPath != null) {
+              await _salvarImagemLocal(exercicio.nomeExercicio, imagemPath);
+            }
           }
+          
         } catch (e) {
-          exerciciosErro++;
-          print('  ❌ Exceção no exercício ${i + 1}: $e');
+          print('  ERRO: $e');
         }
-      }
-
-      print('📊 RESULTADO: $exerciciosOk sucesso, $exerciciosErro erros');
-      
-      if (exerciciosErro > 0) {
-        _showSnackBar(
-          'Treino criado, mas $exerciciosErro exercícios falharam',
-          isError: true,
-        );
       }
     }
 
-    // 3️⃣ SUCESSO FINAL
-    print('🎉 TREINO CRIADO COM SUCESSO!');
+    print('TREINO CRIADO COM SUCESSO!');
     _showSnackBar('Treino "${treinoCriado.nomeTreino}" criado com sucesso!');
     
-    // ✅ CORREÇÃO: REFRESH AUTOMÁTICO
     await treinoProvider.recarregar();
-    print('🔄 Lista de treinos atualizada automaticamente');
-    
-    // ✅ VOLTAR COM O TREINO CRIADO
     Navigator.of(context).pop(treinoCriado);
   }
 
-  /// ✏️ EDITAR TREINO EXISTENTE - CORRIGIDO COM SINCRONIZAÇÃO DE EXERCÍCIOS
   Future<void> _editarTreino(TreinoProvider treinoProvider) async {
-    print('✏️ === INICIANDO EDIÇÃO COMPLETA DE TREINO ===');
+    print('=== EDIÇÃO DE TREINO ===');
     
     final treinoOriginal = widget.treinoParaEditar!;
     final exerciciosOriginais = treinoOriginal.exercicios;
     final exerciciosAtuais = _exercicios;
     
-    print('📊 ANÁLISE DOS EXERCÍCIOS:');
-    print('   • Originais: ${exerciciosOriginais.length}');
-    print('   • Atuais: ${exerciciosAtuais.length}');
+    print('Exercícios originais: ${exerciciosOriginais.length}');
+    print('Exercícios atuais: ${exerciciosAtuais.length}');
 
-    // 1️⃣ ATUALIZAR DADOS BÁSICOS DO TREINO PRIMEIRO
     final treinoParaAtualizar = TreinoModel(
       id: treinoOriginal.id,
       nomeTreino: _nomeController.text.trim(),
@@ -288,157 +412,318 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           ? _descricaoController.text.trim() 
           : null,
       dificuldade: _dificuldade,
-      exercicios: exerciciosOriginais, // Manter originais por enquanto
+      exercicios: exerciciosOriginais,
       duracaoEstimada: treinoOriginal.duracaoEstimada,
       totalExercicios: treinoOriginal.totalExercicios,
     );
 
-    print('🎯 PASSO 1: Atualizando dados básicos do treino...');
+    print('PASSO 1: Atualizando dados básicos...');
     final resultTreino = await treinoProvider.atualizarTreino(treinoParaAtualizar);
     
     if (!resultTreino.success) {
       throw Exception(resultTreino.message ?? 'Erro ao atualizar treino');
     }
-    print('✅ PASSO 1 CONCLUÍDO: Dados básicos atualizados');
+    print('PASSO 1 OK');
 
-    // 2️⃣ SINCRONIZAR EXERCÍCIOS - IDENTIFICAR MUDANÇAS
     await _sincronizarExercicios(treinoProvider, treinoOriginal.id!, exerciciosOriginais, exerciciosAtuais);
 
-    // 3️⃣ SUCESSO FINAL
-    print('🎉 EDIÇÃO COMPLETA CONCLUÍDA!');
+    print('EDIÇÃO CONCLUÍDA!');
     _showSnackBar('Treino atualizado com sucesso!');
     
-    // ✅ CORREÇÃO: REFRESH AUTOMÁTICO
     await treinoProvider.recarregar();
-    print('🔄 Lista de treinos atualizada automaticamente');
-    
-    // ✅ VOLTAR COM INDICAÇÃO DE SUCESSO
     Navigator.of(context).pop(resultTreino.data);
   }
 
-  /// 🔄 SINCRONIZAR EXERCÍCIOS - MÉTODO PRINCIPAL PARA CRUD
   Future<void> _sincronizarExercicios(
     TreinoProvider treinoProvider,
     int treinoId,
     List<ExercicioModel> exerciciosOriginais,
     List<ExercicioModel> exerciciosAtuais,
   ) async {
-    print('🔄 PASSO 2: Sincronizando exercícios...');
+    print('PASSO 2: Sincronizando exercícios...');
     
-    int exerciciosOk = 0;
-    int exerciciosErro = 0;
-
-    // 📋 IDENTIFICAR EXERCÍCIOS PARA EXCLUIR
     final exerciciosParaExcluir = exerciciosOriginais.where((original) {
       return !exerciciosAtuais.any((atual) => 
           atual.id != null && atual.id == original.id);
     }).toList();
 
-    // 📋 IDENTIFICAR EXERCÍCIOS PARA CRIAR (novos, sem ID)
     final exerciciosParaCriar = exerciciosAtuais.where((atual) {
       return atual.id == null;
     }).toList();
 
-    // 📋 IDENTIFICAR EXERCÍCIOS PARA ATUALIZAR (existentes com mudanças)
     final exerciciosParaAtualizar = exerciciosAtuais.where((atual) {
-      if (atual.id == null) return false; // Novos exercícios já estão na lista de criar
+      if (atual.id == null) return false;
       
-      // Encontrar o exercício original correspondente
       final original = exerciciosOriginais.firstWhere(
         (orig) => orig.id == atual.id,
         orElse: () => ExercicioModel(nomeExercicio: '', tipoExecucao: 'repeticao'),
       );
       
-      // Verificar se houve mudanças
       return original.nomeExercicio != atual.nomeExercicio ||
              original.series != atual.series ||
              original.repeticoes != atual.repeticoes ||
              original.tempoExecucao != atual.tempoExecucao ||
              original.peso != atual.peso ||
-             original.grupoMuscular != atual.grupoMuscular;
+             original.grupoMuscular != atual.grupoMuscular ||
+             original.imagemPath != _exercicioImagens[atual.nomeExercicio];
     }).toList();
 
-    print('📊 OPERAÇÕES IDENTIFICADAS:');
-    print('   🗑️ Excluir: ${exerciciosParaExcluir.length}');
-    print('   ➕ Criar: ${exerciciosParaCriar.length}');  
-    print('   ✏️ Atualizar: ${exerciciosParaAtualizar.length}');
+    print('Operações:');
+    print('  Excluir: ${exerciciosParaExcluir.length}');
+    print('  Criar: ${exerciciosParaCriar.length}');  
+    print('  Atualizar: ${exerciciosParaAtualizar.length}');
 
-    // 🗑️ EXCLUIR EXERCÍCIOS REMOVIDOS - ✅ CORRIGIDO
+    // Excluir exercícios
     for (final exercicio in exerciciosParaExcluir) {
       try {
-        print('  🗑️ Excluindo: ${exercicio.nomeExercicio} (ID: ${exercicio.id})');
-        // ✅ CORREÇÃO: Passar treinoId como primeiro parâmetro
-        final result = await treinoProvider.deletarExercicio(treinoId, exercicio.id!);
-        
-        if (result.success) {
-          exerciciosOk++;
-          print('    ✅ Exercício excluído com sucesso');
-        } else {
-          exerciciosErro++;
-          print('    ❌ Erro ao excluir: ${result.message}');
-        }
+        print('Excluindo: ${exercicio.nomeExercicio}');
+        await treinoProvider.deletarExercicio(treinoId, exercicio.id!);
       } catch (e) {
-        exerciciosErro++;
-        print('    ❌ Exceção ao excluir: $e');
+        print('Erro ao excluir: $e');
       }
     }
 
-    // ➕ CRIAR NOVOS EXERCÍCIOS
+    // Criar exercícios
     for (int i = 0; i < exerciciosParaCriar.length; i++) {
       final exercicio = exerciciosParaCriar[i];
       try {
-        print('  ➕ Criando: ${exercicio.nomeExercicio}');
-        final result = await treinoProvider.criarExercicio(
-          treinoId,
-          exercicio.copyWith(ordem: exerciciosOriginais.length + i + 1),
+        print('Criando: ${exercicio.nomeExercicio}');
+        
+        final imagemPath = _exercicioImagens[exercicio.nomeExercicio];
+        final exercicioComImagem = ExercicioModel(
+          nomeExercicio: exercicio.nomeExercicio,
+          descricao: exercicio.descricao,
+          grupoMuscular: exercicio.grupoMuscular,
+          tipoExecucao: exercicio.tipoExecucao,
+          series: exercicio.series,
+          repeticoes: exercicio.repeticoes,
+          tempoExecucao: exercicio.tempoExecucao,
+          tempoDescanso: exercicio.tempoDescanso,
+          peso: exercicio.peso,
+          unidadePeso: exercicio.unidadePeso,
+          observacoes: exercicio.observacoes,
+          ordem: exerciciosOriginais.length + i + 1,
+          imagemPath: imagemPath,
         );
         
-        if (result.success) {
-          exerciciosOk++;
-          print('    ✅ Exercício criado com sucesso');
-        } else {
-          exerciciosErro++;
-          print('    ❌ Erro ao criar: ${result.message}');
+        await treinoProvider.criarExercicio(treinoId, exercicioComImagem);
+        
+        if (imagemPath != null) {
+          await _salvarImagemLocal(exercicio.nomeExercicio, imagemPath);
         }
       } catch (e) {
-        exerciciosErro++;
-        print('    ❌ Exceção ao criar: $e');
+        print('Erro ao criar: $e');
       }
     }
 
-    // ✏️ ATUALIZAR EXERCÍCIOS MODIFICADOS - ✅ CORRIGIDO
+    // Atualizar exercícios
     for (final exercicio in exerciciosParaAtualizar) {
       try {
-        print('  ✏️ Atualizando: ${exercicio.nomeExercicio} (ID: ${exercicio.id})');
-        // ✅ CORREÇÃO: Usar método correto para atualizar
-        final result = await treinoProvider.atualizarExercicio(treinoId, exercicio.id!, exercicio);
+        print('Atualizando: ${exercicio.nomeExercicio}');
         
-        if (result.success) {
-          exerciciosOk++;
-          print('    ✅ Exercício atualizado com sucesso');
-        } else {
-          exerciciosErro++;
-          print('    ❌ Erro ao atualizar: ${result.message}');
+        final imagemPath = _exercicioImagens[exercicio.nomeExercicio];
+        final exercicioComImagem = ExercicioModel(
+          id: exercicio.id,
+          nomeExercicio: exercicio.nomeExercicio,
+          descricao: exercicio.descricao,
+          grupoMuscular: exercicio.grupoMuscular,
+          tipoExecucao: exercicio.tipoExecucao,
+          series: exercicio.series,
+          repeticoes: exercicio.repeticoes,
+          tempoExecucao: exercicio.tempoExecucao,
+          tempoDescanso: exercicio.tempoDescanso,
+          peso: exercicio.peso,
+          unidadePeso: exercicio.unidadePeso,
+          observacoes: exercicio.observacoes,
+          ordem: exercicio.ordem,
+          imagemPath: imagemPath,
+        );
+        
+        await treinoProvider.atualizarExercicio(treinoId, exercicio.id!, exercicioComImagem);
+        
+        if (imagemPath != null) {
+          await _salvarImagemLocal(exercicio.nomeExercicio, imagemPath);
         }
       } catch (e) {
-        exerciciosErro++;
-        print('    ❌ Exceção ao atualizar: $e');
+        print('Erro ao atualizar: $e');
       }
     }
 
-    print('📊 RESULTADO DA SINCRONIZAÇÃO:');
-    print('   ✅ Sucessos: $exerciciosOk');
-    print('   ❌ Erros: $exerciciosErro');
+    print('Sincronização concluída');
+  }
 
-    if (exerciciosErro > 0) {
-      _showSnackBar(
-        'Treino salvo, mas $exerciciosErro exercícios falharam',
-        isError: true,
+  /// CORRIGIDO: Adicionar imagem com sistema robusto
+  Future<void> _adicionarImagemExercicio(String nomeExercicio) async {
+    try {
+      print('=== ADICIONANDO IMAGEM PARA: $nomeExercicio ===');
+      
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1200,
+        maxHeight: 800,
       );
+
+      if (image == null) {
+        print('❌ Usuário cancelou seleção');
+        return;
+      }
+      
+      print('✅ Imagem selecionada: ${image.path}');
+
+      // Verificar arquivo original
+      final originalFile = File(image.path);
+      final originalSize = await originalFile.length();
+      print('📏 Tamanho original: $originalSize bytes');
+
+      // Criar diretório
+      final appDir = await getApplicationDocumentsDirectory();
+      final exerciciosDir = Directory('${appDir.path}/exercicios');
+      
+      if (!await exerciciosDir.exists()) {
+        await exerciciosDir.create(recursive: true);
+        print('📂 Diretório criado: ${exerciciosDir.path}');
+      }
+
+      // Gerar nome único
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final extension = path.extension(image.path);
+      final fileName = '${nomeExercicio.replaceAll(' ', '_').toLowerCase()}_$timestamp$extension';
+      final newPath = '${exerciciosDir.path}/$fileName';
+      
+      print('💾 Salvando em: $newPath');
+
+      // Copiar arquivo
+      await originalFile.copy(newPath);
+      
+      // Verificar se foi criado
+      final newFile = File(newPath);
+      final exists = await newFile.exists();
+      final newSize = exists ? await newFile.length() : 0;
+      
+      print('✅ Arquivo criado: $exists');
+      print('📏 Novo tamanho: $newSize bytes');
+
+      if (!exists || newSize == 0) {
+        throw Exception('Arquivo não foi criado corretamente');
+      }
+
+      // Salvar no mapa
+      setState(() {
+        _exercicioImagens[nomeExercicio] = newPath;
+      });
+
+      // Salvar backup
+      await _salvarImagemLocal(nomeExercicio, newPath);
+
+      print('✅ Imagem salva com sucesso!');
+      print('🗂️ Total imagens no mapa: ${_exercicioImagens.length}');
+      
+      _showSnackBar('Imagem adicionada com sucesso!');
+      
+    } catch (e) {
+      print('❌ ERRO: $e');
+      _showSnackBar('Erro ao adicionar imagem: $e', isError: true);
     }
   }
 
-  /// Adicionar exercício
+  /// Remover imagem do exercício
+  Future<void> _removerImagemExercicio(String nomeExercicio) async {
+    try {
+      final imagemPath = _exercicioImagens[nomeExercicio];
+      if (imagemPath != null) {
+        // Deletar arquivo físico
+        final file = File(imagemPath);
+        if (await file.exists()) {
+          await file.delete();
+        }
+        
+        // Remover do mapa
+        setState(() {
+          _exercicioImagens.remove(nomeExercicio);
+        });
+        
+        // Remover backup
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('backup_img_$nomeExercicio');
+        
+        _showSnackBar('Imagem removida com sucesso!');
+        print('🗑️ Imagem removida: $imagemPath');
+      }
+    } catch (e) {
+      print('❌ Erro ao remover imagem: $e');
+      _showSnackBar('Erro ao remover imagem: $e', isError: true);
+    }
+  }
+
+  /// Verificar se arquivo existe assíncronamente
+  Future<bool> _verificarSeArquivoExiste(String? caminho) async {
+    if (caminho == null || caminho.isEmpty) return false;
+    
+    try {
+      final file = File(caminho);
+      return await file.exists();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// MÉTODO DE DIAGNÓSTICO INTEGRADO
+  void _diagnosticarSistema() async {
+    print('=== DIAGNÓSTICO COMPLETO ===');
+    
+    // 1. Mapa de imagens local
+    print('1. MAPA DE IMAGENS LOCAL (${_exercicioImagens.length}):');
+    for (final entry in _exercicioImagens.entries) {
+      final existe = await File(entry.value).exists();
+      print('   ${entry.key}: ${entry.value} (existe: $existe)');
+    }
+    
+    // 2. Exercícios locais
+    print('2. EXERCÍCIOS LOCAIS (${_exercicios.length}):');
+    for (int i = 0; i < _exercicios.length; i++) {
+      final ex = _exercicios[i];
+      print('   ${i+1}. ${ex.nomeExercicio}');
+      print('      ID: ${ex.id}');
+      print('      imagemPath: ${ex.imagemPath}');
+      if (ex.imagemPath != null) {
+        final existe = await File(ex.imagemPath!).exists();
+        print('      arquivo existe: $existe');
+      }
+    }
+    
+    // 3. Treinos salvos no provider
+    print('3. TREINOS NO PROVIDER:');
+    final provider = Provider.of<TreinoProvider>(context, listen: false);
+    await provider.recarregar();
+    
+    for (final treino in provider.treinos) {
+      print('   Treino: ${treino.nomeTreino} (${treino.exercicios.length} exercícios)');
+      for (final ex in treino.exercicios) {
+        print('      ${ex.nomeExercicio}: imagemPath = ${ex.imagemPath}');
+        if (ex.imagemPath != null) {
+          final existe = await File(ex.imagemPath!).exists();
+          print('         arquivo existe: $existe');
+        }
+      }
+    }
+    
+    // 4. Backups locais
+    print('4. BACKUPS LOCAIS:');
+    final prefs = await SharedPreferences.getInstance();
+    final backupKeys = prefs.getKeys().where((key) => key.startsWith('backup_img_')).toList();
+    print('   Total backups: ${backupKeys.length}');
+    for (final key in backupKeys) {
+      final path = prefs.getString(key);
+      final existe = path != null ? await File(path).exists() : false;
+      print('   $key: $path (existe: $existe)');
+    }
+    
+    print('=== FIM DIAGNÓSTICO ===');
+    
+    _showSnackBar('Diagnóstico executado - veja logs no terminal', isError: false);
+  }
+
   void _adicionarExercicio() {
     showModalBottomSheet(
       context: context,
@@ -449,13 +734,12 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           setState(() {
             _exercicios.add(exercicio.copyWith(ordem: _exercicios.length + 1));
           });
-          print('➕ Exercício adicionado localmente: ${exercicio.nomeExercicio}');
+          print('Exercício adicionado: ${exercicio.nomeExercicio}');
         },
       ),
     );
   }
 
-  /// Remover exercício
   void _removerExercicio(int index) {
     showDialog(
       context: context,
@@ -466,7 +750,7 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           style: TextStyle(color: Color(0xFF0F172A)),
         ),
         content: Text(
-          'Tem certeza que deseja remover "${_exercicios[index].nomeExercicio}"?',
+          'Tem certeza que deseja remover "${_exercicios[index].nomeExercicio}"?\n\nA imagem associada também será removida.',
           style: const TextStyle(color: Color(0xFF64748B)),
         ),
         actions: [
@@ -478,12 +762,13 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
             ),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final exercicioRemovido = _exercicios[index];
+              
+              await _removerImagemExercicio(exercicioRemovido.nomeExercicio);
+              
               setState(() {
-                final exercicioRemovido = _exercicios.removeAt(index);
-                print('🗑️ Exercício removido localmente: ${exercicioRemovido.nomeExercicio}');
-                
-                // Reordenar exercícios
+                _exercicios.removeAt(index);
                 for (int i = 0; i < _exercicios.length; i++) {
                   _exercicios[i] = _exercicios[i].copyWith(ordem: i + 1);
                 }
@@ -498,7 +783,6 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     );
   }
 
-  /// Mostrar SnackBar
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -509,14 +793,239 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     );
   }
 
-  /// Widget do formulário principal
+  Widget _buildTreinoImage() {
+    final Map<String, Map<String, dynamic>> iconsPorTipo = {
+      'Musculação': {
+        'icon': Icons.fitness_center_rounded,
+        'color': const Color(0xFF3B82F6),
+        'label': 'Musculação'
+      },
+      'Cardio': {
+        'icon': Icons.directions_run_rounded,
+        'color': const Color(0xFFEF4444),
+        'label': 'Exercícios Cardiovasculares'
+      },
+      'Funcional': {
+        'icon': Icons.sports_gymnastics_rounded,
+        'color': const Color(0xFF10B981),
+        'label': 'Treinamento Funcional'
+      },
+      'Yoga': {
+        'icon': Icons.self_improvement_rounded,
+        'color': const Color(0xFF8B5CF6),
+        'label': 'Yoga e Meditação'
+      },
+      'Pilates': {
+        'icon': Icons.accessibility_new_rounded,
+        'color': const Color(0xFFEC4899),
+        'label': 'Pilates'
+      },
+      'CrossFit': {
+        'icon': Icons.sports_mma_rounded,
+        'color': const Color(0xFFF97316),
+        'label': 'CrossFit'
+      },
+      'Corrida': {
+        'icon': Icons.directions_run_rounded,
+        'color': const Color(0xFF06B6D4),
+        'label': 'Corrida'
+      },
+      'Natação': {
+        'icon': Icons.pool_rounded,
+        'color': const Color(0xFF0EA5E9),
+        'label': 'Natação'
+      },
+      'Calistenia': {
+        'icon': Icons.sports_gymnastics_rounded,
+        'color': const Color(0xFF10B981),
+        'label': 'Calistenia'
+      },
+      'Ciclismo': {
+        'icon': Icons.directions_bike_rounded,
+        'color': const Color(0xFF84CC16),
+        'label': 'Ciclismo'
+      },
+    };
+    
+    final tipoInfo = iconsPorTipo[_tipoTreino] ?? {
+      'icon': Icons.fitness_center_rounded,
+      'color': const Color(0xFF94A3B8),
+      'label': 'Visualização do Treino'
+    };
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: (tipoInfo['color'] as Color).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            tipoInfo['icon'],
+            size: 40,
+            color: tipoInfo['color'],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          tipoInfo['label'],
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: tipoInfo['color'],
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  /// Widget para exibir imagem do exercício
+  Widget _buildExercicioImage(ExercicioModel exercicio, int index) {
+    final imagemPath = _exercicioImagens[exercicio.nomeExercicio];
+    
+    return FutureBuilder<bool>(
+      future: _verificarSeArquivoExiste(imagemPath),
+      builder: (context, snapshot) {
+        final temImagem = snapshot.data == true;
+        
+        return Stack(
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: temImagem 
+                      ? const Color(0xFF10B981).withOpacity(0.3)
+                      : const Color(0xFF6366F1).withOpacity(0.3),
+                  width: temImagem ? 2 : 1,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: temImagem && imagemPath != null
+                    ? Image.file(
+                        File(imagemPath),
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return _buildExercicioFallback(exercicio);
+                        },
+                      )
+                    : _buildExercicioFallback(exercicio),
+              ),
+            ),
+            
+            // Número da ordem
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            // Botão para adicionar/trocar imagem
+            Positioned(
+              bottom: -5,
+              left: -5,
+              child: GestureDetector(
+                onTap: () => _adicionarImagemExercicio(exercicio.nomeExercicio),
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: Icon(
+                    temImagem ? Icons.edit : Icons.add_a_photo,
+                    size: 12,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildExercicioFallback(ExercicioModel exercicio) {
+    final Map<String, Color> coresPorGrupo = {
+      'Peito': const Color(0xFF3B82F6),
+      'Costas': const Color(0xFF10B981),
+      'Ombros': const Color(0xFFF59E0B),
+      'Braços': const Color(0xFF8B5CF6),
+      'Pernas': const Color(0xFFEF4444),
+      'Glúteos': const Color(0xFFEC4899),
+      'Abdômen': const Color(0xFF06B6D4),
+      'Cardio': const Color(0xFFEF4444),
+      'Funcional': const Color(0xFF84CC16),
+    };
+
+    final cor = coresPorGrupo[exercicio.grupoMuscular] ?? const Color(0xFF94A3B8);
+
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: cor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.fitness_center_rounded,
+            color: cor,
+            size: 20,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Sem\nImagem',
+            style: TextStyle(
+              color: cor,
+              fontSize: 8,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildForm() {
     return Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Nome do treino
           TextFormField(
             controller: _nomeController,
             style: const TextStyle(color: Color(0xFF0F172A)),
@@ -548,7 +1057,6 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           
           const SizedBox(height: 16),
           
-          // Tipo de treino
           DropdownButtonFormField<String>(
             value: _tipoTreino,
             style: const TextStyle(color: Color(0xFF0F172A)),
@@ -583,8 +1091,20 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           ),
           
           const SizedBox(height: 16),
+
+          Container(
+            width: double.infinity,
+            height: 120,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: _buildTreinoImage(),
+          ),
           
-          // Dificuldade
+          const SizedBox(height: 16),
+          
           DropdownButtonFormField<String>(
             value: _dificuldade,
             style: const TextStyle(color: Color(0xFF0F172A)),
@@ -633,7 +1153,6 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           
           const SizedBox(height: 16),
           
-          // Descrição
           TextFormField(
             controller: _descricaoController,
             style: const TextStyle(color: Color(0xFF0F172A)),
@@ -659,7 +1178,6 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
     );
   }
 
-  /// Widget da lista de exercícios
   Widget _buildExerciciosList() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -717,11 +1235,12 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
                 ),
                 SizedBox(height: 8),
                 Text(
-                  'Toque em "Adicionar" para incluir exercícios',
+                  'Toque em "Adicionar" para incluir exercícios\nVocê poderá adicionar imagens/GIFs para cada exercício!',
                   style: TextStyle(
                     fontSize: 14,
                     color: Color(0xFF94A3B8),
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
@@ -730,16 +1249,23 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           Column(
             children: List.generate(_exercicios.length, (index) {
               final exercicio = _exercicios[index];
+              final imagemPath = _exercicioImagens[exercicio.nomeExercicio];
+              final temImagem = imagemPath != null;
+              
               return Container(
                 key: ValueKey(exercicio.nomeExercicio + index.toString()),
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                    color: temImagem ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+                    width: temImagem ? 2 : 1,
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF6366F1).withOpacity(0.1),
+                      color: (temImagem ? const Color(0xFF10B981) : const Color(0xFF6366F1))
+                          .withOpacity(0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -747,46 +1273,116 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(16),
-                  leading: CircleAvatar(
-                    backgroundColor: const Color(0xFF6366F1).withOpacity(0.2),
-                    child: Text(
-                      '${index + 1}',
-                      style: const TextStyle(
-                        color: Color(0xFF6366F1),
-                        fontWeight: FontWeight.bold,
+                  leading: _buildExercicioImage(exercicio, index),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          exercicio.nomeExercicio,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  title: Text(
-                    exercicio.nomeExercicio,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: Color(0xFF0F172A),
-                    ),
+                      if (temImagem)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(
+                                Icons.image,
+                                size: 12,
+                                color: Color(0xFF10B981),
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'COM IMAGEM',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF10B981),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (exercicio.grupoMuscular != null) ...[
                         const SizedBox(height: 4),
-                        Text(
-                          exercicio.grupoMuscular!,
-                          style: const TextStyle(
-                            color: Color(0xFF94A3B8),
-                            fontSize: 12,
-                          ),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.category_rounded,
+                              size: 12,
+                              color: const Color(0xFF94A3B8),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              exercicio.grupoMuscular!,
+                              style: const TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                       const SizedBox(height: 4),
-                      Text(
-                        exercicio.textoExecucaoCalculado,
-                        style: const TextStyle(
-                          color: Color(0xFF6366F1),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.fitness_center_rounded,
+                            size: 12,
+                            color: const Color(0xFF6366F1),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              exercicio.textoExecucaoCalculado,
+                              style: const TextStyle(
+                                color: Color(0xFF6366F1),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+                      if (temImagem) ...[
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () => _removerImagemExercicio(exercicio.nomeExercicio),
+                          child: Row(
+                            children: const [
+                              Icon(
+                                Icons.delete_outline,
+                                size: 12,
+                                color: Color(0xFFEF4444),
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Remover imagem',
+                                style: TextStyle(
+                                  color: Color(0xFFEF4444),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   trailing: IconButton(
@@ -814,22 +1410,45 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
           style: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 20,
+            color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0F172A),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF1E40AF),
+                Color(0xFF3B82F6),
+                Color(0xFFF97316),
+              ],
+            ),
+          ),
+        ),
         actions: [
           if (!_isSaving)
             IconButton(
               onPressed: _salvarTreino,
               icon: const Icon(
                 Icons.check_rounded,
-                color: Color(0xFF6366F1),
+                color: Colors.white,
               ),
               tooltip: 'Salvar',
             ),
+          // Botão de diagnóstico (remover após teste)
+          IconButton(
+            onPressed: _diagnosticarSistema,
+            icon: const Icon(
+              Icons.bug_report,
+              color: Colors.orange,
+            ),
+            tooltip: 'Diagnóstico',
+          ),
         ],
       ),
       body: FadeTransition(
@@ -842,15 +1461,10 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Formulário
                     _buildForm(),
-                    
                     const SizedBox(height: 32),
-                    
-                    // Lista de exercícios
                     _buildExerciciosList(),
-                    
-                    const SizedBox(height: 100), // Espaço para FAB
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),
@@ -882,7 +1496,6 @@ class _CriarTreinoScreenState extends State<CriarTreinoScreen>
   }
 }
 
-/// Sheet para adicionar exercício - SIMPLIFICADO
 class _AdicionarExercicioSheet extends StatefulWidget {
   final Function(ExercicioModel) onExercicioAdicionado;
 
@@ -904,8 +1517,8 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
   String? _grupoMuscular;
   int _series = 3;
   int _repeticoes = 12;
-  int _tempoExecucao = 30; // segundos
-  int _tempoDescanso = 60; // segundos
+  int _tempoExecucao = 30;
+  int _tempoDescanso = 60;
   double _peso = 0.0;
   String _unidadePeso = 'kg';
 
@@ -971,7 +1584,6 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
           ),
           child: Column(
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: const BoxDecoration(
@@ -1002,7 +1614,6 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                 ),
               ),
               
-              // Formulário
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
@@ -1012,7 +1623,40 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Nome do exercício
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFF10B981).withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: const [
+                              Icon(
+                                Icons.info_outline,
+                                color: Color(0xFF10B981),
+                                size: 20,
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Após criar o exercício, você poderá adicionar uma imagem ou GIF para demonstrar a execução correta!',
+                                  style: TextStyle(
+                                    color: Color(0xFF10B981),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 20),
+                        
                         TextFormField(
                           controller: _nomeController,
                           style: const TextStyle(color: Color(0xFF0F172A)),
@@ -1036,7 +1680,6 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         
                         const SizedBox(height: 16),
                         
-                        // Grupo muscular
                         DropdownButtonFormField<String>(
                           value: _grupoMuscular,
                           style: const TextStyle(color: Color(0xFF0F172A)),
@@ -1067,7 +1710,6 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         
                         const SizedBox(height: 16),
                         
-                        // Tipo de execução
                         Row(
                           children: [
                             Expanded(
@@ -1107,7 +1749,6 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         
                         const SizedBox(height: 16),
                         
-                        // Configurações específicas
                         if (_tipoExecucao == 'repeticao') ...[
                           Row(
                             children: [
@@ -1196,7 +1837,6 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         
                         const SizedBox(height: 16),
                         
-                        // Tempo de descanso
                         TextFormField(
                           initialValue: _tempoDescanso.toString(),
                           style: const TextStyle(color: Color(0xFF0F172A)),
@@ -1216,7 +1856,6 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         
                         const SizedBox(height: 16),
                         
-                        // Peso
                         Row(
                           children: [
                             Expanded(
@@ -1273,7 +1912,6 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         
                         const SizedBox(height: 16),
                         
-                        // Observações
                         TextFormField(
                           controller: _observacoesController,
                           style: const TextStyle(color: Color(0xFF0F172A)),
@@ -1292,7 +1930,6 @@ class _AdicionarExercicioSheetState extends State<_AdicionarExercicioSheet> {
                         
                         const SizedBox(height: 32),
                         
-                        // Botão adicionar
                         SizedBox(
                           width: double.infinity,
                           height: 56,

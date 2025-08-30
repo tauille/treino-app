@@ -13,7 +13,6 @@ import '../../models/treino_model.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/sport_theme.dart';
 import '../../providers/execucao_treino_provider.dart';
-import '../../widgets/gif_image_widget.dart';
 
 class ModernExecucaoTreinoScreen extends StatefulWidget {
   final TreinoModel treino;
@@ -59,6 +58,10 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
 
   final Map<String, String> _exercicioImagens = {};
   bool _imagensCarregadas = false;
+  
+  // Sistema otimizado para refresh de imagens (inclusive GIFs)
+  Timer? _imageRefreshTimer;
+  int _refreshKey = 0;
 
   @override
   void initState() {
@@ -196,7 +199,37 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     if (widget.treino.exercicios.isNotEmpty) {
       _exercicioAtual = widget.treino.exercicios[_currentExerciseIndex];
       _resetarTimer();
+      _iniciarRefreshDeImagem();
     }
+  }
+
+  // Sistema otimizado para refresh de imagens
+  void _iniciarRefreshDeImagem() {
+    _imageRefreshTimer?.cancel();
+    
+    if (_exercicioTemImagem()) {
+      final imagemPath = _exercicioImagens[_exercicioAtual!.nomeExercicio]!;
+      final isGif = imagemPath.toLowerCase().endsWith('.gif');
+      
+      if (isGif) {
+        print('Iniciando refresh para GIF: ${_exercicioAtual!.nomeExercicio}');
+        
+        // Força refresh a cada 4 segundos para tentar animar GIF
+        _imageRefreshTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+          if (mounted) {
+            setState(() {
+              _refreshKey++; // Força rebuild da imagem
+            });
+            print('GIF refresh #$_refreshKey');
+          }
+        });
+      }
+    }
+  }
+
+  void _pararRefreshDeImagem() {
+    _imageRefreshTimer?.cancel();
+    _imageRefreshTimer = null;
   }
 
   void _resetarTimer() {
@@ -243,6 +276,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     _progressController.dispose();
     _timerAtivo?.cancel();
     _timerTotal?.cancel();
+    _pararRefreshDeImagem();
     _audioPlayer.dispose();
     _disableWakelock();
     super.dispose();
@@ -257,7 +291,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     return imagemPath != null && imagemPath.isNotEmpty;
   }
 
-  // Widget otimizado usando GifImageWidget
+  // Widget otimizado para imagens (inclui GIFs com refresh)
   Widget _buildExercicioImagem(bool isSmall, bool isMedium) {
     if (!_imagensCarregadas) {
       final placeholderHeight = isSmall ? 140.0 : isMedium ? 175.0 : 210.0;
@@ -269,19 +303,17 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
           borderRadius: BorderRadius.circular(20),
           color: Colors.grey[300],
         ),
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(
-                color: Color(0xFF6BA6CD),
-              ),
+              CircularProgressIndicator(),
               SizedBox(height: 16),
               Text(
-                'Carregando mídia...',
+                'Carregando imagem...',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey,
+                  color: Colors.grey[600],
                 ),
               ),
             ],
@@ -296,22 +328,76 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     
     final imagemPath = _exercicioImagens[_exercicioAtual!.nomeExercicio]!;
     final height = isSmall ? 140.0 : isMedium ? 175.0 : 210.0;
+    final isGif = imagemPath.toLowerCase().endsWith('.gif');
     
-    return GifImageWidget(
-      imagePath: imagemPath,
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: isSmall ? 12 : 16),
       height: height,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      borderRadius: BorderRadius.circular(20),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.1),
-          blurRadius: 15,
-          offset: const Offset(0, 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Image.file(
+          File(imagemPath),
+          key: ValueKey('img_${_exercicioAtual!.nomeExercicio}_$_refreshKey'), // Força refresh
+          width: double.infinity,
+          height: height,
+          fit: BoxFit.cover,
+          gaplessPlayback: isGif ? false : true, // Para GIFs, false ajuda com frames
+          filterQuality: FilterQuality.medium,
+          errorBuilder: (context, error, stackTrace) {
+            print('Erro ao carregar imagem $imagemPath: $error');
+            return _buildImagePlaceholder(height, isGif);
+          },
         ),
-      ],
-      gifLoopDurationSeconds: 8,
-      showGifIndicator: true,
+      ),
+    );
+  }
+
+  Widget _buildImagePlaceholder(double height, bool isGif) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6BA6CD), Color(0xFF5B9BD5)],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.fitness_center_rounded,
+            size: height * 0.3,
+            color: Colors.white.withOpacity(0.7),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            isGif ? 'GIF Indisponível' : 'Imagem Indisponível',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Siga as instruções do exercício',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withOpacity(0.7),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -355,7 +441,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
           _buildModernHeader(isSmall),
           SizedBox(height: isSmall ? 16 : 26),
           _buildExerciseCard(isSmall, isMedium),
-          _buildExercicioImagem(isSmall, isMedium), // Widget otimizado
+          _buildExercicioImagem(isSmall, isMedium), // Imagem com refresh
           SizedBox(height: isSmall ? 16 : 26),
           _buildCircularTimer(isSmall, isMedium),
           SizedBox(height: isSmall ? 16 : 26),
@@ -548,12 +634,12 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
                     size: 16,
                     color: Colors.white,
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Text(
                     _exercicioImagens[_exercicioAtual!.nomeExercicio]?.toLowerCase().endsWith('.gif') == true
                         ? 'GIF DISPONÍVEL'
                         : 'IMAGEM DISPONÍVEL',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
@@ -1176,6 +1262,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     
     _timerAtivo?.cancel();
     _timerTotal?.cancel();
+    _pararRefreshDeImagem();
     _pulseController.stop();
     
     final dadosExecucao = {
@@ -1215,6 +1302,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
 
   void _nextExercise() {
     HapticFeedback.lightImpact();
+    _pararRefreshDeImagem();
     
     if (_currentExerciseIndex < widget.treino.exercicios.length - 1) {
       setState(() {
@@ -1229,6 +1317,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
 
   void _previousExercise() {
     HapticFeedback.lightImpact();
+    _pararRefreshDeImagem();
     
     if (_currentExerciseIndex > 0) {
       setState(() {
