@@ -16,7 +16,6 @@ class GoogleLoginScreen extends StatefulWidget {
 class _GoogleLoginScreenState extends State<GoogleLoginScreen> 
     with TickerProviderStateMixin {
   
-  // ===== CONTROLLERS =====
   late AnimationController _slideController;
   late AnimationController _buttonController;
   late Animation<Offset> _slideAnimation;
@@ -26,7 +25,6 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
   void initState() {
     super.initState();
     
-    // Configurar status bar para tema escuro
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -44,7 +42,6 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
     super.dispose();
   }
 
-  /// Configurar animações
   void _setupAnimations() {
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 1000),
@@ -72,31 +69,24 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
       curve: Curves.elasticOut,
     ));
     
-    // Iniciar animações
     _slideController.forward();
     Future.delayed(const Duration(milliseconds: 500), () {
       _buttonController.forward();
     });
   }
 
-  /// Fazer login com Google
   Future<void> _signInWithGoogle() async {
     final authProvider = Provider.of<AuthProviderGoogle>(context, listen: false);
     
-    // Feedback háptico
     HapticFeedback.lightImpact();
     
     try {
       final result = await authProvider.signInWithGoogle();
       
       if (!result['success'] && mounted) {
-        // Mostrar erro se login falhou
         _showErrorSnackBar(result['message'] ?? 'Erro no login');
-        
-        // Feedback háptico de erro
         HapticFeedback.heavyImpact();
       }
-      // Se sucesso, o AuthWrapper irá navegar automaticamente
       
     } catch (e) {
       if (mounted) {
@@ -106,7 +96,6 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
     }
   }
 
-  /// Mostrar erro via SnackBar
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -126,7 +115,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
             ),
           ],
         ),
-        backgroundColor: const Color(0xFFFF6B6B),
+        backgroundColor: const Color(0xFFE53E3E),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
@@ -136,7 +125,6 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
     );
   }
 
-  /// Mostrar política de privacidade
   void _showPrivacyPolicy() {
     showModalBottomSheet(
       context: context,
@@ -153,7 +141,6 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
         ),
         child: Column(
           children: [
-            // Handle
             Container(
               margin: const EdgeInsets.only(top: 8),
               width: 40,
@@ -164,7 +151,6 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
               ),
             ),
             
-            // Header
             Padding(
               padding: const EdgeInsets.all(20),
               child: Row(
@@ -187,7 +173,6 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
               ),
             ),
             
-            // Conteúdo
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -236,7 +221,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Color(0xFFFF8C42),
+              color: Color(0xFF6BA6CD),
             ),
           ),
           const SizedBox(height: 8),
@@ -262,35 +247,35 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF1A1D29),
-              Color(0xFF2A2D3A),
+              Color(0xFF2D3748),
+              Color(0xFF4A5568),
+              Color(0xFF6BA6CD),
             ],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-              // ===== HEADER =====
+              // HEADER
               Expanded(
                 flex: 2,
                 child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // LOGO com gradiente
                       Container(
                         width: 100,
                         height: 100,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFFFF8C42), Color(0xFFFF6B6B)],
+                            colors: [Color(0xFF6BA6CD), Color(0xFF5B9BD5)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(25),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFFF8C42).withOpacity(0.3),
+                              color: const Color(0xFF6BA6CD).withOpacity(0.3),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -305,7 +290,6 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                       
                       const SizedBox(height: 24),
                       
-                      // TÍTULO
                       const Text(
                         'Bem-vindo!',
                         style: TextStyle(
@@ -317,7 +301,6 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                       
                       const SizedBox(height: 8),
                       
-                      // SUBTÍTULO
                       Text(
                         'Entre com sua conta Google para\ncomeçar seus treinos personalizados',
                         style: TextStyle(
@@ -332,7 +315,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                 ),
               ),
               
-              // ===== BOTÕES =====
+              // BOTÕES
               Expanded(
                 flex: 1,
                 child: SlideTransition(
@@ -366,7 +349,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                                           width: 20,
                                           height: 20,
                                           child: SpinKitFadingCircle(
-                                            color: Color(0xFFFF8C42),
+                                            color: Color(0xFF6BA6CD),
                                             size: 20,
                                           ),
                                         )
@@ -392,19 +375,19 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                         
                         const SizedBox(height: 24),
                         
-                        // TRIAL INFO com gradiente turquesa
+                        // TRIAL INFO
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
+                              colors: [Color(0xFF48BB78), Color(0xFF38A169)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF4ECDC4).withOpacity(0.3),
+                                color: const Color(0xFF48BB78).withOpacity(0.3),
                                 blurRadius: 15,
                                 offset: const Offset(0, 8),
                               ),
@@ -443,7 +426,7 @@ class _GoogleLoginScreenState extends State<GoogleLoginScreen>
                 ),
               ),
               
-              // ===== FOOTER =====
+              // FOOTER
               Padding(
                 padding: const EdgeInsets.only(bottom: 20),
                 child: TextButton(

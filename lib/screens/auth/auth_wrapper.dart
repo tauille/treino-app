@@ -6,11 +6,10 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../providers/auth_provider_google.dart';
 import '../../core/services/google_auth_service.dart';
 import 'google_login_screen.dart';
-import '../main_navigation_screen.dart'; // 🆕 MUDANÇA: Nova tela principal
+import '../main_navigation_screen.dart';
 import '../onboarding/welcome_screen.dart';
 
 /// Wrapper que gerencia o estado de autenticação
-/// Decide qual tela mostrar baseado no status do usuário
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
@@ -21,13 +20,11 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> 
     with TickerProviderStateMixin {
   
-  // ===== CONTROLLERS =====
   late AnimationController _logoController;
   late AnimationController _fadeController;
   late Animation<double> _logoAnimation;
   late Animation<double> _fadeAnimation;
   
-  // ===== ESTADO =====
   bool _isInitializing = true;
   bool _hasError = false;
   String _statusMessage = 'Iniciando...';
@@ -36,7 +33,6 @@ class _AuthWrapperState extends State<AuthWrapper>
   void initState() {
     super.initState();
     
-    // Configurar status bar para tema escuro
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -55,7 +51,6 @@ class _AuthWrapperState extends State<AuthWrapper>
     super.dispose();
   }
 
-  /// Configurar animações
   void _setupAnimations() {
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 1500),
@@ -83,33 +78,26 @@ class _AuthWrapperState extends State<AuthWrapper>
       curve: Curves.easeInOut,
     ));
     
-    // Iniciar animações
     _logoController.forward();
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) _fadeController.forward();
     });
   }
 
-  /// Inicializar aplicação
   Future<void> _initializeApp() async {
     final authProvider = Provider.of<AuthProviderGoogle>(context, listen: false);
     
     try {
-      // 1. VERIFICAR CONECTIVIDADE
       await _checkConnectivity();
       
-      // 2. INICIALIZAR GOOGLE AUTH SERVICE
       _updateStatus('Configurando autenticação...');
       await GoogleAuthService().initialize();
       
-      // 3. VERIFICAR SE JÁ ESTÁ LOGADO
       _updateStatus('Verificando login...');
       await authProvider.checkAuthStatus();
       
-      // 4. AGUARDAR ANIMAÇÕES
       await Future.delayed(const Duration(milliseconds: 1500));
       
-      // 5. FINALIZAR INICIALIZAÇÃO
       setState(() {
         _isInitializing = false;
       });
@@ -119,7 +107,6 @@ class _AuthWrapperState extends State<AuthWrapper>
     }
   }
 
-  /// Verificar conectividade
   Future<void> _checkConnectivity() async {
     _updateStatus('Verificando conexão...');
     
@@ -130,7 +117,6 @@ class _AuthWrapperState extends State<AuthWrapper>
     }
   }
 
-  /// Atualizar status
   void _updateStatus(String message) {
     if (mounted) {
       setState(() {
@@ -140,7 +126,6 @@ class _AuthWrapperState extends State<AuthWrapper>
     }
   }
 
-  /// Tratar erro
   void _handleError(String error) {
     if (mounted) {
       setState(() {
@@ -148,14 +133,12 @@ class _AuthWrapperState extends State<AuthWrapper>
         _hasError = true;
       });
       
-      // Mostrar botão retry após 3 segundos
       Future.delayed(const Duration(seconds: 3), () {
         if (mounted) setState(() {});
       });
     }
   }
 
-  /// Tentar novamente
   void _retry() {
     setState(() {
       _statusMessage = 'Tentando novamente...';
@@ -165,7 +148,6 @@ class _AuthWrapperState extends State<AuthWrapper>
     _initializeApp();
   }
 
-  /// Widget de splash/loading ADAPTADO PARA TEMA ESCURO
   Widget _buildSplashScreen() {
     return Scaffold(
       body: Container(
@@ -174,15 +156,16 @@ class _AuthWrapperState extends State<AuthWrapper>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF1A1D29),
-              Color(0xFF2A2D3A),
+              Color(0xFF2D3748),
+              Color(0xFF4A5568),
+              Color(0xFF6BA6CD),
             ],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-              // ===== LOGO ÁREA =====
+              // LOGO ÁREA
               Expanded(
                 flex: 3,
                 child: Center(
@@ -194,20 +177,19 @@ class _AuthWrapperState extends State<AuthWrapper>
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // LOGO/ÍCONE com gradiente
                             Container(
                               width: 120,
                               height: 120,
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFFFF8C42), Color(0xFFFF6B6B)],
+                                  colors: [Color(0xFF6BA6CD), Color(0xFF5B9BD5)],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
                                 borderRadius: BorderRadius.circular(30),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFFFF8C42).withOpacity(0.3),
+                                    color: const Color(0xFF6BA6CD).withOpacity(0.3),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
                                   ),
@@ -222,7 +204,6 @@ class _AuthWrapperState extends State<AuthWrapper>
                             
                             const SizedBox(height: 24),
                             
-                            // NOME DO APP
                             const Text(
                               'Treino App',
                               style: TextStyle(
@@ -235,7 +216,6 @@ class _AuthWrapperState extends State<AuthWrapper>
                             
                             const SizedBox(height: 8),
                             
-                            // SUBTÍTULO
                             Text(
                               'Treinos Personalizados',
                               style: TextStyle(
@@ -252,7 +232,7 @@ class _AuthWrapperState extends State<AuthWrapper>
                 ),
               ),
               
-              // ===== STATUS ÁREA =====
+              // STATUS ÁREA
               Expanded(
                 flex: 1,
                 child: FadeTransition(
@@ -261,15 +241,13 @@ class _AuthWrapperState extends State<AuthWrapper>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       if (!_hasError) ...[
-                        // LOADING com cor turquesa
                         const SpinKitFadingCube(
-                          color: Color(0xFF4ECDC4),
+                          color: Color(0xFF5B9BD5),
                           size: 40.0,
                         ),
                         
                         const SizedBox(height: 24),
                         
-                        // MENSAGEM STATUS
                         Text(
                           _statusMessage,
                           style: TextStyle(
@@ -280,16 +258,14 @@ class _AuthWrapperState extends State<AuthWrapper>
                           textAlign: TextAlign.center,
                         ),
                       ] else ...[
-                        // ERRO
                         Icon(
                           Icons.error_outline,
-                          color: const Color(0xFFFF6B6B).withOpacity(0.8),
+                          color: const Color(0xFFE53E3E).withOpacity(0.8),
                           size: 48,
                         ),
                         
                         const SizedBox(height: 16),
                         
-                        // MENSAGEM ERRO
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 32),
                           child: Text(
@@ -305,18 +281,17 @@ class _AuthWrapperState extends State<AuthWrapper>
                         
                         const SizedBox(height: 24),
                         
-                        // BOTÃO RETRY com gradiente
                         Container(
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFFFF8C42), Color(0xFFFF6B6B)],
+                              colors: [Color(0xFF6BA6CD), Color(0xFF5B9BD5)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(25),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF8C42).withOpacity(0.3),
+                                color: const Color(0xFF6BA6CD).withOpacity(0.3),
                                 blurRadius: 12,
                                 offset: const Offset(0, 6),
                               ),
@@ -350,7 +325,7 @@ class _AuthWrapperState extends State<AuthWrapper>
                 ),
               ),
               
-              // ===== VERSÃO =====
+              // VERSÃO
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Text(
@@ -376,25 +351,20 @@ class _AuthWrapperState extends State<AuthWrapper>
 
     return Consumer<AuthProviderGoogle>(
       builder: (context, authProvider, child) {
-        // ===== LOADING STATE =====
         if (authProvider.isLoading) {
           return _buildSplashScreen();
         }
 
-        // ===== AUTHENTICATED =====
         if (authProvider.isAuthenticated && authProvider.user != null) {
           final user = authProvider.user!;
           
-          // Se usuário tem acesso (premium ou trial válido)
           if (user.hasAccess) {
-            return const MainNavigationScreen(); // 🆕 ÚNICA MUDANÇA: Nova tela principal
+            return const MainNavigationScreen();
           }
           
-          // Se trial expirou - mostrar welcome com upgrade
           return const WelcomeScreen();
         }
 
-        // ===== NOT AUTHENTICATED =====
         return const GoogleLoginScreen();
       },
     );
