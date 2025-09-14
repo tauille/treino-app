@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider_google.dart';
 import '../../core/theme/sport_theme.dart';
+import 'debug_assets_screen.dart';
 
 /// 👤 Tela de Perfil e Configurações
 class ProfileScreen extends StatefulWidget {
@@ -103,6 +104,16 @@ class _ProfileScreenState extends State<ProfileScreen>
           borderRadius: BorderRadius.circular(12),
         ),
         margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  /// Navegar para debug de assets
+  void _navigateToDebugAssets() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const DebugAssetsScreen(),
       ),
     );
   }
@@ -372,6 +383,14 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
         
         _buildConfigItem(
+          icon: Icons.bug_report_rounded,
+          title: 'Debug Assets',
+          subtitle: 'Testar sistema de imagens',
+          onTap: _navigateToDebugAssets,
+          isDebug: true,
+        ),
+        
+        _buildConfigItem(
           icon: Icons.help_rounded,
           title: 'Ajuda e Suporte',
           subtitle: 'Tire suas dúvidas',
@@ -398,6 +417,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     required String subtitle,
     required VoidCallback onTap,
     bool isDestructive = false,
+    bool isDebug = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -415,13 +435,21 @@ class _ProfileScreenState extends State<ProfileScreen>
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: (isDestructive ? SportColors.error : SportColors.primary)
+            color: (isDestructive 
+                ? SportColors.error 
+                : isDebug 
+                    ? Colors.orange 
+                    : SportColors.primary)
                 .withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
             icon,
-            color: isDestructive ? SportColors.error : SportColors.primary,
+            color: isDestructive 
+                ? SportColors.error 
+                : isDebug 
+                    ? Colors.orange 
+                    : SportColors.primary,
             size: 24,
           ),
         ),

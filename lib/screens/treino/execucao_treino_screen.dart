@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path_provider/path_provider.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:convert';
@@ -13,7 +12,7 @@ import '../../models/treino_model.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/sport_theme.dart';
 import '../../providers/execucao_treino_provider.dart';
-import '../../widgets/gif_image_widget.dart';
+import '../../widgets/exercise_image_widget.dart';
 
 class ModernExecucaoTreinoScreen extends StatefulWidget {
   final TreinoModel treino;
@@ -34,31 +33,34 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   int _currentSerie = 1;
   bool _isPaused = false;
   
+  // Estados para lógica dos timers
   ExercicioModel? _exercicioAtual;
   
+  // Controle de timers
   Timer? _timerAtivo;
   int _tempoAtual = 0;
   int _tempoTotalSegundos = 0;
   bool _timerRodando = false;
   
+  // Estados de execução
   TimerState _timerState = TimerState.waiting;
   
+  // Player de áudio para sons personalizados
   late AudioPlayer _audioPlayer;
   
+  // Controladores de animação
   late AnimationController _pulseController;
   late AnimationController _progressController;
   late Animation<double> _pulseAnimation;
   late Animation<double> _progressAnimation;
 
+  // Campos para salvar dados de execução
   ExecucaoTreinoProvider? _execucaoProvider;
   DateTime? _inicioTreino;
   Timer? _timerTotal;
   int _totalExerciciosCompletados = 0;
   int _totalSeriesCompletadas = 0;
   List<Map<String, dynamic>> _exerciciosRealizados = [];
-
-  final Map<String, String> _exercicioImagens = {};
-  bool _imagensCarregadas = false;
 
   @override
   void initState() {
@@ -68,10 +70,14 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     _setupAnimations();
     _enableWakelock();
     
+    // Inicializar dados de execução
     _execucaoProvider = Provider.of<ExecucaoTreinoProvider>(context, listen: false);
     _inicioTreino = DateTime.now();
     
-    _initializeScreen();
+    // Iniciar timer total
+    _iniciarTimerTotal();
+    
+    _initializeExercicio();
     
     if (widget.treino.exercicios.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -80,108 +86,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     }
   }
 
-  Future<void> _initializeScreen() async {
-    print('=== INICIALIZANDO TELA DE EXECUÇÃO ===');
-    
-    await _carregarImagensExecucao();
-    _iniciarTimerTotal();
-    _initializeExercicio();
-    
-    print('=== INICIALIZAÇÃO CONCLUÍDA ===');
-  }
-
-  Future<void> _carregarImagensExecucao() async {
-    print('=== CARREGANDO IMAGENS PARA EXECUÇÃO ===');
-    print('Total de exercícios: ${widget.treino.exercicios.length}');
-    
-    final List<Future<void>> carregamentos = [];
-    
-    for (final exercicio in widget.treino.exercicios) {
-      carregamentos.add(_carregarImagemExercicio(exercicio));
-    }
-    
-    await Future.wait(carregamentos);
-    
-    print('Carregamento concluído: ${_exercicioImagens.length} imagens disponíveis');
-    
-    if (mounted) {
-      setState(() {
-        _imagensCarregadas = true;
-      });
-    }
-  }
-
-  Future<void> _carregarImagemExercicio(ExercicioModel exercicio) async {
-    final nome = exercicio.nomeExercicio;
-    print('Carregando imagem para: $nome');
-    
-    String? imagemPath;
-    
-    try {
-      // Método 1: Verificar imagemPath do modelo
-      if (exercicio.imagemPath != null && exercicio.imagemPath!.isNotEmpty) {
-        final file = File(exercicio.imagemPath!);
-        if (await file.exists()) {
-          imagemPath = exercicio.imagemPath!;
-          print('   Encontrada no modelo');
-        }
-      }
-      
-      // Método 2: Verificar backup local
-      if (imagemPath == null) {
-        final prefs = await SharedPreferences.getInstance();
-        final backup = prefs.getString('backup_img_$nome');
-        
-        if (backup != null && backup.isNotEmpty) {
-          final file = File(backup);
-          if (await file.exists()) {
-            imagemPath = backup;
-            print('   Encontrada no backup local');
-          }
-        }
-      }
-      
-      // Método 3: Procurar no diretório
-      if (imagemPath == null) {
-        final appDir = await getApplicationDocumentsDirectory();
-        final exerciciosDir = Directory('${appDir.path}/exercicios');
-        
-        if (await exerciciosDir.exists()) {
-          final files = exerciciosDir.listSync();
-          final nomeNormalizado = nome.replaceAll(' ', '_').toLowerCase();
-          
-          for (final file in files) {
-            if (file is File && file.path.toLowerCase().contains(nomeNormalizado)) {
-              final extension = file.path.toLowerCase();
-              if (extension.endsWith('.jpg') || 
-                  extension.endsWith('.jpeg') || 
-                  extension.endsWith('.png') || 
-                  extension.endsWith('.gif')) {
-                imagemPath = file.path;
-                print('   Encontrada no diretório: ${file.path}');
-                break;
-              }
-            }
-          }
-        }
-      }
-      
-      if (imagemPath != null) {
-        final file = File(imagemPath);
-        final exists = await file.exists();
-        final size = exists ? await file.length() : 0;
-        
-        if (exists && size > 0) {
-          _exercicioImagens[nome] = imagemPath;
-          print('   Imagem válida registrada ($size bytes)');
-        }
-      }
-      
-    } catch (e) {
-      print('   ERRO ao carregar imagem para $nome: $e');
-    }
-  }
-
+  // Iniciar timer total do treino
   void _iniciarTimerTotal() {
     _timerTotal = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!_isPaused) {
@@ -248,73 +153,6 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     super.dispose();
   }
 
-  bool _exercicioTemImagem() {
-    if (_exercicioAtual == null || !_imagensCarregadas) {
-      return false;
-    }
-    
-    final imagemPath = _exercicioImagens[_exercicioAtual!.nomeExercicio];
-    return imagemPath != null && imagemPath.isNotEmpty;
-  }
-
-  // Widget otimizado usando GifImageWidget
-  Widget _buildExercicioImagem(bool isSmall, bool isMedium) {
-    if (!_imagensCarregadas) {
-      final placeholderHeight = isSmall ? 140.0 : isMedium ? 175.0 : 210.0;
-      
-      return Container(
-        margin: EdgeInsets.symmetric(vertical: isSmall ? 12 : 16),
-        height: placeholderHeight,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: Colors.grey[300],
-        ),
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(
-                color: Color(0xFF6BA6CD),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Carregando mídia...',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    
-    if (!_exercicioTemImagem()) {
-      return const SizedBox.shrink();
-    }
-    
-    final imagemPath = _exercicioImagens[_exercicioAtual!.nomeExercicio]!;
-    final height = isSmall ? 140.0 : isMedium ? 175.0 : 210.0;
-    
-    return GifImageWidget(
-      imagePath: imagemPath,
-      height: height,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      borderRadius: BorderRadius.circular(20),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.1),
-          blurRadius: 15,
-          offset: const Offset(0, 8),
-        ),
-      ],
-      gifLoopDurationSeconds: 8,
-      showGifIndicator: true,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.treino.exercicios.isEmpty) {
@@ -355,7 +193,6 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
           _buildModernHeader(isSmall),
           SizedBox(height: isSmall ? 16 : 26),
           _buildExerciseCard(isSmall, isMedium),
-          _buildExercicioImagem(isSmall, isMedium), // Widget otimizado
           SizedBox(height: isSmall ? 16 : 26),
           _buildCircularTimer(isSmall, isMedium),
           SizedBox(height: isSmall ? 16 : 26),
@@ -469,7 +306,6 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isSmall ? 16 : 19),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -487,82 +323,148 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
       ),
       child: Column(
         children: [
-          Text(
-            _exercicioAtual!.nomeExercicio ?? 'Exercício',
-            style: TextStyle(
-              fontSize: isSmall ? 18 : isMedium ? 21 : 24,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
+          // Título do exercício
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              isSmall ? 16 : 19,
+              isSmall ? 16 : 19,
+              isSmall ? 16 : 19,
+              12,
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  (_exercicioAtual?.isTempo == true)
-                      ? Icons.timer_rounded 
-                      : Icons.fitness_center_rounded,
-                  color: Colors.white,
-                  size: isSmall ? 16 : 19,
-                ),
+            child: Text(
+              _exercicioAtual!.nomeExercicio ?? 'Exercício',
+              style: TextStyle(
+                fontSize: isSmall ? 18 : isMedium ? 21 : 24,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
               ),
-              const SizedBox(width: 12),
-              Flexible(
-                child: Text(
-                  _getExerciseDescription(),
-                  style: TextStyle(
-                    fontSize: isSmall ? 13 : 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
+              textAlign: TextAlign.center,
+            ),
           ),
           
-          // Indicador de mídia disponível
-          const SizedBox(height: 8),
-          if (_imagensCarregadas && _exercicioTemImagem())
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _exercicioImagens[_exercicioAtual!.nomeExercicio]?.toLowerCase().endsWith('.gif') == true
-                        ? Icons.play_circle_outline
-                        : Icons.image,
-                    size: 16,
-                    color: Colors.white,
+          // Imagem do exercício - TAMANHO CORRIGIDO
+          _buildExerciseImage(isSmall, isMedium),
+          
+          // Descrição do exercício
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              isSmall ? 16 : 19,
+              12,
+              isSmall ? 16 : 19,
+              isSmall ? 16 : 19,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _exercicioImagens[_exercicioAtual!.nomeExercicio]?.toLowerCase().endsWith('.gif') == true
-                        ? 'GIF DISPONÍVEL'
-                        : 'IMAGEM DISPONÍVEL',
-                    style: const TextStyle(
-                      fontSize: 11,
+                  child: Icon(
+                    (_exercicioAtual?.isTempo == true)
+                        ? Icons.timer_rounded 
+                        : Icons.fitness_center_rounded,
+                    color: Colors.white,
+                    size: isSmall ? 16 : 19,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    _getExerciseDescription(),
+                    style: TextStyle(
+                      fontSize: isSmall ? 13 : 14,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
                     ),
+                    textAlign: TextAlign.center,
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // MÉTODO CORRIGIDO - TAMANHO IGUAL A DEBUG (80x80)
+  Widget _buildExerciseImage(bool isSmall, bool isMedium) {
+    // ALTERAÇÃO: Tamanho fixo 80x80 igual à tela debug
+    const imageSize = 80.0;
+    
+    if (_exercicioAtual == null) {
+      return _buildImagePlaceholder(imageSize);
+    }
+    
+    return Center(
+      child: Container(
+        height: imageSize,
+        width: imageSize,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: ExerciseImageWidget(
+            nomeExercicio: _exercicioAtual!.nomeExercicio,
+            grupoMuscular: _exercicioAtual!.grupoMuscular,
+            width: imageSize,
+            height: imageSize,
+            fit: BoxFit.cover,
+            placeholderIcon: (_exercicioAtual?.isTempo == true) 
+                ? Icons.timer_rounded
+                : Icons.fitness_center_rounded,
+            placeholderColor: Colors.white.withOpacity(0.7),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePlaceholder(double size) {
+    return Center(
+      child: Container(
+        width: size,
+        height: size,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              (_exercicioAtual?.isTempo == true) 
+                  ? Icons.timer_rounded
+                  : Icons.fitness_center_rounded,
+              color: Colors.white.withOpacity(0.7),
+              size: 24, // Ícone menor também
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Imagem',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -871,7 +773,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     );
   }
 
-  // Métodos auxiliares - timer, cores, textos, etc.
+  // Métodos auxiliares
   Color _getTimerColor() {
     switch (_timerState) {
       case TimerState.waiting:
@@ -1179,37 +1081,61 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
     _pulseController.stop();
     
     final dadosExecucao = {
-      'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'treino_id': widget.treino.id,
       'nome_treino': widget.treino.nomeTreino,
-      'data_inicio': _inicioTreino?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'data_inicio': _inicioTreino?.toIso8601String(),
       'data_fim': DateTime.now().toIso8601String(),
       'duracao_total_segundos': _tempoTotalSegundos,
-      'total_exercicios_completados': _totalExerciciosCompletados,
-      'exercicios_detalhados': _exerciciosRealizados,
+      'total_exercicios': widget.treino.exercicios.length,
+      'exercicios_completados': _totalExerciciosCompletados,
+      'total_series': _totalSeriesCompletadas,
+      'exercicios_detalhes': _exerciciosRealizados,
+      'tipo_treino': widget.treino.tipoTreino,
+      'dificuldade': widget.treino.dificuldade,
+      'status': 'completado',
+      'data_salvamento': DateTime.now().toIso8601String(),
     };
     
     try {
-      if (_execucaoProvider != null) {
-        await _execucaoProvider!.finalizarTreino(observacoes: 'Treino completado');
+      final sucesso = await _execucaoProvider?.finalizarTreino(
+        observacoes: 'Treino completado com sucesso via app'
+      ) ?? false;
+      
+      if (!sucesso) {
+        print('Provider falhou, salvando localmente...');
       }
-      
-      // Salvamento local
-      final prefs = await SharedPreferences.getInstance();
-      final execucoesString = prefs.getString('execucoes_treino') ?? '[]';
-      final execucoes = jsonDecode(execucoesString) as List;
-      execucoes.add(dadosExecucao);
-      await prefs.setString('execucoes_treino', jsonEncode(execucoes));
-      
-      _showSnackBar('Treino salvo com sucesso!', const Color(0xFF4CAF50));
     } catch (e) {
-      _showSnackBar('Treino finalizado!', const Color(0xFFF59E0B));
+      print('Erro no provider: $e');
     }
     
-    await Future.delayed(const Duration(seconds: 2));
+    await _salvarDadosLocal(dadosExecucao);
     
-    if (mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+    _showSnackBar('Treino salvo com sucesso!', const Color(0xFF4CAF50));
+    
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.main,
+      (route) => false,
+    );
+  }
+
+  Future<void> _salvarDadosLocal(Map<String, dynamic> dadosExecucao) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      final execucoesString = prefs.getString('execucoes_treino') ?? '[]';
+      final execucoesExistentes = List<Map<String, dynamic>>.from(
+        jsonDecode(execucoesString)
+      );
+      
+      execucoesExistentes.add(dadosExecucao);
+      
+      await prefs.setString('execucoes_treino', jsonEncode(execucoesExistentes));
+      
+      print('Dados salvos localmente: ${execucoesExistentes.length} execuções');
+      
+    } catch (e) {
+      print('Erro ao salvar localmente: $e');
     }
   }
 
@@ -1240,11 +1166,21 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   }
 
   void _showSnackBar(String message, Color color) {
-    if (!mounted) return;
-    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            Icon(
+              (_exercicioAtual?.isTempo == true) 
+                  ? Icons.auto_awesome 
+                  : Icons.info_outline,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1259,19 +1195,34 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Finalizar Treino?'),
-        content: const Text('Tem certeza que deseja finalizar o treino agora?'),
+        title: const Text(
+          'Finalizar Treino?',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: const Text('Tem certeza que deseja finalizar o treino agora? Seus dados serão salvos.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Color(0xFF718096)),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               _finishTreinoComDados();
             },
-            child: const Text('Finalizar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6BA6CD),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Finalizar',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -1283,15 +1234,28 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Treino Vazio'),
-        content: const Text('Este treino não possui exercícios.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Treino Vazio',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: const Text('Este treino não possui exercícios para executar.'),
         actions: [
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               Navigator.pop(context);
             },
-            child: const Text('Voltar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6BA6CD),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Voltar',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -1301,6 +1265,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   Future<void> _enableWakelock() async {
     try {
       await WakelockPlus.enable();
+      print('Wakelock ATIVADO');
     } catch (e) {
       print('Erro wakelock: $e');
     }
@@ -1309,6 +1274,7 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   Future<void> _disableWakelock() async {
     try {
       await WakelockPlus.disable();
+      print('Wakelock DESATIVADO');
     } catch (e) {
       print('Erro ao desativar wakelock: $e');
     }
@@ -1317,12 +1283,15 @@ class _ModernExecucaoTreinoScreenState extends State<ModernExecucaoTreinoScreen>
   Future<void> _playCountdownSound() async {
     try {
       await _audioPlayer.play(AssetSource('sounds/countdown.mp3'));
+      HapticFeedback.heavyImpact();
     } catch (e) {
+      print('Erro ao reproduzir som: $e');
       HapticFeedback.heavyImpact();
     }
   }
 }
 
+// Enum para estados do timer
 enum TimerState {
   waiting,
   executing,

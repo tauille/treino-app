@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../core/constants/api_constants.dart';
 import '../core/constants/google_config.dart';
+import '../core/helpers/exercise_assets_helper.dart';
 import '../config/api_config.dart';
 import '../core/services/google_auth_service.dart';
 import '../core/services/storage_service.dart';
@@ -30,7 +31,10 @@ class QuickTest {
     // 3. Testar modelos
     await testModels();
     
-    // 4. Testar conectividade (se disponível)
+    // 4. Testar assets de exercícios
+    await testExerciseAssets();
+    
+    // 5. Testar conectividade (se disponível)
     await testConnectivity();
     
     print('\n🎉 === TESTES CONCLUÍDOS ===');
@@ -125,7 +129,7 @@ class QuickTest {
 
   /// Testar modelos
   static Future<void> testModels() async {
-    print('📝 === TESTE DE MODELOS ===');
+    print('📄 === TESTE DE MODELOS ===');
     
     try {
       // User Model
@@ -161,6 +165,87 @@ class QuickTest {
     } catch (e) {
       print('   ❌ Erro nos modelos: $e\n');
     }
+  }
+
+  /// Testar assets de exercícios
+  static Future<void> testExerciseAssets() async {
+    print('🏋️ === TESTE DE ASSETS DE EXERCÍCIOS ===');
+    
+    try {
+      print('🖼️ Testando ExerciseAssetsHelper...');
+      
+      // Imprimir mapeamentos
+      ExerciseAssetsHelper.debugPrintMappings();
+      
+      // Testar exercícios específicos
+      final testExercises = [
+        'flexão',
+        'prancha', 
+        'agachamento',
+        'supino reto',
+        'teste',
+        'exercicio inexistente'
+      ];
+      
+      int assetsEncontrados = 0;
+      int assetsTestados = 0;
+      
+      for (final exercise in testExercises) {
+        assetsTestados++;
+        print('\n   🔍 Testando exercício: "$exercise"');
+        
+        // Resolver asset
+        final assetPath = ExerciseAssetsHelper.resolveExerciseAsset(exercise);
+        
+        if (assetPath != null) {
+          print('     Asset resolvido: $assetPath');
+          
+          // Verificar se existe fisicamente
+          final exists = await ExerciseAssetsHelper.assetExists(assetPath);
+          print('     Asset existe: $exists');
+          
+          if (exists) {
+            assetsEncontrados++;
+            print('     ✅ Asset OK');
+          } else {
+            print('     ⚠️ Asset não encontrado fisicamente');
+          }
+        } else {
+          print('     ❌ Nenhum asset mapeado');
+        }
+      }
+      
+      print('\n   📊 Resumo dos testes:');
+      print('     Assets testados: $assetsTestados');
+      print('     Assets encontrados: $assetsEncontrados');
+      print('     Taxa de sucesso: ${(assetsEncontrados / assetsTestados * 100).toStringAsFixed(1)}%');
+      
+      // Testar helper methods
+      print('\n   🛠️ Testando métodos do helper...');
+      
+      // Testar lista de assets
+      final allAssets = ExerciseAssetsHelper.getAllExerciseAssets();
+      print('     Total de assets mapeados: ${allAssets.length}');
+      
+      // Testar obtenção de imagem
+      final flexaoImage = await ExerciseAssetsHelper.getExerciseImagePath(
+        'flexão', 
+        exerciseId: 'test_123'
+      );
+      print('     Imagem para flexão: ${flexaoImage ?? "não encontrada"}');
+      
+      if (assetsEncontrados > 0) {
+        print('   ✅ ExerciseAssetsHelper OK (${assetsEncontrados} assets funcionando)');
+      } else {
+        print('   ⚠️ ExerciseAssetsHelper funcionando, mas nenhum asset físico encontrado');
+        print('   💡 Dica: Adicione arquivos .jpg na pasta assets/images/exercicios/');
+      }
+      
+    } catch (e) {
+      print('   ❌ Erro no teste de assets: $e');
+    }
+    
+    print('');
   }
 
   /// Testar conectividade
@@ -209,9 +294,12 @@ class QuickTest {
       case 'trial':
         await _testTrialDetailed();
         break;
+      case 'assets':
+        await testExerciseAssets();
+        break;
       default:
         print('❌ Teste "$feature" não encontrado');
-        print('Testes disponíveis: storage, user, api, trial');
+        print('Testes disponíveis: storage, user, api, trial, assets');
     }
   }
 
@@ -426,6 +514,17 @@ class QuickTest {
         'is_logged_in': authService.isLoggedIn,
       };
 
+      // Testar Exercise Assets
+      final flexaoAsset = ExerciseAssetsHelper.resolveExerciseAsset('flexão');
+      final assetExists = flexaoAsset != null ? await ExerciseAssetsHelper.assetExists(flexaoAsset) : false;
+      
+      report['components']['exercise_assets'] = {
+        'status': assetExists ? 'healthy' : 'warning',
+        'has_mapping': flexaoAsset != null,
+        'assets_exist': assetExists,
+        'total_mapped': ExerciseAssetsHelper.getAllExerciseAssets().length,
+      };
+
       // Testar configurações
       final googleValidation = GoogleConfig.validateConfig();
       
@@ -483,6 +582,12 @@ class QuickTest {
       }
       if (info['warnings'] != null && info['warnings'].isNotEmpty) {
         print('   Warnings: ${info['warnings']}');
+      }
+      
+      // Detalhes específicos para exercise_assets
+      if (name == 'exercise_assets') {
+        print('   Assets mapeados: ${info['total_mapped']}');
+        print('   Assets físicos encontrados: ${info['assets_exist']}');
       }
     });
     

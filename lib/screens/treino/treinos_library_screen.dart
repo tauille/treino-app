@@ -180,7 +180,15 @@ class _TreinosLibraryScreenState extends State<TreinosLibraryScreen>
       print('   • Data: ${resultado.data?.length ?? 0} treinos');
       print('   • Message: ${resultado.message}');
       
-      if (mounted && resultado.success && resultado.data != null) {
+      print('SCREEN: DEBUGGING - mounted: $mounted');
+      print('SCREEN: DEBUGGING - resultado.success: ${resultado.success}');  
+      print('SCREEN: DEBUGGING - resultado.data: ${resultado.data}');
+      print('SCREEN: DEBUGGING - resultado.data type: ${resultado.data.runtimeType}');
+      print('SCREEN: DEBUGGING - resultado.data == null: ${resultado.data == null}');
+
+
+      //if (mounted && resultado.success && resultado.data != null) {
+      if (mounted && resultado.success && resultado.data != null && resultado.data is List) {
         setState(() {
           _todosTreinos = resultado.data as List<TreinoModel>;
           _aplicarFiltros();

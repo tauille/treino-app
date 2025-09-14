@@ -26,7 +26,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.treinoapp.treino_app"
-    compileSdk 35
+    compileSdk 36
     ndkVersion "27.0.12077973"
 
     compileOptions {
@@ -48,7 +48,7 @@ android {
         
         // ===== VERSÕES MÍNIMAS PARA GOOGLE SIGN IN =====
         minSdkVersion flutter.minSdkVersion                    // Mínimo para Google Sign In
-        targetSdkVersion 34                 // Versão alvo atual
+        targetSdkVersion 36                 // Versão alvo atual
         
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

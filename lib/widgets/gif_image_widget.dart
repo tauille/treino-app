@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
-import 'dart:async';
 
-/// Widget otimizado que resolve problemas específicos de animação de GIFs
+/// Widget otimizado para exibir imagens e GIFs sem reset automático
 class GifImageWidget extends StatefulWidget {
   final String imagePath;
   final double height;
   final double? width;
   final BoxFit fit;
-  final BorderRadius borderRadius;
+  final BorderRadius? borderRadius;
   final List<BoxShadow>? boxShadow;
-  final int gifLoopDurationSeconds;
-  final bool showGifIndicator;
+  final EdgeInsets? margin;
 
   const GifImageWidget({
     Key? key,
@@ -19,10 +17,9 @@ class GifImageWidget extends StatefulWidget {
     required this.height,
     this.width,
     this.fit = BoxFit.cover,
-    this.borderRadius = const BorderRadius.all(Radius.circular(20)),
+    this.borderRadius,
     this.boxShadow,
-    this.gifLoopDurationSeconds = 8,
-    this.showGifIndicator = true,
+    this.margin,
   }) : super(key: key);
 
   @override
@@ -34,8 +31,6 @@ class _GifImageWidgetState extends State<GifImageWidget> {
   bool _hasError = false;
   bool _isGif = false;
   File? _imageFile;
-  Timer? _gifResetTimer;
-  int _gifKey = 0;
 
   @override
   void initState() {
@@ -52,91 +47,55 @@ class _GifImageWidgetState extends State<GifImageWidget> {
     }
   }
 
-  @override
-  void dispose() {
-    _gifResetTimer?.cancel();
-    super.dispose();
-  }
-
   void _resetState() {
-    _gifResetTimer?.cancel();
     setState(() {
       _isLoading = true;
       _hasError = false;
       _imageFile = null;
-      _gifKey = 0;
     });
   }
 
   Future<void> _loadAndValidateImage() async {
-    print('=== GifImageWidget: Carregando ${widget.imagePath} ===');
-    
     try {
       final file = File(widget.imagePath);
       
-      // Verificações básicas apenas
+      // Verificações básicas
       if (!await file.exists()) {
-        print('ERRO: Arquivo não existe');
-        _setErrorState('Arquivo não encontrado');
+        _setErrorState();
         return;
       }
 
       final fileSize = await file.length();
       if (fileSize == 0) {
-        print('ERRO: Arquivo vazio');
-        _setErrorState('Arquivo vazio');
+        _setErrorState();
         return;
       }
 
       // Detectar tipo apenas pela extensão
       final extension = widget.imagePath.toLowerCase();
       final isGifFile = extension.endsWith('.gif');
-      
-      print('Arquivo válido: ${fileSize} bytes, GIF: $isGifFile');
 
-      setState(() {
-        _imageFile = file;
-        _isGif = isGifFile;
-        _isLoading = false;
-        _hasError = false;
-      });
-
-      // Se for GIF, configurar sistema de reset para manter animação
-      if (_isGif) {
-        print('Iniciando ciclo de reset para GIF a cada ${widget.gifLoopDurationSeconds}s');
-        _startGifResetCycle();
+      if (mounted) {
+        setState(() {
+          _imageFile = file;
+          _isGif = isGifFile;
+          _isLoading = false;
+          _hasError = false;
+        });
       }
 
-      print('✓ Carregamento concluído com sucesso');
-
     } catch (e) {
-      print('ERRO ao carregar: $e');
-      _setErrorState('Erro ao carregar: $e');
+      _setErrorState();
     }
   }
 
-  void _setErrorState(String error) {
-    print('Definindo erro: $error');
-    setState(() {
-      _hasError = true;
-      _isLoading = false;
-    });
-  }
-
-  void _startGifResetCycle() {
-    _gifResetTimer?.cancel();
-    
-    _gifResetTimer = Timer.periodic(
-      Duration(seconds: widget.gifLoopDurationSeconds),
-      (timer) {
-        if (mounted && _isGif) {
-          setState(() {
-            _gifKey++;
-          });
-          print('Reset GIF #$_gifKey');
-        }
-      },
-    );
+  void _setErrorState() {
+    if (mounted) {
+      setState(() {
+        _hasError = true;
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -144,9 +103,9 @@ class _GifImageWidgetState extends State<GifImageWidget> {
     return Container(
       width: widget.width,
       height: widget.height,
-      margin: const EdgeInsets.symmetric(vertical: 16),
+      margin: widget.margin ?? const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
-        borderRadius: widget.borderRadius,
+        borderRadius: widget.borderRadius ?? BorderRadius.circular(20),
         boxShadow: widget.boxShadow ?? [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -156,7 +115,7 @@ class _GifImageWidgetState extends State<GifImageWidget> {
         ],
       ),
       child: ClipRRect(
-        borderRadius: widget.borderRadius,
+        borderRadius: widget.borderRadius ?? BorderRadius.circular(20),
         child: _buildImageContent(),
       ),
     );
@@ -171,69 +130,20 @@ class _GifImageWidgetState extends State<GifImageWidget> {
       return _buildErrorState();
     }
 
-    return Stack(
-      children: [
-        _buildOptimizedImage(),
-        if (_isGif && widget.showGifIndicator) _buildGifIndicator(),
-      ],
-    );
+    return _buildOptimizedImage();
   }
 
   Widget _buildOptimizedImage() {
     return Image.file(
       _imageFile!,
-      key: ValueKey('${widget.imagePath}_$_gifKey'),
       width: widget.width ?? double.infinity,
       height: widget.height,
       fit: widget.fit,
-      
-      // CONFIGURAÇÕES CRÍTICAS PARA GIFS
-      gaplessPlayback: false,  // Permite frames recarregarem
-      filterQuality: FilterQuality.low,  // Reduz processamento
-      
-      // Cache otimizado - desabilitado para GIFs
-      cacheWidth: _isGif ? null : 600,
-      cacheHeight: _isGif ? null : 400,
-      
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.low,
       errorBuilder: (context, error, stackTrace) {
-        print('ERRO Image.file: $error');
         return _buildErrorState();
       },
-    );
-  }
-
-  Widget _buildGifIndicator() {
-    return Positioned(
-      top: 8,
-      right: 8,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.8),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white, width: 1),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.play_circle_outline,
-              size: 14,
-              color: Colors.white,
-            ),
-            SizedBox(width: 4),
-            Text(
-              'GIF',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -241,7 +151,7 @@ class _GifImageWidgetState extends State<GifImageWidget> {
     return Container(
       height: widget.height,
       decoration: BoxDecoration(
-        borderRadius: widget.borderRadius,
+        borderRadius: widget.borderRadius ?? BorderRadius.circular(20),
         color: Colors.grey[300],
       ),
       child: Column(
@@ -269,7 +179,7 @@ class _GifImageWidgetState extends State<GifImageWidget> {
     return Container(
       height: widget.height,
       decoration: BoxDecoration(
-        borderRadius: widget.borderRadius,
+        borderRadius: widget.borderRadius ?? BorderRadius.circular(20),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,

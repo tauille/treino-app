@@ -390,8 +390,127 @@ class ExercicioModel {
        tempoTotalEstimado = null,
        imagemUrl = null;
 
-  // Converter de JSON
+  // ===== SISTEMA DE ASSETS LOCAIS =====
+  
+  // Mapeamento direto para exercícios conhecidos
+  static final Map<String, String> _mapeamentoExercicios = {
+    // Exercícios do log
+    'prancha': 'assets/images/exercicios/prancha.gif',
+    'mais um': 'assets/images/exercicios/mais_um.jpg',
+    
+    // Exercícios comuns de musculação
+    'supino reto': 'assets/images/exercicios/supino_reto.gif',
+    'supino inclinado': 'assets/images/exercicios/supino_inclinado.gif',
+    'flexão': 'assets/images/exercicios/flexao.gif',
+    'flexão de braço': 'assets/images/exercicios/flexao.gif',
+    'agachamento': 'assets/images/exercicios/agachamento.gif',
+    'leg press': 'assets/images/exercicios/leg_press.gif',
+    'rosca direta': 'assets/images/exercicios/rosca_direta.gif',
+    'tríceps testa': 'assets/images/exercicios/triceps_testa.gif',
+    'abdominal': 'assets/images/exercicios/abdominal.gif',
+    'barra fixa': 'assets/images/exercicios/barra_fixa.gif',
+    'remada': 'assets/images/exercicios/remada.gif',
+    'desenvolvimento': 'assets/images/exercicios/desenvolvimento.gif',
+    'elevação lateral': 'assets/images/exercicios/elevacao_lateral.gif',
+    'cadeira extensora': 'assets/images/exercicios/cadeira_extensora.gif',
+    'mesa flexora': 'assets/images/exercicios/mesa_flexora.gif',
+    'panturrilha': 'assets/images/exercicios/panturrilha.gif',
+    'rosca martelo': 'assets/images/exercicios/rosca_martelo.gif',
+    'tríceps pulley': 'assets/images/exercicios/triceps_pulley.gif',
+    'crucifixo': 'assets/images/exercicios/crucifixo.gif',
+  };
+
+  static String? _obterAssetPorMapeamento(String nomeExercicio) {
+    final nomeNormalizado = nomeExercicio.toLowerCase().trim();
+    
+    print('MAPEAMENTO DIRETO:');
+    print('   Procurando: "$nomeNormalizado"');
+    
+    // Busca exata primeiro
+    if (_mapeamentoExercicios.containsKey(nomeNormalizado)) {
+      final asset = _mapeamentoExercicios[nomeNormalizado]!;
+      print('   Encontrado exato: $asset');
+      return asset;
+    }
+    
+    // Busca parcial (se o nome do exercício contém alguma palavra chave)
+    for (final entrada in _mapeamentoExercicios.entries) {
+      if (nomeNormalizado.contains(entrada.key) || entrada.key.contains(nomeNormalizado)) {
+        final asset = entrada.value;
+        print('   Encontrado similar: $asset (chave: "${entrada.key}")');
+        return asset;
+      }
+    }
+    
+    print('   Não encontrado no mapeamento');
+    return null;
+  }
+
+  static String? _obterAssetImagem(String nomeExercicio) {
+    if (nomeExercicio.isEmpty) {
+      print('Nome do exercício está vazio');
+      return null;
+    }
+
+    // Converter nome do exercício para nome de arquivo válido
+    String nomeArquivo = nomeExercicio
+        .toLowerCase()
+        .replaceAll(' ', '_')
+        .replaceAll('ã', 'a')
+        .replaceAll('á', 'a')
+        .replaceAll('à', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ô', 'o')
+        .replaceAll('õ', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('ç', 'c')
+        .replaceAll(RegExp(r'[^a-z0-9_]'), ''); // Remove caracteres especiais
+
+    print('MAPEANDO EXERCÍCIO:');
+    print('   Original: "$nomeExercicio"');
+    print('   Arquivo: "$nomeArquivo"');
+
+    // Lista de extensões possíveis (ordem de prioridade)
+    const extensoes = ['gif', 'jpg', 'jpeg', 'png', 'webp'];
+    
+    for (final ext in extensoes) {
+      final assetPath = 'assets/images/exercicios/$nomeArquivo.$ext';
+      print('   Tentando: $assetPath');
+      
+      // Retorna o primeiro asset encontrado
+      return assetPath;
+    }
+
+    // Se não encontrar, retornar null (sem imagem)
+    print('   Sem imagem - retornando null');
+    return null;
+  }
+
+  // Converter de JSON - COM SISTEMA DE ASSETS LOCAIS
   factory ExercicioModel.fromJson(Map<String, dynamic> json) {
+    // ===== DEBUG DE IMAGEM - INÍCIO =====
+    print('EXERCICIO JSON DEBUG - Nome: ${json['nome_exercicio']}');
+    print('JSON COMPLETO: $json');
+    print('CAMPOS DE IMAGEM:');
+    print('  - imagem_path: ${json['imagem_path']}');
+    print('  - imagem_url: ${json['imagem_url']}');
+    print('TODAS AS CHAVES DO JSON: ${json.keys.toList()}');
+    // ===== DEBUG DE IMAGEM - FIM =====
+
+    // ===== SOLUÇÃO TEMPORÁRIA - SEM IMAGENS =====
+    String? assetImagem = null; // Sempre retorna null - sem imagens por enquanto
+    final nomeExercicio = json['nome_exercicio'] ?? '';
+    
+    print('SISTEMA DE IMAGENS DESABILITADO - usando ícones genéricos');
+    print('ASSET FINAL SELECIONADO: null (sem imagem)');
+
+    print('===== FIM DEBUG EXERCICIO =====');
+
     return ExercicioModel(
       id: json['id'],
       treinoId: json['treino_id'],
@@ -408,7 +527,7 @@ class ExercicioModel {
       ordem: json['ordem'],
       observacoes: json['observacoes'],
       status: json['status'] ?? 'ativo',
-      imagemPath: json['imagem_path'],
+      imagemPath: assetImagem,  // USAR ASSET LOCAL
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : null,
@@ -488,6 +607,9 @@ class ExercicioModel {
   bool get isNovo => id == null;
   bool get isRepeticao => tipoExecucao == 'repeticao';
   bool get isTempo => tipoExecucao == 'tempo';
+
+  /// Getter seguro para imagemPath (URL da imagem para exibição)
+  String? get urlImagem => imagemPath;
 
   String get textoExecucaoCalculado {
     if (textoExecucao != null) return textoExecucao!;

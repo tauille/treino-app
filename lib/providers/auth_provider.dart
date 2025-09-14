@@ -3,6 +3,7 @@ import '../models/user_model.dart';
 import '../models/api_response_model.dart';
 import '../core/services/auth_service.dart';
 import '../core/services/storage_service.dart';
+import '../core/routes/app_routes.dart';
 
 enum AuthState {
   initial,
@@ -18,6 +19,7 @@ class AuthProvider with ChangeNotifier {
   String? _token;
   String? _errorMessage;
   bool _isLoading = false;
+  bool _disposed = false;
 
   // Serviços
   final AuthService _authService = AuthService();
@@ -45,6 +47,18 @@ class AuthProvider with ChangeNotifier {
 
   AuthProvider() {
     _initialize();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed && hasListeners) {
+      notifyListeners();
+    }
   }
 
   Future<void> _initialize() async {
@@ -159,23 +173,117 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Logout do usuário
-  Future<void> logout() async {
+  /// Logout do usuário - CORRIGIDO PARA EVITAR TRAVAMENTO
+  Future<void> logout({BuildContext? context}) async {
+    if (_disposed) return;
+    
     try {
-      _setLoading(true);
+      // NÃO usar loading para logout - evita UI travada
       
-      // Tentar fazer logout no servidor
-      await _authService.logout();
-      
-      // Limpar dados locais
+      // 1. Limpar dados locais IMEDIATAMENTE
       await _clearAuth();
+      
+      // 2. Notificar servidor em background (sem aguardar)
+      _notifyServerLogout();
+      
+      // 3. Navegação IMEDIATA se contexto fornecido
+      if (context != null && context.mounted && !_disposed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              AppRoutes.login, 
+              (route) => false,
+            );
+          }
+        });
+      }
       
     } catch (e) {
-      // Mesmo com erro, limpar dados locais
+      // Em qualquer erro, garantir limpeza local
       await _clearAuth();
-    } finally {
-      _setLoading(false);
+      
+      if (context != null && context.mounted && !_disposed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              AppRoutes.login, 
+              (route) => false,
+            );
+          }
+        });
+      }
     }
+  }
+  
+  /// Notificar servidor sobre logout (não bloqueia UI)
+  void _notifyServerLogout() async {
+    try {
+      await _authService.logout().timeout(
+        const Duration(seconds: 2),
+        onTimeout: () {},
+      );
+    } catch (e) {
+      // Falha silenciosa
+    }
+  }
+  
+  /// Método SEGURO para logout com confirmação
+  Future<void> logoutWithConfirmation(BuildContext context) async {
+    if (_disposed || !context.mounted) return;
+    
+    // Dialog simples SEM await que possa travar
+    showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sair da Conta'),
+        content: const Text('Tem certeza que deseja sair?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              // Executar logout IMEDIATAMENTE
+              logout(context: context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sair'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// Logout FORÇADO para casos de emergência
+  void forceLogout(BuildContext context) {
+    if (_disposed || !context.mounted) return;
+    
+    // Limpar estado imediatamente
+    _user = null;
+    _token = null;
+    _errorMessage = null;
+    _setState(AuthState.unauthenticated);
+    
+    // Limpar storage em background
+    _storageService.clearAuthData();
+    
+    // Navegar imediatamente
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoutes.login, 
+          (route) => false,
+        );
+      }
+    });
   }
 
   /// Atualizar dados do usuário
@@ -194,7 +302,7 @@ class AuthProvider with ChangeNotifier {
       if (_user != null) {
         _user = _user!.copyWith(name: name, email: email);
         await _updateStoredUser(_user!);
-        notifyListeners();
+        _safeNotifyListeners();
         return true;
       }
       
@@ -239,38 +347,40 @@ class AuthProvider with ChangeNotifier {
   /// Refresh dos dados do usuário
   Future<void> refreshUser() async {
     try {
-      if (!isAuthenticated) return;
+      if (!isAuthenticated || _disposed) return;
       
       // Simular busca de dados atualizados (implementar quando tiver endpoint)
       await Future.delayed(const Duration(seconds: 1));
       
-      notifyListeners();
+      _safeNotifyListeners();
     } catch (e) {
       // Ignorar erros no refresh
     }
   }
 
   void _setState(AuthState newState) {
-    if (_state != newState) {
+    if (_state != newState && !_disposed) {
       _state = newState;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   void _setLoading(bool loading) {
-    if (_isLoading != loading) {
+    if (_isLoading != loading && !_disposed) {
       _isLoading = loading;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   void _setError(String error) {
-    _errorMessage = error;
-    _setState(AuthState.error);
+    if (!_disposed) {
+      _errorMessage = error;
+      _setState(AuthState.error);
+    }
   }
 
   void _clearError() {
-    if (_errorMessage != null) {
+    if (_errorMessage != null && !_disposed) {
       _errorMessage = null;
       if (_state == AuthState.error) {
         _setState(_user != null ? AuthState.authenticated : AuthState.unauthenticated);
@@ -314,13 +424,16 @@ class AuthProvider with ChangeNotifier {
       await _storageService.clearAuthData();
       
       // Limpar variáveis locais
-      _user = null;
-      _token = null;
-      _errorMessage = null;
-      
-      _setState(AuthState.unauthenticated);
+      if (!_disposed) {
+        _user = null;
+        _token = null;
+        _errorMessage = null;
+        _setState(AuthState.unauthenticated);
+      }
     } catch (e) {
-      _setState(AuthState.unauthenticated);
+      if (!_disposed) {
+        _setState(AuthState.unauthenticated);
+      }
     }
   }
 
@@ -362,7 +475,7 @@ class AuthProvider with ChangeNotifier {
       
       _user = _user!.startTrial();
       await _updateStoredUser(_user!);
-      notifyListeners();
+      _safeNotifyListeners();
       
       return true;
     } catch (e) {
@@ -377,7 +490,7 @@ class AuthProvider with ChangeNotifier {
       
       _user = _user!.upgradeToPremium(expiresAt: expiresAt);
       await _updateStoredUser(_user!);
-      notifyListeners();
+      _safeNotifyListeners();
       
       return true;
     } catch (e) {

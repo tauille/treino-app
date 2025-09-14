@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../../models/treino_model.dart';
 import '../../models/api_response_model.dart';
 import '../constants/api_constants.dart';
+import '../helpers/exercise_assets_helper.dart';
 import 'storage_service.dart';
 
 class TreinoService {
@@ -22,7 +23,46 @@ class TreinoService {
     };
   }
 
-  /// LISTAR TREINOS
+  /// PROCESSAMENTO DE IMAGENS PARA EXERCÍCIOS (APENAS ASSETS LOCAIS)
+  static Future<ExercicioModel> _processExerciseImages(ExercicioModel exercicio) async {
+    try {
+      // 1. Tentar resolver asset local
+      final assetPath = ExerciseAssetsHelper.resolveExerciseAsset(
+        exercicio.nomeExercicio,
+        muscleGroup: exercicio.grupoMuscular,
+      );
+
+      if (assetPath != null) {
+        // Verificar se asset existe fisicamente
+        final assetExists = await ExerciseAssetsHelper.assetExists(assetPath);
+        if (assetExists) {
+          print('Usando asset local para ${exercicio.nomeExercicio}: $assetPath');
+          return exercicio.copyWith(imagemPath: assetPath);
+        }
+      }
+
+      // 2. Manter como estava (sem modificação)
+      return exercicio;
+      
+    } catch (e) {
+      print('Erro ao processar imagem do exercício ${exercicio.nomeExercicio}: $e');
+      return exercicio;
+    }
+  }
+
+  /// PROCESSAR LISTA DE EXERCÍCIOS (com assets)
+  static Future<List<ExercicioModel>> _processExercisesList(List<ExercicioModel> exercicios) async {
+    final processedExercicios = <ExercicioModel>[];
+    
+    for (final exercicio in exercicios) {
+      final processedExercicio = await _processExerciseImages(exercicio);
+      processedExercicios.add(processedExercicio);
+    }
+    
+    return processedExercicios;
+  }
+
+  /// LISTAR TREINOS (COM PROCESSAMENTO DE ASSETS)
   static Future<ApiResponse<List<TreinoModel>>> listarTreinos({
     String? busca,
     String? dificuldade,
@@ -84,15 +124,23 @@ class TreinoService {
             treinos = data.map((json) => TreinoModel.fromJson(json)).toList();
           }
 
+          // PROCESSAR ASSETS DOS EXERCÍCIOS
+          final treinosProcessados = <TreinoModel>[];
+          for (final treino in treinos) {
+            final exerciciosProcessados = await _processExercisesList(treino.exercicios);
+            final treinoProcessado = treino.copyWith(exercicios: exerciciosProcessados);
+            treinosProcessados.add(treinoProcessado);
+          }
+
           // ATUALIZAR CACHE (apenas se não tiver filtros)
           if (busca == null && dificuldade == null && tipoTreino == null) {
-            _cachedTreinos = treinos;
+            _cachedTreinos = treinosProcessados;
             _lastFetch = DateTime.now();
           }
 
           return ApiResponse<List<TreinoModel>>(
             success: true,
-            data: treinos,
+            data: treinosProcessados,
             message: apiResponse.message ?? 'Treinos carregados',
           );
         }
@@ -110,7 +158,7 @@ class TreinoService {
     }
   }
 
-  /// BUSCAR TREINO ESPECÍFICO
+  /// BUSCAR TREINO ESPECÍFICO (COM PROCESSAMENTO DE ASSETS)
   static Future<ApiResponse<TreinoModel>> buscarTreino(int id) async {
     try {
       final uri = Uri.parse(await ApiConstants.getTreinoUrl(id));
@@ -125,9 +173,13 @@ class TreinoService {
         if (apiResponse.success && apiResponse.data != null) {
           final treino = TreinoModel.fromJson(apiResponse.data);
           
+          // PROCESSAR ASSETS DOS EXERCÍCIOS
+          final exerciciosProcessados = await _processExercisesList(treino.exercicios);
+          final treinoProcessado = treino.copyWith(exercicios: exerciciosProcessados);
+          
           return ApiResponse<TreinoModel>(
             success: true,
-            data: treino,
+            data: treinoProcessado,
             message: apiResponse.message ?? 'Treino carregado',
           );
         }
@@ -184,11 +236,11 @@ class TreinoService {
           // INVALIDAR CACHE APÓS CRIAÇÃO
           _invalidateCache();
           
-          // CRIAR EXERCÍCIOS SE EXISTIREM
+          // CRIAR EXERCÍCIOS SE EXISTIREM (COM PROCESSAMENTO DE ASSETS)
           if (treino.exercicios.isNotEmpty) {
             await _criarExerciciosDoTreino(treinoCriado.id!, treino.exercicios);
             
-            // BUSCAR TREINO COMPLETO
+            // BUSCAR TREINO COMPLETO (já com processamento de assets)
             final treinoCompleto = await buscarTreino(treinoCriado.id!);
             if (treinoCompleto.success) {
               return treinoCompleto;
@@ -350,7 +402,7 @@ class TreinoService {
     }
   }
 
-  /// CRIAR EXERCÍCIO
+  /// CRIAR EXERCÍCIO (COM PROCESSAMENTO DE ASSETS)
   static Future<ApiResponse<ExercicioModel>> criarExercicio(int treinoId, ExercicioModel exercicio) async {
     try {
       final uri = Uri.parse(await ApiConstants.getExerciciosUrl(treinoId));
@@ -370,12 +422,15 @@ class TreinoService {
         if (apiResponse.success) {
           final exercicioCriado = ExercicioModel.fromJson(apiResponse.data);
           
+          // PROCESSAR ASSETS DO EXERCÍCIO CRIADO
+          final exercicioProcessado = await _processExerciseImages(exercicioCriado);
+          
           // INVALIDAR CACHE APÓS CRIAR EXERCÍCIO
           _invalidateCache();
           
           return ApiResponse<ExercicioModel>(
             success: true,
-            data: exercicioCriado,
+            data: exercicioProcessado,
             message: apiResponse.message ?? 'Exercício criado',
           );
         }
@@ -404,7 +459,7 @@ class TreinoService {
     }
   }
 
-  /// LISTAR EXERCÍCIOS DE UM TREINO
+  /// LISTAR EXERCÍCIOS DE UM TREINO (COM PROCESSAMENTO DE ASSETS)
   static Future<ApiResponse<List<ExercicioModel>>> listarExercicios(int treinoId) async {
     try {
       final uri = Uri.parse(await ApiConstants.getExerciciosUrl(treinoId));
@@ -421,9 +476,12 @@ class TreinoService {
           final List<dynamic> exerciciosJson = data['exercicios'];
           final exercicios = exerciciosJson.map((json) => ExercicioModel.fromJson(json)).toList();
           
+          // PROCESSAR ASSETS DOS EXERCÍCIOS
+          final exerciciosProcessados = await _processExercisesList(exercicios);
+          
           return ApiResponse<List<ExercicioModel>>(
             success: true,
-            data: exercicios,
+            data: exerciciosProcessados,
             message: apiResponse.message ?? 'Exercícios carregados',
           );
         }
@@ -441,7 +499,7 @@ class TreinoService {
     }
   }
 
-  /// ATUALIZAR EXERCÍCIO
+  /// ATUALIZAR EXERCÍCIO (COM PROCESSAMENTO DE ASSETS)
   static Future<ApiResponse<ExercicioModel>> atualizarExercicio(
     int treinoId, 
     int exercicioId, 
@@ -465,12 +523,15 @@ class TreinoService {
         if (apiResponse.success) {
           final exercicioAtualizado = ExercicioModel.fromJson(apiResponse.data);
           
+          // PROCESSAR ASSETS DO EXERCÍCIO ATUALIZADO
+          final exercicioProcessado = await _processExerciseImages(exercicioAtualizado);
+          
           // INVALIDAR CACHE APÓS ATUALIZAR EXERCÍCIO
           _invalidateCache();
           
           return ApiResponse<ExercicioModel>(
             success: true,
-            data: exercicioAtualizado,
+            data: exercicioProcessado,
             message: apiResponse.message ?? 'Exercício atualizado',
           );
         }
@@ -568,7 +629,7 @@ class TreinoService {
     }
   }
 
-  /// MÉTODO AUXILIAR: CRIAR EXERCÍCIOS DO TREINO
+  /// MÉTODO AUXILIAR: CRIAR EXERCÍCIOS DO TREINO (COM PROCESSAMENTO DE ASSETS)
   static Future<void> _criarExerciciosDoTreino(
     int treinoId,
     List<ExercicioModel> exercicios,
@@ -621,5 +682,17 @@ class TreinoService {
   /// ALIAS PARA COMPATIBILIDADE
   static Future<ApiResponse<TreinoModel>> editarTreino(TreinoModel treino) async {
     return await atualizarTreino(treino);
+  }
+
+  /// DEBUG: TESTAR SISTEMA DE ASSETS
+  static Future<void> debugTestAssetSystem() async {
+    print('=== TESTE DO SISTEMA DE ASSETS ===');
+    
+    // Testar helper
+    ExerciseAssetsHelper.debugPrintMappings();
+    await ExerciseAssetsHelper.debugTestAsset('flexão');
+    await ExerciseAssetsHelper.debugTestAsset('supino reto');
+    
+    print('=== FIM TESTE ===');
   }
 }
